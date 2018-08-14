@@ -6,12 +6,14 @@
         <script>
         $(function(){
             var obj=$('#celebs tbody tr:even');
-            obj.css({'background-color':'#dddddd','color':'red'});
-            
+            obj.addClass('zebra');
+            setTimeout(function () {  obj.removeClass('zebra'); },100);
         });
         
         </script>
-    
+    <link rel="stylesheet" href="zebra.css" type="text/css" />
+
+
     </head>
 <body>
     
