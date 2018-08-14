@@ -1,19 +1,23 @@
 <!DOCTYPE html>
 <html dir="ltr" lang="en-US">
-    <head>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-
-        <script>
+<head>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
+    </script>
+    <script>
         $(function(){
             var obj=$('#celebs tbody tr:even');
             obj.addClass('zebra');
-            setTimeout(obj.removeClass('zebra'),1000);
+            setTimeout( function(){obj.removeClass('zebra')},600) ;
+            setTimeout( function(){obj.addClass('zebra')},1500) ;
+            setTimeout( function(){alert('WARNING')},5500) ;
 
         });
-        
-        </script>
-    <link rel="stylesheet" type="text/css" src="zebra.css"/>
-    </head>
+    </script>
+    <link rel="stylesheet" type="text/css" href="zebra.css"/>
+    <input type="button" id="hideButton" value="hide" />    
+
+
+</head>
 <body>
     
 <table class="data" id="celebs">
