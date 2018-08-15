@@ -4,57 +4,16 @@
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
     </script>
     <script>
-<<<<<<< HEAD
-
-        document.write('<p id="disclaimer"> Warning!!! Ahtung!!! Ahtung!!!  </p>');
-        //$('<p id="disclaimer"> Warning!!! Ahtung!!! Ahtung!!!  </p>');               
-
-
-        $(function(){
-            $('<input type="button" id="toggleButton" value="toggle" />').insertAfter('#celebs');
-
-=======
         $('<p id="disclaimer">Warning!! Ahtung!!</p>').prependTo('html');
  
         $(function(){
             $('<input type="button" value="toggle" id="toggleButton">').insertAfter('#disclaimer');
             $('<p id="disc">Warning!! Ahtung!!</p>').insertBefore('#toggleButton');
->>>>>>> 3cea60196b102a20c7b6e1773851d55d591b3ecc
             var obj=$('#celebs tbody tr:even');
             obj.addClass('zebra');
             setTimeout( function(){obj.removeClass('zebra')},600) ;
             setTimeout( function(){obj.addClass('zebra')},1500) ;
             setTimeout( function(){alert('WARNING')},5500) ;
-<<<<<<< HEAD
-            var but=$('#toggleButton').click(function()
-            {
-                $('#disclaimer').toggle();
-                if ($('#disclaimer').is(':visible'))
-                {
-                    $(this).val('Hide');
-                }
-                else
-                {
-                    $(this).val('Show');
-                }
-            });
-
-            
-            $('#disclaimer').css("color","green");
-        });
-        $(function()
-        {
-            $('<strong>START!</strong>').prependTo('#disclaimer');
-            $('<strong>END!</strong>').appendTo('#disclaimer');
-        });
-
-
-
-
-    </script>
-    <link rel="stylesheet" type="text/css" href="zebra.css"/>
-    
-=======
             $('#toggleButton').click(function(){
                 $('#disc').fadeOut(2999,function(){});
 
@@ -92,7 +51,6 @@
     <link rel="stylesheet" type="text/css" href="zebra.css"/>
     <link rel="stylesheet" type="text/css" href="zebraHover.css"/>
  
->>>>>>> 3cea60196b102a20c7b6e1773851d55d591b3ecc
 
 
 </head>
