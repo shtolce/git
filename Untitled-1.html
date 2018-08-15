@@ -6,9 +6,12 @@
     <script>
 
         document.write('<p id="disclaimer"> Warning!!! Ahtung!!! Ahtung!!!  </p>');
+        //$('<p id="disclaimer"> Warning!!! Ahtung!!! Ahtung!!!  </p>');               
 
 
         $(function(){
+            $('<input type="button" id="toggleButton" value="toggle" />').insertAfter('#celebs');
+
             var obj=$('#celebs tbody tr:even');
             obj.addClass('zebra');
             setTimeout( function(){obj.removeClass('zebra')},600) ;
@@ -25,18 +28,23 @@
                 {
                     $(this).val('Show');
                 }
-                
-                
-                
             });
-            
-            
+
             
             $('#disclaimer').css("color","green");
         });
+        $(function()
+        {
+            $('<strong>START!</strong>').prependTo('#disclaimer');
+            $('<strong>END!</strong>').appendTo('#disclaimer');
+        });
+
+
+
+
     </script>
     <link rel="stylesheet" type="text/css" href="zebra.css"/>
-    <input type="button" id="toggleButton" value="toggle" />    
+    
 
 
 </head>
