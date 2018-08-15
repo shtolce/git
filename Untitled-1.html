@@ -23,11 +23,33 @@
                 else
                     $('#toggleButton').val('show');
             });
-        $('#celebs tr:contains("Suka1")').remove();
 
-        });
+
+
+        $('#celebs tr:contains("Suka1")').remove();
+        /*
+        $('#celebs tbody tr:even').mouseover(function(obj1){
+            //$('#celebs tbody tr:even').addClass('zebraHover');
+            obj1.addClass('zebraHover');
+            alert(obj1.data);
+        });//m_over
+        */
+         $('#celebs tbody tr:even').mouseover((obj2)=>{$('#'+obj2.currentTarget.id).addClass('zebraHover')})
+          //$('#celebs tbody tr:even').mouseover((obj2)=>{$(this).addClass('zebraHover') })
+
+        
+        $('#celebs tbody tr:even').mouseout(function(){
+            $('#celebs tbody tr:even').removeClass('zebraHover');
+        });//m_out
+
+
+
+
+        });//main ready func
+
     </script>
     <link rel="stylesheet" type="text/css" href="zebra.css"/>
+    <link rel="stylesheet" type="text/css" href="zebraHover.css"/>
  
 
 
@@ -57,7 +79,7 @@
                 <td>Trash1</td>
                 <td>12</td>
             </tr>
-        <tr>
+        <tr id='1'>
                 <td>2</td>
                 <td>Suka2</td>
                 <td>Whore2</td>
