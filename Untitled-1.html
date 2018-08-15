@@ -4,33 +4,41 @@
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
     </script>
     <script>
+        $('<p id="disclaimer">Warning!! Ahtung!!</p>').prependTo('html');
+ 
         $(function(){
+            $('<input type="button" value="toggle" id="toggleButton">').insertAfter('#disclaimer');
+            $('<p id="disc">Warning!! Ahtung!!</p>').insertBefore('#toggleButton');
             var obj=$('#celebs tbody tr:even');
             obj.addClass('zebra');
-<<<<<<< HEAD
-            setTimeout(function () {  obj.removeClass('zebra'); },100);
-        });
-        
-        </script>
-    <link rel="stylesheet" href="zebra.css" type="text/css" />
-
-
-    </head>
-=======
             setTimeout( function(){obj.removeClass('zebra')},600) ;
             setTimeout( function(){obj.addClass('zebra')},1500) ;
             setTimeout( function(){alert('WARNING')},5500) ;
+            $('#toggleButton').click(function(){
+                $('#disc').fadeOut(2999,function(){});
+
+                $('#disclaimer').slideToggle(2903,function(){$('#toggleButton').fadeOut(9333)});
+                if ($('#disclaimer').is(':visible'))
+                    $('#toggleButton').val('hide');
+                else
+                    $('#toggleButton').val('show');
+            });
+        $('#celebs tr:contains("Suka1")').remove();
 
         });
     </script>
     <link rel="stylesheet" type="text/css" href="zebra.css"/>
-    <input type="button" id="hideButton" value="hide" />    
+ 
 
 
 </head>
->>>>>>> 7a881a328d4913ffd7f94093106f3bc5f7068d99
 <body>
+    <p id="no-script">
+        We recommend that you have JavaScript enabled!
+    </p>
+        
     
+
 <table class="data" id="celebs">
     <thead>
         <tr>

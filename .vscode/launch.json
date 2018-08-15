@@ -4,20 +4,12 @@
     // Для получения дополнительной информации посетите: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-<<<<<<< HEAD
 
         {
             "type": "chrome",
             "request": "launch",
             "name": "Запустить Chrome ",
             "url": "d:/git/Untitled-1.html",
-=======
-        {
-            "type": "chrome",
-            "request": "launch",
-            "name": "Запустить Chrome для localhost",
-            "url": "D:/Users/dmkim/Desktop/front-end проекты/HTMLTest/Untitled-1.html",
->>>>>>> 7a881a328d4913ffd7f94093106f3bc5f7068d99
             "webRoot": "${workspaceFolder}"
         }
     ]
