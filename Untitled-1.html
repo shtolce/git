@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html dir="ltr" lang="en-US">
-    <head>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-
-        <script>
+<head>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
+    </script>
+    <script>
         $(function(){
             var obj=$('#celebs tbody tr:even');
             obj.addClass('zebra');
+<<<<<<< HEAD
             setTimeout(function () {  obj.removeClass('zebra'); },100);
         });
         
@@ -15,6 +16,19 @@
 
 
     </head>
+=======
+            setTimeout( function(){obj.removeClass('zebra')},600) ;
+            setTimeout( function(){obj.addClass('zebra')},1500) ;
+            setTimeout( function(){alert('WARNING')},5500) ;
+
+        });
+    </script>
+    <link rel="stylesheet" type="text/css" href="zebra.css"/>
+    <input type="button" id="hideButton" value="hide" />    
+
+
+</head>
+>>>>>>> 7a881a328d4913ffd7f94093106f3bc5f7068d99
 <body>
     
 <table class="data" id="celebs">
@@ -74,15 +88,8 @@
     </tbody>
 </table>        
 
-
-
-
-
- 
-
-
     <footer>
-        &copy;copyright 2018
+        &copy;Shtolce company INC copyright 2018
     </footer>
  
 
