@@ -4,13 +4,18 @@
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
     </script>
     <script>
+
+        document.write('<p id="disclaimer"> Warning!!! Ahtung!!! Ahtung!!!  </p>');
+
+
         $(function(){
             var obj=$('#celebs tbody tr:even');
             obj.addClass('zebra');
             setTimeout( function(){obj.removeClass('zebra')},600) ;
             setTimeout( function(){obj.addClass('zebra')},1500) ;
             setTimeout( function(){alert('WARNING')},5500) ;
-
+            var but=$('#hideButton').click(function(){$('#disclaimer').hide()});
+            $('#disclaimer').css("color","green");
         });
     </script>
     <link rel="stylesheet" type="text/css" href="zebra.css"/>
