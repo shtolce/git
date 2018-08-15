@@ -14,12 +14,29 @@
             setTimeout( function(){obj.removeClass('zebra')},600) ;
             setTimeout( function(){obj.addClass('zebra')},1500) ;
             setTimeout( function(){alert('WARNING')},5500) ;
-            var but=$('#hideButton').click(function(){$('#disclaimer').hide()});
+            var but=$('#toggleButton').click(function()
+            {
+                $('#disclaimer').toggle();
+                if ($('#disclaimer').is(':visible'))
+                {
+                    $(this).val('Hide');
+                }
+                else
+                {
+                    $(this).val('Show');
+                }
+                
+                
+                
+            });
+            
+            
+            
             $('#disclaimer').css("color","green");
         });
     </script>
     <link rel="stylesheet" type="text/css" href="zebra.css"/>
-    <input type="button" id="hideButton" value="hide" />    
+    <input type="button" id="toggleButton" value="toggle" />    
 
 
 </head>
