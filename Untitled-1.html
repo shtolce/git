@@ -4,6 +4,7 @@
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
     </script>
     <script>
+<<<<<<< HEAD
 
         document.write('<p id="disclaimer"> Warning!!! Ahtung!!! Ahtung!!!  </p>');
         //$('<p id="disclaimer"> Warning!!! Ahtung!!! Ahtung!!!  </p>');               
@@ -12,11 +13,19 @@
         $(function(){
             $('<input type="button" id="toggleButton" value="toggle" />').insertAfter('#celebs');
 
+=======
+        $('<p id="disclaimer">Warning!! Ahtung!!</p>').prependTo('html');
+ 
+        $(function(){
+            $('<input type="button" value="toggle" id="toggleButton">').insertAfter('#disclaimer');
+            $('<p id="disc">Warning!! Ahtung!!</p>').insertBefore('#toggleButton');
+>>>>>>> 3cea60196b102a20c7b6e1773851d55d591b3ecc
             var obj=$('#celebs tbody tr:even');
             obj.addClass('zebra');
             setTimeout( function(){obj.removeClass('zebra')},600) ;
             setTimeout( function(){obj.addClass('zebra')},1500) ;
             setTimeout( function(){alert('WARNING')},5500) ;
+<<<<<<< HEAD
             var but=$('#toggleButton').click(function()
             {
                 $('#disclaimer').toggle();
@@ -45,11 +54,55 @@
     </script>
     <link rel="stylesheet" type="text/css" href="zebra.css"/>
     
+=======
+            $('#toggleButton').click(function(){
+                $('#disc').fadeOut(2999,function(){});
+
+                $('#disclaimer').slideToggle(2903,function(){$('#toggleButton').fadeOut(9333)});
+                if ($('#disclaimer').is(':visible'))
+                    $('#toggleButton').val('hide');
+                else
+                    $('#toggleButton').val('show');
+            });
+
+
+
+        $('#celebs tr:contains("Suka1")').remove();
+        /*
+        $('#celebs tbody tr:even').mouseover(function(obj1){
+            //$('#celebs tbody tr:even').addClass('zebraHover');
+            obj1.addClass('zebraHover');
+            alert(obj1.data);
+        });//m_over
+        */
+         $('#celebs tbody tr:even').mouseover((obj2)=>{$('#'+obj2.currentTarget.id).addClass('zebraHover')})
+          //$('#celebs tbody tr:even').mouseover((obj2)=>{$(this).addClass('zebraHover') })
+
+        
+        $('#celebs tbody tr:even').mouseout(function(){
+            $('#celebs tbody tr:even').removeClass('zebraHover');
+        });//m_out
+
+
+
+
+        });//main ready func
+
+    </script>
+    <link rel="stylesheet" type="text/css" href="zebra.css"/>
+    <link rel="stylesheet" type="text/css" href="zebraHover.css"/>
+ 
+>>>>>>> 3cea60196b102a20c7b6e1773851d55d591b3ecc
 
 
 </head>
 <body>
+    <p id="no-script">
+        We recommend that you have JavaScript enabled!
+    </p>
+        
     
+
 <table class="data" id="celebs">
     <thead>
         <tr>
@@ -68,7 +121,7 @@
                 <td>Trash1</td>
                 <td>12</td>
             </tr>
-        <tr>
+        <tr id='1'>
                 <td>2</td>
                 <td>Suka2</td>
                 <td>Whore2</td>
