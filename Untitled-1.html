@@ -3,6 +3,11 @@
 <head>
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
     </script>
+    <script
+    src="http://code.jquery.com/color/jquery.color-2.1.2.js"
+    integrity="sha256-1Cn7TdfHiMcEbTuku97ZRSGt2b3SvZftEIn68UMgHC8="
+    crossorigin="anonymous">
+    </script>
     <script>
         $('<p id="disclaimer">Warning!! Ahtung!!</p>').prependTo('html');
  
@@ -41,10 +46,32 @@
         $('#celebs tbody tr:even').mouseout(function(){
             $('#celebs tbody tr:even').removeClass('zebraHover');
         });//m_out
+        $('.spoiler').hide();
+        $('<span class="revealer">Tell me!</span>').insertBefore('.spoiler');
+        $('.revealer').click(function(){
+            $(this).hide();
+            $(this).next().fadeIn();
+        });
 
+        $('p').hover(
+            function(){
+            $(this).animate({
+            padding:'+=2px',
+            fontSize:'+=2px',
+            opacity:'0.3'
+            },200);},
+            function(){
+            $(this).animate({
+            padding:'-=2px',
+            fontSize:'-=2px',
+            opacity:'1'
+            },'slow');
+        });
 
+        $('#disclaimer').animate({backgroundColor:'red'}, 2000,'swing');
+        $('#disclaimer').animate({fontSize:'33px'}, 500,'swing');
 
-
+        
         });//main ready func
 
     </script>
@@ -58,7 +85,8 @@
     <p id="no-script">
         We recommend that you have JavaScript enabled!
     </p>
-        
+<p>Who lost their recording contract today</p>
+<span class="spoiler">The zaxtines</span>        
     
 
 <table class="data" id="celebs">
