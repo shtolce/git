@@ -3,6 +3,11 @@
 <head>
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
     </script>
+    <script
+    src="http://code.jquery.com/color/jquery.color-2.1.2.js"
+    integrity="sha256-1Cn7TdfHiMcEbTuku97ZRSGt2b3SvZftEIn68UMgHC8="
+    crossorigin="anonymous">
+    </script>
     <script>
         $('<p id="disclaimer">Warning!! Ahtung!!</p>').prependTo('html');
  
@@ -62,7 +67,10 @@
             opacity:'1'
             },'slow');
         });
-        
+
+        $('#disclaimer').animate({backgroundColor:'red'}, 2000,'swing');
+        $('#disclaimer').animate({fontSize:'33px'}, 500,'swing');
+
         
         });//main ready func
 
