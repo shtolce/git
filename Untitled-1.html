@@ -41,7 +41,12 @@
         $('#celebs tbody tr:even').mouseout(function(){
             $('#celebs tbody tr:even').removeClass('zebraHover');
         });//m_out
-
+        $('.spoiler').hide();
+        $('<span class="revealer">Tell me!</span>').insertBefore('.spoiler');
+        $('.revealer').click(function(){
+            $(this).hide();
+            $(this).next().fadeIn();
+        });
 
 
 
@@ -58,7 +63,8 @@
     <p id="no-script">
         We recommend that you have JavaScript enabled!
     </p>
-        
+<p>Who lost their recording contract today</p>
+<span class="spoiler">The zaxtines</span>        
     
 
 <table class="data" id="celebs">
