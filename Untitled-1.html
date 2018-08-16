@@ -48,12 +48,22 @@
             $(this).next().fadeIn();
         });
 
-        $('p').animate({
-            padding:'8px',
-            fontSize:'8px'
-
-        },2000);
-
+        $('p').hover(
+            function(){
+            $(this).animate({
+            padding:'+=2px',
+            fontSize:'+=2px',
+            opacity:'0.3'
+            },200);},
+            function(){
+            $(this).animate({
+            padding:'-=2px',
+            fontSize:'-=2px',
+            opacity:'1'
+            },'slow');
+        });
+        
+        
         });//main ready func
 
     </script>
