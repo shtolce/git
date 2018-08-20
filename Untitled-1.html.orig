@@ -181,6 +181,18 @@ $("#effect").effect("explode",{} ,3000);
 
     });//main ready func
 
+    
+<<<<<<< HEAD
+//UIJQuery
+    $(function(){
+      $('').e
+
+    });
+//----------------------------------------
+=======
+>>>>>>> 0c9dc85a653375546f03cadd8eb7034237c4dbb5
+
+
 
 </script>
     <link rel="stylesheet" type="text/css" href="zebra.css"/>

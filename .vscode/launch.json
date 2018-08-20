@@ -9,7 +9,7 @@
             "type": "chrome",
             "request": "launch",
             "name": "Запустить Chrome ",
-            "url": "D:/git/Untitled-1.html",
+            "url": "D:/git/htmltest/Untitled-1.html",
             "webRoot": "${workspaceFolder}"
         }
     ]
