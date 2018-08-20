@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html dir="ltr" lang="en-US">
 <head>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js">
+  
+ 
+ <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js">
     </script>
     <script
     src="http://code.jquery.com/color/jquery.color-2.1.2.js"
@@ -10,14 +12,20 @@
     </script>
     <script type="text/javascript" src="jquery.easing.1.3.js">
     </script>
+	<link href="jquery-ui-1.12.1/jquery-ui.css" rel="stylesheet"/>
     
-    <script  type="text/javascript"  src="../jquery-ui-1.12.1/external/jquery/jquery.js"></script>
-    <script  type="text/javascript"  src="../jquery-ui-1.12.1/jquery-ui.js"></script>
-    
+    <script  type="text/javascript"  src="jquery-ui-1.12.1/external/jquery/jquery.js"></script>
+    <script  type="text/javascript"  src="jquery-ui-1.12.1/jquery-ui.js"></script>
 
-    
+    <style>
+      .toggler { width: 500px; height: 200px; position: relative; }
+      #button { padding: .5em 1em; text-decoration: none; }
+      #effect { width: 240px; height: 170px; padding: 0.4em; position: relative; }
+      #effect h3 { margin: 0; padding: 0.4em; text-align: center; }
+      .ui-effects-transfer { border: 2px dotted gray; }
+    </style>
+
     <script>
-        
         
         $('<p id="disclaimer">Warning!! Ahtung!!</p>').prependTo('html');
  
@@ -164,18 +172,16 @@
             queue: false
             }).animate({left:$('#navigation li:first a').position().left},'fast');
     });
-*/
+    */
+
+//UIJQuery
+$("#effect").effect("explode",{} ,3000);        
+//----------------------------------------
 
 
     });//main ready func
 
     
-//UIJQuery
-    $(function(){
-      $('').e
-
-    });
-//----------------------------------------
 
 
 
@@ -202,7 +208,16 @@
 </ul>
 <p></p><br><br>
 
-<div>
+<div class="toggler">
+        <div id="effect" class="ui-widget-content ui-corner-all">
+          <h3 class="ui-widget-header ui-corner-all">Effect</h3>
+          <p>
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+          </p>
+        </div>
+</div>
+
+
 <table class="data" id="celebs">
     <thead>
         <tr>
