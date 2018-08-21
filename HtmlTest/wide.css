@@ -1,0 +1,15 @@
+body #container{
+widows: 850px;
+}
+body #container p{
+    widows: 650px;
+}
+body #header{
+background-image:url('bg001.jpg')
+}
+    
+body #celebs table{
+    widows: 650px;
+    margin-left: left 5px;
+    }
+    

@@ -13,7 +13,6 @@
     <script type="text/javascript" src="jquery.easing.1.3.js">
     </script>
 	<link href="jquery-ui-1.12.1/jquery-ui.css" rel="stylesheet"/>
-	<link href="wide.css" rel="stylesheet"/>
     
     <script  type="text/javascript"  src="jquery-ui-1.12.1/external/jquery/jquery.js"></script>
     <script  type="text/javascript"  src="jquery-ui-1.12.1/jquery-ui.js"></script>
@@ -189,25 +188,8 @@ return false;
 
 $('#FindPrint').jScrollPane({verticalGutter:20});
 
-//-wide
 
-stylesheetToggle();
-$(window).resize(stylesheetToggle);
-
-function stylesheetToggle()
-{
-        if ($(body).width()>900)
-    {
-        $('<link rel="stylesheet" href="wide.css" type="text/css" /> ').appendTo('head');
-    }else
-    {
-        $('link[href="wide.css"]').remove();  
-    }
-}
-
-
-//------
-});//main ready func
+    });//main ready func
 
 
 </script>
@@ -222,10 +204,6 @@ function stylesheetToggle()
     </p>
 <p>Who lost their recording contract today</p>
 <span class="spoiler">The zaxtines</span>        
-
-<div id="header"><p>HEADER OF BODY --------------------------------------------------------------------------</p></div>
-<div id="container"><p>container OF BODY</p></div>
-
 
 <ul id="navigation2">
     <li><a href="#">Home2</a></li>
