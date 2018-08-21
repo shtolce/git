@@ -17,8 +17,11 @@
     <script  type="text/javascript"  src="jquery-ui-1.12.1/external/jquery/jquery.js"></script>
     <script  type="text/javascript"  src="jquery-ui-1.12.1/jquery-ui.js"></script>
 
+    <link type="text/css" rel="stylesheet" href="jquery.jscrollpane.css"/>
+    <script type="text/javascript" src="jquery.jscrollpane.js"></script>    
+
     <style>
-      .toggler { width: 500px; height: 200px; position: relative; }
+      .toggler { width: 500px; height: 200px; position: absolute; }
       #button { padding: .5em 1em; text-decoration: none; }
       #effect { width: 240px; height: 170px; padding: 0.4em; position: relative; }
       #effect h3 { margin: 0; padding: 0.4em; text-align: center; }
@@ -175,8 +178,15 @@
     */
 
 //UIJQuery
-$("#effect").effect("explode",{} ,3000);        
+for (var i=0;i<=1000;i++)
+    $("#effect").effect("explode",{pieces: 10 } ,3000).show(100);
 //----------------------------------------
+$('a[href="#"]').click(function(){
+$("html").animate({scrollTop:0},2000);
+return false;
+});
+
+
 
 
     });//main ready func
@@ -185,7 +195,6 @@ $("#effect").effect("explode",{} ,3000);
 </script>
     <link rel="stylesheet" type="text/css" href="zebra.css"/>
     <link rel="stylesheet" type="text/css" href="zebraHover.css"/>
- 
 
 
 </head>
@@ -196,6 +205,17 @@ $("#effect").effect("explode",{} ,3000);
 <p>Who lost their recording contract today</p>
 <span class="spoiler">The zaxtines</span>        
 
+<ul id="navigation2">
+    <li><a href="#">Home2</a></li>
+    <li><a href="#">About Us2</a></li>
+    <li><a href="#">Buy!2</a></li>
+    <li><a href="#">Gift Ideas2</a></li>
+ 
+</ul>
+
+
+
+<div id="nav">
 <ul id="navigation">
     <li><a href="#">Home</a></li>
     <li><a href="#">About Us</a></li>
@@ -203,6 +223,9 @@ $("#effect").effect("explode",{} ,3000);
     <li><a href="#">Gift Ideas</a></li>
  
 </ul>
+</div>
+<p></p><br><br>
+<p></p><br><br>
 <p></p><br><br>
 
 <div class="toggler">
@@ -210,9 +233,50 @@ $("#effect").effect("explode",{} ,3000);
           <h3 class="ui-widget-header ui-corner-all">Effect</h3>
           <p>
             Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
           </p>
         </div>
 </div>
+
+<style  type="text/css">
+    .toggler{
+        overflow:scroll;
+    }    
+    #navigation2{
+        position:relative;
+        background-color: green;
+        opacity:0.5;
+        z-index:133;
+    }
+
+    li a {
+        display: block;
+        width: 60px;
+    }   
+</style>
+
+<script>
+    $('.toggler').scroll(function(){
+//        $('body').prependTo('<span class="scrolled">You scrolled!</span>');
+    });
+
+    $(function(){
+    $(document).scroll(function(){
+            $('#navigation2').css('top',$(document).scrollTop());
+    })
+    });
+</script>
 
 
 <table class="data" id="celebs">
@@ -294,10 +358,18 @@ height="100” alt=”Glendatronix">
 </div>
 
 </section>
+<div id="content" style="height:20000px">
+    <p>Content Content Content Content Content Content Content Content Content </p>
+    <p>Content Content Content Content Content Content Content Content Content </p>
+    <p>Content Content Content Content Content Content Content Content Content </p>
+    <p>Content Content Content Content Content Content Content Content Content </p>
+    <p>Content Content Content Content Content Content Content Content Content </p>
+</div>>
 
-    <footer>
-        &copy;Shtolce company INC copyright 2018
-    </footer>
+
+<footer>
+    &copy;Shtolce company INC copyright 2018
+</footer>
  
 
 </body>
