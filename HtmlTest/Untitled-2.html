@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en-US">
+<head>
+  
+ 
+ <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js">
+    </script>
+    <script
+    src="http://code.jquery.com/color/jquery.color-2.1.2.js"
+    integrity="sha256-1Cn7TdfHiMcEbTuku97ZRSGt2b3SvZftEIn68UMgHC8="
+    crossorigin="anonymous">
+    </script>
+    <script type="text/javascript" src="jquery.easing.1.3.js">
+    </script>
+	<link href="jquery-ui-1.12.1/jquery-ui.css" rel="stylesheet"/>
+	<link href="wide.css" rel="stylesheet"/>
+    
+    <script  type="text/javascript"  src="jquery-ui-1.12.1/external/jquery/jquery.js"></script>
+    <script  type="text/javascript"  src="jquery-ui-1.12.1/jquery-ui.js"></script>
+
+    <link type="text/css" rel="stylesheet" href="jquery.jscrollpane.css"/>
+    <script type="text/javascript" src="jquery.jscrollpane.js"></script>    
+
+    <style>
+      .toggler { width: 500px; height: 200px; position: absolute; }
+      #button { padding: .5em 1em; text-decoration: none; }
+      #effect { width: 240px; height: 170px; padding: 0.4em; position: relative; }
+      #effect h3 { margin: 0; padding: 0.4em; text-align: center; }
+      .ui-effects-transfer { border: 2px dotted gray; }
+    </style>
+
+    <script>
+        
+        $('<p id="disclaimer">Warning!! Ahtung!!</p>').prependTo('html');
+ 
+        $(function(){
+            $('<input type="button" value="toggle" id="toggleButton">').insertAfter('#disclaimer');
+            $('<p id="disc">Warning!! Ahtung!!</p>').insertBefore('#toggleButton');
+            var obj=$('#celebs tbody tr:even');
+            obj.addClass('zebra');
+            setTimeout( function(){obj.removeClass('zebra')},600) ;
+            setTimeout( function(){obj.addClass('zebra')},1500) ;
+            //setTimeout( function(){alert('WARNING')},5500) ;
+            $('#toggleButton').click(function(){
+                $('#disc').fadeOut(2999,function(){});
+                $('#disclaimer').slideToggle(2903,function(){$('#toggleButton').fadeOut(9333)});
+                if ($('#disclaimer').is(':visible'))
+                    $('#toggleButton').val('hide');
+                else
+                    $('#toggleButton').val('show');
+            });
+        $('#celebs tr:contains("Suka1")').remove();
+        /*
+        $('#celebs tbody tr:even').mouseover(function(obj1){
+            //$('#celebs tbody tr:even').addClass('zebraHover');
+            obj1.addClass('zebraHover');
+            alert(obj1.data);
+        });//m_over
+        */
+         $('#celebs tbody tr:even').mouseover((obj2)=>{$('#'+obj2.currentTarget.id).addClass('zebraHover')})
+          //$('#celebs tbody tr:even').mouseover((obj2)=>{$(this).addClass('zebraHover') })
+        
+        $('#celebs tbody tr:even').mouseout(function(){
+            $('#celebs tbody tr:even').removeClass('zebraHover');
+        });//m_out
+        $('.spoiler').hide();
+        $('<span class="revealer">Tell me!</span>').insertBefore('.spoiler');
+        $('.revealer').click(function(){
+            $(this).hide();
+            $(this).next().fadeIn();
+        });
+        $('p').hover(
+            function(){
+            $(this).animate({
+            padding:'+=2px',
+            fontSize:'+=2px',
+            opacity:'0.3'
+            },200);},
+            function(){
+            $(this).animate({
+            padding:'-=2px',
+            fontSize:'-=2px',
+            opacity:'1'
+            },'slow');
+        });
+        $('#disclaimer').animate({backgroundColor:'red'}, 2000,'swing');
+        $('#disclaimer').animate({fontSize:'33px'}, 500,'swing');
+        $('#bio>div').hide();
+        $('#bio h3').click(function(){
+            $(this).next().animate({'height':'toggle'},'slow','easeOutBounce');
+        });
+    
+    $('<div id="navigation_blob"></div>').css(
+    {
+        color:'red',
+        width:0,
+        height:$('#navigation li:first a').height()+10,
+        position: 'absolute'
+    }).appendTo('#navigation');
+    $('#navigation li').css(
+        {
+            'display':'inline',
+            float: 'left',
+            width: 70,
+            height: '20px',
+            padding: '3px',
+            borderRadius: 5,
+            background: 'linear-gradient(top,  rgba(187,187,187,1) 0%,rgba(119,119,119,1) 99%)',
+            boxShadow: 'inset 0 -5px 15px rgba(255,255,255,0.4), inset -2px -1px 40px rgba(0,0,0,0.4), 0 0 1px #000',
+            borderRight:'1px  solid #3687AF',
+            backgroundPosition:'center 30px',
+            background:'url("list-image.png") no-repeat'
+                        
+        });
+        $('#navigation_blob').css(
+        {
+            width: 0,
+            height: $('#navigation li:first a').height()+10,
+            borderRadius: $('#navigation li:first a').height()/2,
+            background: 'linear-gradient(top,  rgba(187,187,187,1) 0%,rgba(119,119,119,1) 99%)',
+            boxShadow: 'inset 0 -5px 15px rgba(255,255,255,0.4), inset -2px -1px 40px rgba(0,0,0,0.4), 0 0 1px #000'
+                        
+        });
+    $('#navigation li').hover(function(){
+        $(this).stop().animate(
+            {
+            height:'60px'
+            },
+            {
+            duration:500,
+            easing: 'easeOutBounce',
+            queue: false
+            });
+        },
+        function()
+        {
+        $(this).stop().animate(
+            {
+            height:'20px'
+            },
+            {
+            duration:500,
+            easing: 'easeOutBounce',
+            queue: false
+            });
+        },
+        
+        //
+        
+        
+        );
+        /*
+        $('#navigation_blob').animate(
+            {
+            width: $(this).width() + 10,
+            left: $(this).position().left,
+            height:'60px'
+            },
+            {
+            duration:500,
+            easing: 'easeOutBounce',
+            queue: false
+            });
+    },
+    function(){
+            $(this).stop();
+            $('#navigation_blob').animate(
+            {
+            width: $(this).width() - 10,
+            left: $(this).position().left,
+            height:'20px'
+            },
+            {
+            duration:500,
+            easing: 'easeOutCirc',
+            queue: false
+            }).animate({left:$('#navigation li:first a').position().left},'fast');
+    });
+    */
+
+//UIJQuery
+for (var i=0;i<=1000;i++)
+    $("#effect").effect("explode",{pieces: 10 } ,3000).show(100);
+//----------------------------------------
+$('a[href="#"]').click(function(){
+$("html").animate({scrollTop:0},2000);
+return false;
+});
+
+$('#FindPrint').jScrollPane({verticalGutter:20});
+
+//-wide
+
+stylesheetToggle();
+$(window).resize(stylesheetToggle);
+
+function stylesheetToggle()
+{
+        if ($(body).width()>900)
+    {
+        $('<link rel="stylesheet" href="wide.css" type="text/css" /> ').appendTo('head');
+    }else
+    {
+        $('link[href="wide.css"]').remove();  
+    }
+}
+
+
+//------
+});//main ready func
+
+
+</script>
+    <link rel="stylesheet" type="text/css" href="zebra.css"/>
+    <link rel="stylesheet" type="text/css" href="zebraHover.css"/>
+
+
+</head>
+<body>
+    <p id="no-script">
+        We recommend that you have JavaScript enabled!
+    </p>
+<p>Who lost their recording contract today</p>
+<span class="spoiler">The zaxtines</span>        
+
+<div id="header"><p>HEADER OF BODY --------------------------------------------------------------------------</p></div>
+<div id="container"><p>container OF BODY</p></div>
+
+
+<ul id="navigation2">
+    <li><a href="#">Home2</a></li>
+    <li><a href="#">About Us2</a></li>
+    <li><a href="#">Buy!2</a></li>
+    <li><a href="#">Gift Ideas2</a></li>
+ 
+</ul>
+
+
+
+<div id="nav">
+<ul id="navigation">
+    <li><a href="#">Home</a></li>
+    <li><a href="#">About Us</a></li>
+    <li><a href="#">Buy!</a></li>
+    <li><a href="#">Gift Ideas</a></li>
+ 
+</ul>
+</div>
+<p></p><br><br>
+<p></p><br><br>
+<p></p><br><br>
+
+<div class="toggler">
+        <div id="effect" class="ui-widget-content ui-corner-all">
+          <h3 class="ui-widget-header ui-corner-all">Effect</h3>
+          <p>
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+            Etiam libero neque, luctus a, eleifend nec, semper at, lorem. Sed pede. Nulla lorem metus, adipiscing ut, luctus sed, hendrerit vitae, mi.
+          </p>
+        </div>
+</div>
+
+<style  type="text/css">
+    .toggler{
+        overflow:scroll;
+    }    
+    #navigation2{
+        position:relative;
+        background-color: green;
+        opacity:0.5;
+        z-index:133;
+    }
+
+    li a {
+        display: block;
+        width: 60px;
+    }   
+</style>
+
+<script>
+    $('.toggler').scroll(function(){
+//        $('body').prependTo('<span class="scrolled">You scrolled!</span>');
+    });
+
+    $(function(){
+    $(document).scroll(function(){
+            $('#navigation2').css('top',$(document).scrollTop());
+    })
+    });
+</script>
+
+
+<table class="data" id="celebs">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Occupation</th>
+            <th>Approx. Location</th>
+            <th>Price</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+                <td>1</td>
+                <td>Suka1</td>
+                <td>Whore1</td>
+                <td>Trash1</td>
+                <td>12</td>
+            </tr>
+        <tr id='1'>
+                <td>2</td>
+                <td>Suka2</td>
+                <td>Whore2</td>
+                <td>Trash2</td>
+                <td>32</td>
+        </tr>
+        <tr>
+                <td>3</td>
+                <td>Suka3</td>
+                <td>Whore3</td>
+                <td>Trash3</td>
+                <td>44</td>
+        </tr>
+        <tr>
+                <td>4</td>
+                <td>Suka4</td>
+                <td>Whore4</td>
+                <td>Trash4</td>
+                <td>77</td>
+        </tr>
+        <tr>
+                <td>5</td>
+                <td>Suka5</td>
+                <td>Whore5</td>
+                <td>Trash5</td>
+                <td>87</td>
+        </tr>
+        <tr>
+                <td>6</td>
+                <td>Suka6</td>
+                <td>Whore6</td>
+                <td>Trash6</td>
+                <td>477</td>
+        </tr>
+            
+    </tbody>
+</table>        
+</div>
+<section id="bio">
+<h2>Who is hot right now</h2>
+<h3>Beau Dancy</h3>
+<div>
+    <img src="img001.jpg" width="100" height="100" alt="Beau Dancy">
+    <p>Content about Beau Dandy</p>
+</div>
+
+<h3>Johnny Stardust</h3>
+<div>
+<img src="img002.jpg" width="100"
+height="100” alt=”Johnny Stardust"/>
+<p>Content about Johnny Stardust</p>
+</div>
+<h3>G1endatroni x</h3>
+<div>
+<img src="img003.jpg" width="100"
+height="100” alt=”Glendatronix">
+<p>Content about G1endatronix</p>
+</div>
+
+</section>
+<div id="content" style="height:145px;overflow:scroll;">
+    <p>Content Content Content Content Content Content Content Content Content </p>
+    <p>Content Content Content Content Content Content Content Content Content </p>
+    <p>Content Content Content Content Content Content Content Content Content </p>
+    <p>Content Content Content Content Content Content Content Content Content </p>
+    <p>Content Content Content Content Content Content Content Content Content </p>
+</div>
+
+
+<div class="jspVerticalBar" id="FindPrint" style="height:150px;overflow:scroll;width:40%;" >
+    <p>FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint </p>
+    <p>FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint </p>
+    <p>FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint </p>
+    <p>FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint </p>
+    <p>FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint </p>
+    <p>FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint </p>
+    <p>FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint </p>
+    <p>FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint </p>
+    <p>FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint </p>
+    <p>FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint </p>
+    <p>FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint FindPrint </p>
+</div>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+
+<footer>
+    &copy;Shtolce company INC copyright 2018
+</footer>
+ 
+
+</body>
+
+   
+</html>
