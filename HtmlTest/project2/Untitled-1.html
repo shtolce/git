@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html dir="ltr" lang="en-US">
 <head>
-  
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js">
     </script>
 	<link href="jquery-ui-1.12.1/jquery-ui.css" rel="stylesheet"/>
@@ -10,31 +9,49 @@
     <script  type="text/javascript"  src="jquery-ui-1.12.1/jquery-ui.js">
     </script>
 
+    <link href="splitter.css" rel="stylesheet"/>
 </head>
 <body>
-<h1> My Project </h1>>
-<div>
+<h1> My Project </h1>
+<div id="splitter">
     <div class="pane" id="tocPane">
         <div class="inner">
-        
+            1111
+            dewdew  gregtrgtrgtrgtrg  trgtrgtrgrtgtrgrtgrtggrtgtrffffffffffffffffffffffff
+            dwewdwedewdewdwedewdwxxxxx
         </div>
     </div>
     <div class="pane" id="contentPane">
         <div class="inner">
-        
+        1111
+        ferfreferrefrefrferfr
+        frervtbytnuymuikuikui
+        jhjuj
         </div>
     </div>
 </div>
-
-
-
 
 
 <footer>
     &copy;Shtolce company INC copyright 2018
 </footer>
  
+<script type="text/javascript">
+$(function(){
+/*
+    $('#splitter>div:first').resizable({
+    handles:'e',
+    minWidth:'100',
+    maxWidth:'400'
+    //resize:function(){}
 
+    });
+*/
+$('#splitter>div:first').resizable();
+
+});//main
+    
+</script>
 </body>
 
    
