@@ -84,6 +84,15 @@ Public Sub FillFoundFilesCollection()
         elseIf (InStr(1,SubFolderName,":",vbTextCompare)>0) then
             driveName = SubFolderName
         End If
+        'Если получили успешно папку, лезем в подпапку
+        For Each elemFileName In Folder
+            MsgBox elemFileName
+        Next
+
+
+
+
+
 
 
     Next
