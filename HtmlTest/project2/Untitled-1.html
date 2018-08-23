@@ -1,14 +1,57 @@
 <!DOCTYPE html>
 <html dir="ltr" lang="en-US">
 <head>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js">
-    </script>
-	<link href="jquery-ui-1.12.1/jquery-ui.css" rel="stylesheet"/>
-    <script  type="text/javascript"  src="jquery-ui-1.12.1/external/jquery/jquery.js">
-    </script>
-    <script  type="text/javascript"  src="jquery-ui-1.12.1/jquery-ui.js">
+    <link    type="text/css" rel="stylesheet" href="jquery.jscrollpane.css"/>
+    <script  type="text/javascript"  src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+    <script  type="text/javascript"  src="jquery.jscrollpane.js"></script>    
+    <script  type="text/javascript"  src="jquery.easing.1.3.js"> </script>
+
+    <script
+    src="http://code.jquery.com/color/jquery.color-2.1.2.js"
+    integrity="sha256-1Cn7TdfHiMcEbTuku97ZRSGt2b3SvZftEIn68UMgHC8="
+    crossorigin="anonymous">
     </script>
 
+
+<link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css" rel="stylesheet" type="text/css"/>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.5/jquery.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+
+    <script  type="text/javascript">
+    $(function(){
+                $('#splitter>div:first').resizable({
+                handles:'e',
+                minWidth:'100',
+                maxWidth:'400',
+                resize:function(){
+                    var remainingSpace = $(this).parent().width() - $(this).outerWidth();
+                    var divTwo = $(this).next();
+                    var divTwoWidth = remainingSpace - (divTwo.outerWidth()-divTwo.width());
+                    divTwo.css('width',divTwoWidth+'px');
+                }
+                });
+    $('a.lightbox').click(function(e){
+        //consealing scroll bars while oversizing
+        $('body').css('overflow-y','hidden');
+
+
+
+    });
+
+
+
+
+
+
+
+
+
+
+
+    });//main
+            
+    </script>
+    
     <link href="splitter.css" rel="stylesheet"/>
 </head>
 <body>
@@ -16,42 +59,30 @@
 <div id="splitter">
     <div class="pane" id="tocPane">
         <div class="inner">
-            1111
-            dewdew  gregtrgtrgtrgtrg  trgtrgtrgrtgtrgrtgrtggrtgtrffffffffffffffffffffffff
-            dwewdwedewdewdwedewdwxxxxx
+            <p>dewdew  gregtrgtrgtrgtrg  trgtrgtrgrtgtrgrtgrtggrtgtrffffffffffffffffffffffff</p>
+            <p>dewdew  gregtrgtrgtrgtrg  trgtrgtrgrtgtrgrtgrtggrtgtrffffffffffffffffffffffff</p>
+            <p>dewdew  gregtrgtrgtrgtrg  trgtrgtrgrtgtrgrtgrtggrtgtrffffffffffffffffffffffff</p>
+            <p>dewdew  gregtrgtrgtrgtrg  trgtrgtrgrtgtrgrtgrtggrtgtrffffffffffffffffffffffff</p>
         </div>
     </div>
     <div class="pane" id="contentPane">
         <div class="inner">
-        1111
-        ferfreferrefrefrferfr
-        frervtbytnuymuikuikui
-        jhjuj
+            <p>loiiiii  gregtrferfrg  zzzzzzzzzzzzzzzrgrtgtrgrtgrtggrtgtrfffffffff999999fffff</p>
+            <p>aserred  gregtrgtrgferfretrg  nhnhrgtrgtrgrtgtrgrtgrtggrtgtrffff76767677ffffff</p>
+            <p>Ydewdew  gregtrgtrukiuuikrg  awagtrgrtgtrgrtgrtggrtgtrffffffffffffffffffffffff</p>
+            <p>Yzaerrw  gregtjkjkjkjkg  opopopoportggrtgtrffffffffaaaqqqqqqqqqqaqaaqaqaqfffff</p>
         </div>
     </div>
 </div>
 
 
+<a href="123.png" class="lightbox">pic</a>
+
+<p>Second Paragraph</p>
 <footer>
     &copy;Shtolce company INC copyright 2018
 </footer>
  
-<script type="text/javascript">
-$(function(){
-/*
-    $('#splitter>div:first').resizable({
-    handles:'e',
-    minWidth:'100',
-    maxWidth:'400'
-    //resize:function(){}
-
-    });
-*/
-$('#splitter>div:first').resizable();
-
-});//main
-    
-</script>
 </body>
 
    

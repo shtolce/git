@@ -8,7 +8,7 @@
             "type": "chrome",
             "request": "launch",
             "name": "Запустить Chrome для localhost",
-            "url": "D:/git/HtmlTest/project2/Untitled-1.html",
+            "url": "D:/Git/HTMLTest/HtmlTest/project2/Untitled-1.html",
             "webRoot": "${workspaceFolder}"
         }
     ]
