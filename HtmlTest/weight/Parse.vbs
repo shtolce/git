@@ -17,7 +17,6 @@ Class ffile
         set Init=Me
     End Function
 
-
 End Class
 '----------------------------------------------
 Class parsing
