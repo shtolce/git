@@ -1,5 +1,6 @@
 
 dim testObj
+dim rootFolderName
 '-----------------------------------------------
 Class ffile
     public sPath
@@ -58,7 +59,38 @@ Class parsing
     End Function
 
 End Class
+'---------------------------------------------------------------------
+Set foundObjects = CreateObject("Scripting.Dictionary")
+Set foundFiles = CreateObject("Scripting.Dictionary")
+Set FSO = CreateObject("Scripting.FileSystemObject")
 
+'Выносим отдельные процедуры  без классов
+'заполняем коллекцию всеми найдеными файлами
+Public Sub FillFoundFilesCollection()
+    Dim subFoldersArr,subFoldersName,driveName
+    driveName="C:"
+    rootFolderName="D:\Scale\ARCSIS\"
+    subFoldersArr = Split(rootFolderName, "\")
+    
+    For Each SubFolderName In subFoldersArr
+        If (InStr(1,SubFolderName,":",vbTextCompare)<=0)  and (trim(SubFolderName)<>"") then
+            if FSO.FolderExists(driveName&"\"&SubFolderName) then
+                Set Folder = FSO.GetFolder(driveName&"\"&SubFolderName)
+            else
+                Set Folder = FSO.CreateFolder(driveName&"\"&SubFolderName)
+            end if
+            driveName = driveName&"\"&SubFolderName
+
+        elseIf (InStr(1,SubFolderName,":",vbTextCompare)>0) then
+            driveName = SubFolderName
+        End If
+
+
+    Next
+
+End Sub
+
+'-----------------------------------------------------------------------
 
 'в папке номер пути
 'состав дата время
@@ -68,21 +100,21 @@ End Class
 'Set testObj=(new parsing).Init2("22",Date,Time,12)
 
 'В этой коллекции будем записывать найденые parsing объекты, которые необходимо считать с базы
-Set foundObjects = CreateObject("Scripting.Dictionary")
+
+
 foundObjects.Add "000941_20180113_082646.txt", (new parsing)("000941_20180113_082646.txt",1)
 foundObjects.Add "000941_20180113_182646.txt", (new parsing)("000941_20180113_182646.txt",3)
 Dim ob
 For Each ob In foundObjects.Items
-    MsgBox ob.sFullName&"->"&ob.WayNumber
+'    MsgBox ob.sFullName&"->"&ob.WayNumber
 Next
 
-
+FillFoundFilesCollection
 ''В этой коллекции будем записывать найденые files объекты, которые имеются в целевой папке
-Set foundFiles = CreateObject("Scripting.Dictionary")
 foundFiles.Add "000941_20180113_082646.txt", (new ffile)("000941_20180113_082646.txt",1)
 foundFiles.Add "000941_20180113_182646.txt", (new ffile)("000941_20180113_182646.txt",3)
 For Each ob In foundFiles.Items
-    MsgBox ob.sName&"->"&ob.WayNumber
+'    MsgBox ob.sName&"->"&ob.WayNumber
 Next
 
 'забираем коллекцию файлов
