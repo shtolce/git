@@ -17,9 +17,7 @@ Class Logger
             elseIf (InStr(1,SubFolderName,":",vbTextCompare)>0) then
                 driveName = SubFolderName
             End If
-            'Р•СЃР»Рё РїРѕР»СѓС‡РёР»Рё СѓСЃРїРµС€РЅРѕ РїР°РїРєСѓ, Р»РµР·РµРј РІ РїРѕРґРїР°РїРєСѓ
         Next
-          'РЎРѕР·РґР°Р»Рё РїР°РїРєРё, С‚РµРїРµСЂСЊ РІ РЅРёС… С„Р°Р№Р» Р»РѕРіР°
           Set fileDescr = pFSO.CreateTextFile(path&Date&"_"&replace(Time,":","")&"_arcsis.log")
     End Sub
 
@@ -231,10 +229,12 @@ Public Sub SqlRequest()
         Dim tempObj:set tempObj=(new parsing).Init2( s_number,dstextdate,dstexttime,ws_name)   
         if foundObjects.Exists(tempObj.sFullName)=false then
             if foundFiles.Exists(tempObj.sFullName)=false then
-                
                 foundObjects.Add  tempObj.sFullName, tempObj
             end if
             'здесь сделать лог что была ошибка совпадения существующей записи
+        else
+            'исключительная ситуация совпадений записей
+            'msgbox tempObj.sFullName
         end if
         
         Record_1.MoveNext
@@ -248,8 +248,6 @@ End Sub
 'Выборка с базы данных
 Sub fileCreation(byRef ob)
     Dim strSQLQuery_ 
-
- 
 
 strSQLQuery_ = "SELECT t.id, t.number, t.timestamp, t.comment, t.status, r.name, ws.Name, w.mpSid, w.GrossWeight, w.AxlesCount, sw.speed "& _
 " FROM Routes r INNER JOIN "& _
