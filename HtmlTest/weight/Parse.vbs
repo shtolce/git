@@ -349,7 +349,7 @@ strSQLQuery_ = "SELECT t.id, t.number, t.timestamp, t.comment, t.status, r.name,
 
 'insert into gal.spActScale
 '(FNPP,FCACTS,FCTABNC,FVAGONTYPE,FAXIS,FSPEED,FDMASSA,FWSTATUS)
-
+'select count(*) where FCACTS=
 
 
                 '-----------------------------------------
