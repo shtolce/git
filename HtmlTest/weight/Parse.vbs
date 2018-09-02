@@ -247,9 +247,9 @@ End Sub
 '-----------------------------------------------------------------------
 'Выборка с базы данных
 Sub fileCreation(byRef ob)
-    Dim strSQLQuery_ 
+    Dim strSQLQuery_ ,Record_1
 
-strSQLQuery_ = "SELECT t.id, t.number, t.timestamp, t.comment, t.status, r.name, ws.Name, w.mpSid, w.GrossWeight, w.AxlesCount, sw.speed "& _
+strSQLQuery_ = "SELECT t.id, t.number, t.timestamp, t.comment, t.status, r.name, ws.Name, w.mpSid, w.GrossWeight, w.AxlesCount, sw.speed,r.number,w.comment "& _
 " FROM Routes r INNER JOIN "& _
 " SourceTrains s ON r.Id = s.RouteId INNER JOIN "& _
 " SourceWagons sw ON s.Id = sw.TrainId INNER JOIN "& _
@@ -272,11 +272,19 @@ strSQLQuery_ = "SELECT t.id, t.number, t.timestamp, t.comment, t.status, r.name,
     
     Set Text = FSO_.CreateTextFile(rootFolderName&replace(replace(ob.WayNumber,"<",""),">","")&"\"&ob.sFullName)
     
-    Dim Record_1,RecSet(10),RecSummaryInfo
+    Dim RecSet(10),RecSummaryInfo
     dim firstLine:firstLine="true"
     dim nline:nline=1
+    ADODBConnectionOra.BeginTrans
+
+        'создаем акт, сносим спецификации если были по данному файлстампу,если акта не было, но нашлись спецификации по такому же файлстампу , то удаляем спецификации
+        '!!!!!!!! чтобы переобновить их !!!!!!! опасно, с другой стороны актов же не было.
+    Dim strSQLQuery0:strSQLQuery0 =  "delete from gal.spActscale where  fcActs=(select max(fnrec) from gal.Actscale acs where acs.FFILENAME='"&ob.sFullName&"')"
+    SET result=ADODBConnectionOra.execute(strSQLQuery0)
+
+
     While Not Record_1.EOF
-    dim ws_id,ws_number,ws_timestamp,ws_comment,ws_status,r_name, ws_Name, w_mpSid, w_GrossWeight, w_AxlesCount, sw_speed 
+    dim ws_id,ws_number,ws_timestamp,ws_comment,ws_status,r_name, ws_Name, w_mpSid, w_GrossWeight, w_AxlesCount, sw_speed,r_number,w_comment 
 
         if isNull(Record_1.Fields(0).Value)  then
             RecSet="NULL"
@@ -292,7 +300,13 @@ strSQLQuery_ = "SELECT t.id, t.number, t.timestamp, t.comment, t.status, r.name,
                 bufStrRs1=Mid(bufStrRs1,InStr(1,bufStrRs1,"|")+1)
             ws_number=Left(bufStrRs1, InStr(1,bufStrRs1,"|",vbTextCompare)-1)        
                 bufStrRs1=Mid(bufStrRs1,InStr(1,bufStrRs1,"|")+1)
-            ws_timestamp=Left(bufStrRs1, InStr(1,bufStrRs1,"|",vbTextCompare)-1)        
+            ws_timestamp=Left(bufStrRs1, InStr(1,bufStrRs1,"|",vbTextCompare)-1) 
+            '---------it fixs timestamp's the hour-section------------
+            if Len(Mid(ws_timestamp,InStr(1,ws_timestamp," ")+1))<8 then
+                ws_timestamp=replace (ws_timestamp,Mid(ws_timestamp,InStr(1,ws_timestamp," ")+1), "0" & Mid(ws_timestamp,InStr(1,ws_timestamp," ")+1) )
+            end if
+
+            '--------------------------------------------------
                 bufStrRs1=Mid(bufStrRs1,InStr(1,bufStrRs1,"|")+1)
             ws_comment=Left(bufStrRs1, InStr(1,bufStrRs1,"|",vbTextCompare)-1)        
                 bufStrRs1=Mid(bufStrRs1,InStr(1,bufStrRs1,"|")+1)
@@ -309,6 +323,11 @@ strSQLQuery_ = "SELECT t.id, t.number, t.timestamp, t.comment, t.status, r.name,
             w_AxlesCount=Left(bufStrRs1, InStr(1,bufStrRs1,"|",vbTextCompare)-1)        
                 bufStrRs1=Mid(bufStrRs1,InStr(1,bufStrRs1,"|")+1)
             sw_speed=Left(bufStrRs1, InStr(1,bufStrRs1,"|",vbTextCompare)-1)        
+                bufStrRs1=Mid(bufStrRs1,InStr(1,bufStrRs1,"|")+1)
+            r_number=Left(bufStrRs1, InStr(1,bufStrRs1,"|",vbTextCompare)-1)        
+                bufStrRs1=Mid(bufStrRs1,InStr(1,bufStrRs1,"|")+1)
+            w_comment=Left(bufStrRs1, InStr(1,bufStrRs1,"|",vbTextCompare)-1)        
+
             if (trim(w_mpSid)="$LOCO$") then
                 ntype = "Локомотив"
             else
@@ -332,13 +351,27 @@ strSQLQuery_ = "SELECT t.id, t.number, t.timestamp, t.comment, t.status, r.name,
                 
                 nline=nline+1
 
+                '-----------------------------------------
+                'внутри комита целым пакетом код вставки всего акта со спецификацией
+                ' тут берем лишь по одной записи , в этой функции у нас выборка по конкретному трейну
+                SqlInsert ws_number, ws_timestamp, ws_comment, r_number, ws_status, r_name, ws_Name, w_mpSid, w_GrossWeight, w_AxlesCount, sw_speed,ob.sFullName,w_comment 
+                'с первой и дальше бьем спецификации
+                '-----------------------------------------
+
+
         end if
-
-
         '---------------------------------------------------------------------
+
     Record_1.MoveNext
 
     Wend
+            if ADODBConnectionOra.errors.count>0 then
+                ADODBConnectionOra.RollbackTrans 
+            else
+                'ADODBConnectionOra.RollbackTrans 
+                ADODBConnectionOra.CommitTrans
+            end if
+
         Text.writeline  string(140,"-")
         Text.writeline  "Суммарный вес состава:" &Totalweight
 
@@ -348,12 +381,84 @@ strSQLQuery_ = "SELECT t.id, t.number, t.timestamp, t.comment, t.status, r.name,
 
 
 End Sub
-Sub SqlInsert( byRef ob)
-    Dim strSQLQuery1: strSQLQuery1 = "select fnrec from gal.katmc"
-    Dim result:SET result=ADODBConnectionOra.execute(strSQLQuery1)
-    'MsgBox result("fnrec")
 
-    'Set ADODBConnectionOra = Nothing
+Sub SqlInsert(byval ws_number,byval ws_timestamp,byval ws_comment,byval r_number,byval ws_status,byval r_name,byval ws_Name,byval w_mpSid,byval w_GrossWeight,byval w_AxlesCount,byval sw_speed,sFullName,w_comment )
+
+
+    'запрос проверки на существование акта
+    Dim strSQLQuery2: strSQLQuery2 = "select count(*) from gal.Actscale where FFILENAME='"&sFullName&"'"
+    
+    Dim result2:SET result2=ADODBConnectionOra.execute(strSQLQuery2)
+    Dim NumRecOfActs:NumRecOfActs=0
+    While Not result2.EOF
+        NumRecOfActs=result2.Fields(0).Value
+        result2.MoveNext
+    Wend
+
+
+
+
+    Dim strSQLQuery1: strSQLQuery1 = "insert into gal.Actscale"&_
+                                        "(FNOACT,FNOACT$UP,FFILENAME,FTRAINNUMBER,FDTIMP,FDATEREG,FTIMEREG,FWSTATUS,FDIRECTION,FPRIM)"&_
+                                        "select max(gs2.FNOACT)+1,max(gs2.FNOACT)+1,'" & sFullName & "'," & ws_number & ",gal.To_ATLDATETIME('" & ws_timestamp & "'),gal.TO_ATLDATE('" & FormatDateTime(DateValue(ws_timestamp)) &"'),"&_
+                                        "gal.TO_ATLTIME('" & replace(ws_timestamp,":","") & "')," & ws_status & "," & r_number& ",'" &  ws_comment&"' "&_
+                                        "from  gal.Actscale gs2"
+
+    Dim result
+    'проверка на существование акта
+    if CInt(NumRecOfActs)<=0 then
+        SET result=ADODBConnectionOra.execute(strSQLQuery1)
+
+    end if
+
+    'запрос проверки на существование спецификации по акту
+    strSQLQuery2 = "select count(*) from gal.Actscale ac join gal.spActscale spac on ac.fnrec=spac.fcActs "&_
+    "where ac.FFILENAME='"& sFullName &"'"
+    SET result2=ADODBConnectionOra.execute(strSQLQuery2)
+    Dim NumRecOfSpActs:NumRecOfSpActs=0
+    While Not result2.EOF
+        NumRecOfSpActs=result2.Fields(0).Value
+        result2.MoveNext
+    Wend
+    strSQLQuery2 ="select max(fnrec) from gal.tabnc where fnc='"&w_mpSid&"'"
+    SET result2=ADODBConnectionOra.execute(strSQLQuery2)
+    Dim NRec:NRec=""
+    While Not result2.EOF
+        NRec=result2.Fields(0).Value
+        
+        result2.MoveNext
+    Wend
+
+    if IsNull(NRec) then
+        NRec="0"
+        s.writeLine "!ошибка поиска вагона по номеру:"&w_mpSid
+    end if
+
+    
+    strSQLQuery1 =  "insert into gal.spActScale"&_
+    "(FNPP,FCACTS,FCTABNC,FVAGONTYPE,FAXIS,FSPEED,FDMASSA,FWSTATUS,FPRIM)"&_
+    "select (select count(*)+1 from gal.spactscale where FCACTS ="&_
+    "(select max(fnrec) from gal.Actscale acs where acs.FFILENAME='"&sFullName&"') ),"&_
+    " (select max(fnrec) from gal.Actscale acs2 where acs2.FFILENAME='"&sFullName&"'),'"&_
+    Left(trim(NRec),16) &"',"&_
+    "CASE '"&trim(w_mpSid)&"'"&_
+    "    WHEN '$LOCO$' THEN  2 "&_
+    "    ELSE 1 "&_
+    "END,"&_
+    w_AxlesCount&",'"&_
+    sw_speed&"',"&_
+    w_GrossWeight&","&_
+    ws_status&", '"&_
+    replace(w_comment,"'","") &"' "&_
+    "from DUAL"
+    'проверка на существующие спецификации по акту
+    'if CInt(NumRecOfSpActs)<=0 then
+        SET result=ADODBConnectionOra.execute(strSQLQuery1)
+    'end if
+
+
+
+
 End Sub
 
 '-----------------------------------------------------------------------
@@ -377,7 +482,6 @@ FillFoundFilesCollection
 SqlRequest()
 For Each ob In foundObjects.Items
     fileCreation ob
-    SqlInsert ob 
     s.writeLine "Обработан объект:"&ob.sFullName
     'MsgBox ob.sFullName&"->"&ob.WayNumber
 Next
@@ -390,7 +494,7 @@ s.writeLine "Закончено выполнение скрипта:"&date&time
 
 s.close
 
-
+set ADODBConnectionOra=Nothing
 
 'забираем коллекцию файлов
 'перебираем таблицу с бд
