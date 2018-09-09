@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en-US">
+<head>
+    <script  type="text/javascript"  src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+    <script  type="text/javascript"  src="jquery.innerfade-Master/jquery.innerfade.js" charset="utf-8"></script>
+    
+    <script  type="text/javascript">
+        $(function(){
+                 //$('#photos img').each(function(i){});
+
+                 $('#news ul').innerFade({
+                     animationtype:'slide',
+                     speed:750,
+                     timeout:3000,
+                     type:'random'
+                 });
+
+        });//main
+            
+    </script>
+    
+</head>
+<body>
+
+<style>
+        #photos img{
+            position:absolute;
+            width:180px;
+            height:180px;
+        }
+        #photos{
+            overflow: hidden;
+        }
+</style>
+
+
+<div id="news">
+<h2>News</h2>
+<ul>
+    <li><a href="#">Barron Von Jovi spotted ... </a></li>
+    <li><a href="#">Mo,Fat signs up-and-coming rapper ... </a></li>
+    <li><a href="#">Glendatronix rumored to be ... </a></li>
+    <li><a href="#">Man claims to be Darth Fader's son ... </a></li>
+</ul>
+</div>
+
+
+
+<div id="photos">
+    <img alt="1" src="1.jpg"/>
+    <img alt="2"  src="2.jpg"/>
+    <img alt="3"  src="3.jpg"/>
+    <img alt="4"  src="4.jpg"/>
+</div>
+
+
+ 
+</body>
+
+   
+</html>

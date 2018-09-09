@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en-US">
+<head>
+    <script  type="text/javascript"  src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+    <script  type="text/javascript">
+        $(function(){
+            
+            $('#menu>li>ul').hide().click(function(event){
+                event.stopPropagation();
+            });
+
+
+            $('#menu>li').click(function(){
+               $(this).eq(0).find('ul').toggle(function(){
+                    $(this).find('ul').slideDown();
+                },
+                 function(){
+                    $(this).find('ul').slideUp();
+                });
+            });
+ 
+
+        });//main
+            
+    </script>
+
+<link type="text/css" href="menus.css" rel="stylesheet"/>
+
+</head>
+
+<body>
+
+
+    <nav role="navigation">
+    <ul id="menu">
+        <li><a href="#">What is new?</a>
+            <ul class="active">
+                <li><a href="#">Weekly specials</a></li>
+                <li><a href="#">Last night's pics</a></li>
+                <li><a href="#">User's comments</a></li>
+            </ul>
+        </li>
+        <li><a href="#">Member extras</a>
+            <ul>
+                <li><a href="#">Premium celebrities</a></li>
+                <li><a href="#">24-hour Surveilance</a></li>
+            </ul>
+        </li>
+
+    </ul>
+        
+    </nav>
+
+
+
+
+</body>
+
+   
+</html>
