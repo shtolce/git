@@ -1,0 +1,535 @@
+#declare FCI_CheckS(Fld)
+   if (#Fld = '')
+     if ( iFCI.isNeedField(Katos.cSposob, '#Fld') )
+     {
+       _msg := 'Не заполнено поле "' + iFCI.GetFieldName('#Fld') + '"';
+       Result := false;
+       break;
+     }
+#end
+#declare FCI_CheckD(Fld)
+   if (#Fld = ZeroDate)
+     if ( iFCI.isNeedField(Katos.cSposob, '#Fld') )
+       {
+         _msg := 'Не заполнено поле "' + iFCI.GetFieldName('#Fld') + '"';
+         Result := false;
+         break;
+       }
+#end
+#declare FCI_CheckDo(Fld)
+   if (#Fld = 0)
+     if ( iFCI.isNeedField(Katos.cSposob, '#Fld') )
+       {
+         _msg := 'Не заполнено поле "' + iFCI.GetFieldName('#Fld') + '"';
+         Result := false;
+         break;
+       }
+#end
+#declare FCI_CheckS_IF(Fld,Option)
+   if (#Option)
+     if ( iFCI.isNeedField(Katos.cSposob, '#Fld') )
+       {
+         _msg := 'Не заполнено поле "' + iFCI.GetFieldName('#Fld') + '"';
+         Result := false;
+         case Upcase('#Fld') of                                       // В cmPick перед этими полями стоит UpdateTable? что приводит к генерации cmChecRecord
+           'SPOSOB.NAMESB', 'OSALG.NAME', 'HOZOPER.NAME1' :   // Поэтому давим сообщение
+             Result := true;
+         end; // case
+         break;
+       }
+#end
+
+function CheckUserEmptyFIeld(var _msg : string) : boolean;
+{
+  Result := true;
+  _msg := '';
+
+  if (not isSetUserRghFields)
+    Exit;
+
+  do
+  {
+     #FCI_CheckS(KATOS.DESGR)
+     #FCI_CheckS(KATOS.DESCR)
+     #FCI_CheckS(KATOS.INNUM)
+     #FCI_CheckDo(Katos.Kol)
+     #FCI_CheckS_IF(KatEd.ABBR,Not IsValid(#KatEd))
+     #FCI_CheckD(KatOs.OtchPer)
+     #FCI_CheckS(Katos.ZavNom)
+     #FCI_CheckS(Katos.PsNum)
+     #FCI_CheckS(Katos.NameOs)
+
+     #FCI_CheckS_IF(GrOs.NameGr,Not IsValid(#GrOs))
+     #FCI_CheckS_IF(VidNormaS.KOD,Not IsValid(#VidNormaS))
+     //FCI_CheckS_IF(VidNormaS.NAME,Not IsValid(#VidNormaS)))
+     #FCI_CheckS_IF(VidNorma.KOD,Not IsValid(#VidNorma))
+     //FCI_CheckS_IF(VidNormaNorma)
+     #FCI_CheckS_IF(KodOf.Kod_of,Not IsValid(#KodOf))
+     //FCI_CheckS_IF(KodOf.Name_of)
+     #FCI_CheckS_IF(KlassOs.Kod,Not IsValid(#KlassOs))
+     //FCI_CheckS_IF(KlassOs.Name)
+     #FCI_CheckS_IF(IspOs.NameIs,Not IsValid(#IspOs))
+     #FCI_CheckS_IF(PrSb.Name,Not IsValid(#PrSb))
+     #FCI_CheckS_IF(Sposob.NameSb,Not IsValid(#Sposob))
+     #FCI_CheckS_IF(fKatPodrName, Not IsValid(#KatPodr))
+     #FCI_CheckS_IF(fKatMolName,  Not IsValid(#KatMol))
+
+     #FCI_CheckD(Katos.GodV)
+     #FCI_CheckD(Katos.DatEk)
+     #FCI_CheckD(Katos.DatOk)
+     #FCI_CheckD(Katos.DatV)
+
+     #FCI_CheckDo(SpKatOs.Stoim)
+     #FCI_CheckDo(SpKatOs.SumIzn)
+     #FCI_CheckDo(SpKatOs.SIznM)
+
+     #FCI_CheckDo(SpKatos.SrokIsp)
+     #FCI_CheckDo(SpKatos.IspPs)
+     #FCI_CheckDo(SpKatos.IspCur)
+     #FCI_CheckDo(OstSrokPolIsp)
+
+     #FCI_CheckS_IF(OsAlg.Name,Not IsValid(#OsAlg))
+     #FCI_CheckS_IF(HozOper.Name1,Not IsValid(#HozOper))
+     #FCI_CheckS(CoName)
+#ifdef __TPR2__
+     #FCI_CheckS_IF(CoFilial.Name,Not IsValid(#CoFilial))
+#end
+     #FCI_CheckS(KauReffArray)
+     #FCI_CheckS(Katos.NameIzg)
+     #FCI_CheckS(Katos.TipMark)
+
+#ifdef __TPR2__
+     #FCI_CheckS_IF(KatNotes.Name,Not IsValid(#KatNotes))
+#end
+     //FCI_CheckS_IF(KatosLink.NameOs)
+     #FCI_CheckS(Katos.BarKod)
+     #FCI_CheckS(Katos.Kod)
+     #FCI_CheckS(KatOs.DopInNum)
+     #FCI_CheckD(Katos.DatGar)
+     #FCI_CheckS(Katos.RegNum)
+     #FCI_CheckS_IF(Transp.GarNom,Not IsValid(#Transp))
+     #FCI_CheckS(FullAdresOS)
+     #FCI_CheckDo(SpKatOS.StoimPs)
+     #FCI_CheckDo(SpKatOs.IznosPs)
+     #FCI_CheckDo(SpKatOs.PerStoim)
+     #FCI_CheckDo(SpKatOs.PerSumIzn)
+     #FCI_CheckDo(SpKatOs.StoimL)
+     #FCI_CheckDo(KatOs.FullProd)
+     #FCI_CheckDo(SpKatOs.Poprkoef)
+     #FCI_CheckD(Katos.dtReserv1)
+#ifdef __TPR2__
+     #FCI_CheckD(Katos.dtLikvid)
+     #FCI_CheckDo(SPKATOS.PERRESERV)
+     #FCI_CheckDo(SPKATOS.PERUBIT)
+#end
+     #FCI_CheckS(KatStroyName)
+     #FCI_CheckS(Nakl_SkladOS)
+     #FCI_CheckS(NaklParam)
+     #FCI_CheckDo(SPKATOS.DBRESERV)
+     #FCI_CheckDo(SPKATOS.RESDOUBLE)
+
+  }while(false)
+}
+
+#declare FCI_Hide(Fld)
+     iFldRgh :=  iFCI.GetRghMask(Katos.cSposob, '#Fld');
+
+     // SetFieldAndLabelVisible(FieldNum(#Fld), (iFldRgh and cgHideFld ) <> cgHideFld );
+     if ((iFldRgh and cgHideFld ) = cgHideFld )
+     {
+       SetFieldAndLabelVisible(FieldNum(#Fld), false);
+       // HideLabel4Field(FieldNum(#Fld));
+       // ClearFieldState(FieldNum(#Fld), sfVisible);
+     }
+     else
+     {
+       SetFieldAndLabelVisible(FieldNum(#Fld), true);
+       ToggleFieldSelectable (FieldNum(#Fld),  (iFldRgh and cgSkipFld ) <> cgSkipFld );
+       // if ((iFldRgh and cgSkipFld ) = cgSkipFld )
+       //  ClearFieldOption(FieldNum(#Fld), ofSelectable)
+       // else
+       //  SetFieldOption(FieldNum(#Fld), ofSelectable);
+     }
+#end
+
+#declare FCI_Hide2(Fld1,Fld2)
+     iFldRgh :=  iFCI.GetRghMask(Katos.cSposob, '#Fld1');
+     if ((iFldRgh and cgHideFld ) = cgHideFld )
+     {
+       SetFieldAndLabelVisible(FieldNum(#Fld1), false);
+       SetFieldAndLabelVisible(FieldNum(#Fld2), false);
+       // HideLabel4Field(FieldNum(#Fld1));
+       // ClearFieldState(FieldNum(#Fld1), sfVisible);
+       // HideLabel4Field(FieldNum(#Fld2));
+       // ClearFieldState(FieldNum(#Fld2), sfVisible);
+     }
+     else
+     {
+       SetFieldAndLabelVisible(FieldNum(#Fld1), true);
+       SetFieldAndLabelVisible(FieldNum(#Fld2), true);
+       ToggleFieldSelectable (FieldNum(#Fld1),  (iFldRgh and cgSkipFld ) <> cgSkipFld );
+       /* if ((iFldRgh and cgSkipFld ) = cgSkipFld )
+       {
+         ClearFieldOption(FieldNum(#Fld1), ofSelectable);
+         ClearFieldOption(FieldNum(#Fld2), ofSelectable);
+       }
+       else
+       {
+         SetFieldOption(FieldNum(#Fld1), ofSelectable);
+         // второе поле - по умолчанию Skip
+         ClearFieldOption(FieldNum(#Fld2), ofSelectable);
+       }  */
+     }
+#end
+
+#declare FCI_HideOnly(Fld)
+     iFldRgh :=  iFCI.GetRghMask(Katos.cSposob, '#Fld');
+     SetFieldAndLabelVisible(FieldNum(#Fld), (iFldRgh and cgHideFld ) <> cgHideFld );
+#end
+#declare FCI_HideOnly2(Fld1, Fld2)
+     iFldRgh :=  iFCI.GetRghMask(Katos.cSposob, '#Fld1');
+     SetFieldAndLabelVisible(FieldNum(#Fld1), (iFldRgh and cgHideFld ) <> cgHideFld );
+     SetFieldAndLabelVisible(FieldNum(#Fld2), (iFldRgh and cgHideFld ) <> cgHideFld );
+#end
+
+#declare FCI_TAB_Hide(Tab,TabName1,TabName2)
+     iFldRgh :=  iFCI.GetRghMask(Katos.cSposob, '#Tab');
+
+     if ((iFldRgh and cgHideFld ) = cgHideFld )
+     {
+       SetTabbedSheetVisible(#TabName1, false);
+       SetTabbedSheetVisible(#TabName2, false)
+     }
+     else
+     {
+       SetTabbedSheetVisible(#TabName1, true);
+       SetTabbedSheetVisible(#TabName2, true);
+     }
+#end
+
+//-----------------------------------------------------------------------------
+// Спрятать, закрыть доступ к поляк карточки ОС по настройке пользователя
+procedure SetUserRghFieldsOS;
+{
+  if (not isSetUserRghFields)
+    Exit;
+
+  #FCI_Hide(KATOS.DESGR)
+  #FCI_Hide(KATOS.DESCR)
+  #FCI_Hide(KATOS.INNUM)
+  #FCI_Hide2(Katos.Kol,Os_Kol)
+  #FCI_Hide2(KatEd.ABBR,Os_Ed)
+  #FCI_Hide2(KatOs.OtchPer,OtchPeriod)
+  #FCI_Hide(Katos.ZavNom)
+  #FCI_Hide(Katos.PsNum)
+  #FCI_Hide(Katos.NameOs)
+  #FCI_Hide2(GrOs.NameGr,GrOs_Show)
+  #FCI_Hide(VidNormaS.KOD)
+  #FCI_Hide2(VidNormaS.NAME,VidOs_Show)
+  #FCI_Hide(VidNorma.KOD)
+  #FCI_Hide(VidNormaNorma)
+  #FCI_Hide(KodOf.Kod_of)
+  #FCI_Hide(KodOf.Name_of)
+  #FCI_Hide(KlassOs.Kod)
+  #FCI_Hide(KlassOs.Name)
+  #FCI_Hide(IspOs.NameIs)
+  #FCI_Hide(PrSb.Name)
+  #FCI_Hide(Sposob.NameSb)
+
+  #FCI_Hide2(Katos.GodV,GODV_Show)
+  #FCI_Hide(Katos.DatEk)
+  #FCI_Hide(Katos.DatOk)
+  #FCI_Hide2(Katos.DatV,DATAV_Show)
+
+  #FCI_Hide2(f_StoimOne,  f_StoimSum)
+  #FCI_Hide2(f_SumIznOne, f_SumIznSum)
+  #FCI_Hide2(f_SIznMOne,  f_SIznMSum)
+  #FCI_HideOnly2(f_OstStoimOne,  f_OstStoimSum)
+
+  #FCI_Hide2(SpKatos.SrokIsp,DlgSrokIspTime)
+  #FCI_Hide(SpKatos.IspPs)
+  #FCI_Hide(SpKatos.IspCur)
+  #FCI_HideOnly(OstSrokPolIsp)
+
+#ifdef __TPR2__
+  #FCI_Hide(KatNotes.Name)
+#end
+  // FCI_Hide(KatosLink.NameOs)
+  #FCI_Hide(Katos.BarKod)
+  #FCI_Hide(Katos.Kod)
+  #FCI_Hide(KatOs.DopInNum)
+  #FCI_Hide(Katos.DatGar)
+  #FCI_Hide(Katos.RegNum)
+  #FCI_Hide(Transp.GarNom)
+  #FCI_Hide(FullAdresOS)
+  #FCI_Hide(SpKatOS.StoimPs)
+  #FCI_Hide(SpKatOs.IznosPs)
+  #FCI_Hide(SpKatOs.PerStoim)
+  #FCI_Hide(SpKatOs.PerSumIzn)
+  #FCI_Hide(SpKatOs.StoimL)
+  #FCI_Hide(KatOs.FullProd)
+  #FCI_Hide(SpKatOs.Poprkoef)
+  #FCI_Hide(Katos.dtReserv1)
+#ifdef __TPR2__
+  #FCI_Hide(Katos.dtLikvid)
+#end
+  #FCI_Hide(KatStroyName)
+  #FCI_Hide(Nakl_SkladOS)
+  #FCI_Hide(NaklParam)
+
+  #FCI_Hide(OsAlg.Name)
+  #FCI_Hide(HozOper.Name1)
+  #FCI_Hide(KauReffArray)
+  #FCI_Hide(CoName)
+#ifdef __TPR2__
+  #FCI_Hide(CoFilial.Name)
+#end
+  #FCI_Hide(Katos.NameIzg)
+  #FCI_Hide(Katos.TipMark)
+
+  #FCI_Hide(SPKATOS.DBRESERV)
+  #FCI_Hide(SPKATOS.RESDOUBLE)
+#ifdef __TPR2__
+  #FCI_Hide(SPKATOS.PERRESERV)
+  #FCI_Hide(SPKATOS.PERUBIT)
+#end
+
+  #FCI_Hide(SpKatOs.SumOtkl)
+
+
+  #FCI_TAB_Hide(Tab_Characteristic, Characteristik,Characteristik)
+  #FCI_TAB_Hide(Tab_Operations,     brSpMoveOs, brSpMoveOs)
+  #FCI_TAB_Hide(Tab_DragMet,scNalDrag,scNalDragBr)
+  #FCI_TAB_Hide(Tab_SpecData,ProbTrBr,ProbTrShow)
+  #FCI_TAB_Hide(Tab_Sostav,scMcInOs,scMcInOsShow)
+  #FCI_TAB_Hide(Tab_Differ,scOsRazn,scOsRaznShow)
+  #FCI_TAB_Hide(Tab_Oborot,brKatOborot,brKatOborot)
+  #FCI_TAB_Hide(Tab_Finans,brEditSostByIF,brSostByIF)
+  #FCI_TAB_Hide(Tab_SpisDoc,scLinkList,scLinkList)
+  #FCI_TAB_Hide(Tab_Archive,brArcScr,brArcBr)
+
+  if (OS_Reserv_Use and wTip=15)
+    #FCI_TAB_Hide(Tab_ReservOs, brReservOsShow, brReservOs)
+  // if (OS_Comp_Use)      // Прячется по настройке
+  //  FCI_TAB_Hide(Tab_CompOs,   brCompOsBr,     brCompOsScr)
+
+  #FCI_TAB_Hide(Tab_ChangeHist,scChangeHist,scChangeHist)
+  // FCI_TAB_Hide(Tab_CardOS,KatosBut,SCKATOS)     // Показывается всегда
+}
+
+
+//---------------------------------------------------------
+// Установить Доступность полей
+//---------------------------------------------------------
+procedure SetRghField ();
+{
+
+    SetFieldAndLabelVisible (#Katos.Kol, KatOs.isLeaf=1);
+    ToggleFieldVisible (#KatEd.ABBR, (KatOs.isLeaf=1) and (TipDock mod 100 <> 16) );
+    // SetFieldAndLabelVisible (#SpKatOs.StoimL,    KatOs.isLeaf=1);
+    // SetFieldAndLabelVisible (#SpKatOs.PerStoim,  KatOs.isLeaf=1);
+    // SetFieldAndLabelVisible (#SpKatOs.PerSumIzn, KatOs.isLeaf=1);
+
+//---------------------------------------------------------
+    SetFieldAndLabelVisible (#SpKatOs.SumFld, Ispos.amok = 2);
+    SetFieldAndLabelVisible (#SimvolVAmort, Ispos.amok = 2);
+
+//---------------------------------------------------------
+    SetFieldAndLabelVisible (#KatosLink.NameOs, OS_Complex = 1);
+    SetFieldAndLabelVisible (#ComplexOrNo, OS_Complex = 1);
+
+//---------------------------------------------------------
+    if (OS_EditOtchPer) and (not IsValid(tnArcIznos)) // and (TipDock = 15 or TipDock = 16 or TipDock = 315 or TipDock = cgOs_57_Rsrv)
+      SetFieldOption(#KatOs.OtchPer, ofSelectAble);
+    else
+      ClearFieldOption(#KatOs.OtchPer, ofSelectAble);
+
+//---------------------------------------------------------
+//  ToggleFieldSelectable (#NaklParam,  KatOs.wOrigType <> osfKatStroy);   // Если ОС создана из УКСа, то приходнаю накладную выборать нельзя
+//  ToggleFieldSelectable (#NaklParamN, KatOs.wOrigType <> osfKatStroy);   // т.к  в KatOs.cInSpOrder := SpVvStroy.nRec     180.5358
+
+//---------------------------------------------------------
+  // SetCommandEnabled( cmValue9, (KatOs.wOrigType = osfKatStroy) and isValid(#SpVvStroyN) );
+  // ToggleFieldSelectable( #KatStroyName, ((KatOs.wOrigType = osfKatStroy) or (KatOs.wOrigType = 0)) and (not isValid(#SpVvStroyN)) );
+  if (((KatOs.wOrigType = osfKatStroy) and isValid(#SpVvStroyN)))
+    SetHelpAndStatusContext(DopInfoOs, #KatStroyName,  sci14Esc, hcKeepCurrent);
+  else
+    SetHelpAndStatusContext(DopInfoOs, #KatStroyName,  sci134Esc, hcKeepCurrent);
+
+  ToggleFieldSelectable (#Nakl_SkladOS,  not  ((KatOs.wOrigType = osfKatStroy) and isValid(#SpVvStroyN)) );   // Если ОС создана из УКСа, то накладную склад->ОС выбрать нельзя
+  ToggleFieldSelectable (#Nakl_SkladOSN, not  ((KatOs.wOrigType = osfKatStroy) and isValid(#SpVvStroyN)) );   // Если ОС создана из УКСа, то накладную склад->ОС выбрать нельзя
+
+
+//---------------------------------------------------------
+  var _isArcIznos, _isArcIznosAnyMU : boolean;
+
+  _isArcIznos:=false;
+  _isArcIznosAnyMU := false;
+  b_Kol_Is_Selectable    := false;
+  b_Stoim_Is_Selectable  := false;
+  b_SumIzn_Is_Selectable := false;
+
+  if (TipDock mod 100 = cgOs_57_Rsrv)  // Резерв
+  {
+    // if not pCheckOper.isOperProv(KatOs.nRec)        // проведена ли любая опреация
+    if IsValid(#ArcIznos)
+      _isArcIznos := true;
+    if (not _isArcIznos)
+      {
+        b_Kol_Is_Selectable    := true;
+        b_Stoim_Is_Selectable  := true;
+        b_SumIzn_Is_Selectable := true;
+      }
+  }
+  else
+  {
+     if IsValid(#ArcIznos)
+      _isArcIznos := true;
+     if IsValid(#ArcIznosAnyMU)
+      _isArcIznosAnyMU := true;
+
+     if ( not _isArcIznosAnyMU ) and (KatOs.isLeaf = 1)
+       b_Kol_Is_Selectable    := true;
+
+    if ( not _isArcIznos ) and (KatOs.isLeaf = 1)
+    {
+       SetFieldOption(#SpKatos.IspPs,   ofSelectAble);
+       SetFieldOption(#SpKatos.IspCur,  ofSelectAble);
+       SetFieldOption(#SpKatos.SrokIsp, ofSelectAble);
+
+       b_Stoim_Is_Selectable  := true;
+       b_SumIzn_Is_Selectable := true;
+    }
+  }
+
+  // Т.к. поля KatPodr.Name и KatMol.Name используются и в скрине и в бровзе, то надо дисаблить их через cfsSetProp
+  // Иначе они дисаблятся везде.   102.161193
+  /* if (CurFormatInArea(KatOsScr) = KatOsScr)
+  {
+    cfsSetProp('i_KatOsScr_fKatPodrName',  cfpSkip, _isArcIznosAnyMU);
+    cfsSetProp('i_KatOsScr_fKatMOLName',   cfpSkip, _isArcIznosAnyMU);
+  }
+  else if (CurFormatInArea(KatOsScrCommonCost) = KatOsScrCommonCost)
+  {
+    cfsSetProp('i_KatOsScrCommonCost_fKatPodrName',  cfpSkip, _isArcIznosAnyMU);
+    cfsSetProp('i_KatOsScrCommonCost_fKatMOLName',   cfpSkip, _isArcIznosAnyMU);
+  }
+ #ifdef __TPR2__
+  else if (CurFormatInArea(KatOsScrMSFO) = KatOsScrMSFO)
+  {
+    cfsSetProp('i_KatOsScrMSFO_fKatPodrName',  cfpSkip, _isArcIznosAnyMU);
+    cfsSetProp('i_KatOsScrMSFO_fKatMOLName',   cfpSkip, _isArcIznosAnyMU);
+  }
+ #end
+  */
+  // В бровзах делаем поля доступными. Не надо. Они и так доступны.
+  // cfsSetProp('c_pDocument_KatPodr.Name_Подразделение',   cfpSkip, false);
+  // cfsSetProp('c_trDocument_KatPodr.Name_Подразделение',  cfpSkip, false);
+
+  ToggleFieldSelectable (#GrOs.NameGr,    not _isArcIznosAnyMU);
+  ToggleFieldSelectable (#fKatPodrName,   not _isArcIznosAnyMU
+                                          and ( not (IsNotEditPodrAndMOLbySoprSklad_OS and (fcRecSopr_Sklad_OS <> 0)) )); // and 102.181236
+  #ifdef __TPR2__
+  ToggleFieldSelectable (#fPodrTrName,    not _isArcIznosAnyMU);
+  #end
+  ToggleFieldSelectable (#fKatMolName,    not _isArcIznosAnyMU
+                                          and ( not (IsNotEditPodrAndMOLbySoprSklad_OS and (fcRecSopr_Sklad_OS <> 0)) )); // and 102.181236
+  ToggleFieldSelectable (#VidNormaS.Kod,  not _isArcIznosAnyMU);
+  ToggleFieldSelectable (#VidNorma.Kod,   not _isArcIznos);
+  ToggleFieldSelectable (#Sposob.NameSb,  not _isArcIznosAnyMU);
+
+
+  ToggleFieldSelectable (#Katos.Kol,        b_Kol_Is_Selectable);
+  ToggleFieldSelectable (#SpKatOs.StoimPs,  b_Stoim_Is_Selectable);
+  ToggleFieldSelectable (#SpKatOs.IznosPs,  b_Stoim_Is_Selectable);
+
+  ToggleFieldSelectable (#SpKatOs.Stoim,    b_Stoim_Is_Selectable);
+  ToggleFieldSelectable (#SpKatOs.SumIzn,   b_Stoim_Is_Selectable);
+  ToggleFieldSelectable (#SpKatOs.SIznM,    b_Stoim_Is_Selectable);
+
+  ToggleFieldSelectable (#f_StoimOne,   b_Stoim_Is_Selectable);
+  ToggleFieldSelectable (#f_SumIznOne,  b_Stoim_Is_Selectable);
+  ToggleFieldSelectable (#f_SIznMOne,   b_Stoim_Is_Selectable);
+
+  ToggleFieldSelectable (#f_StoimSum,   b_Stoim_Is_Selectable);
+  ToggleFieldSelectable (#f_SumIznSum,  b_Stoim_Is_Selectable);
+  ToggleFieldSelectable (#f_SIznMSum,   b_Stoim_Is_Selectable);
+  ToggleFieldSelectable (#SpKatOs.ResDouble,   KatOs.isLeaf=1);
+
+#ifdef __TPR2__
+  if ( boIsNastrOS_MSFO )
+  {
+    ToggleFieldSelectable (#SpKatOs.PerStoim,   b_Stoim_Is_Selectable);
+    ToggleFieldSelectable (#SpKatOs.PerSumIzn,  b_Stoim_Is_Selectable);
+    ToggleFieldSelectable (#SpKatOs.PerSumIznM, b_Stoim_Is_Selectable);
+
+    SetFieldAndLabelVisible (#SpKatOs.PerReserv, boIsNastrOS_MSFO);
+    SetFieldAndLabelVisible (#SpKatOs.PerUbit,   boIsNastrOS_MSFO);
+  }
+#end
+
+
+  // В НМА не используются
+  SetFieldAndLabelVisible (#Sposob.NameSb, TipDock mod 100 = 15);
+  // SetFieldAndLabelVisible (#GrOs.NameGr,   TipDock mod 100 = 15);
+
+  if (TipDock mod 100 = cgOs_57_Rsrv)  // Резерв
+  {
+    setCommandEnabled(cmIEHist,    false);    // метод учета
+    setCommandEnabled(cmAttrib,    false);    // Ctrl-Enter доп. экран
+    // setCommandEnabled(cmAccording, false);    // alt-s
+
+
+    // SetFieldandLabelVisible (#Katos.NameIzg, false );
+    // SetFieldandLabelVisible (#Katos.TipMark, false );
+    // SetFieldAndLabelVisible (#KauReffArray, false );
+    ToggleFieldSelectable   (#CoName, false );
+
+    ToggleFieldSelectable (#f_PerStoimOne, not _isArcIznos);
+    ToggleFieldSelectable (#f_PerStoimSum, not _isArcIznos);
+#ifdef __TPR2__
+    ToggleFieldSelectable (#f_SumLikvidOne, not _isArcIznos);
+#end
+    ToggleFieldSelectable (#f_PerSumIznOne,    not _isArcIznos);
+
+    if (_isArcIznos)
+      {
+        SetHelpAndStatusContext(KatOsScrRsrv, #KatosLink.NameOs,  sci14Esc, hcKeepCurrent);
+        SetHelpAndStatusContext(KatOsScrRsrv, #KatosLink.Innum,   sci14Esc, hcKeepCurrent);
+      }
+    else
+      {
+        SetHelpAndStatusContext(KatOsScrRsrv, #KatosLink.NameOs,  sci134Esc, hcKeepCurrent);
+        SetHelpAndStatusContext(KatOsScrRsrv, #KatosLink.Innum,   sci134Esc, hcKeepCurrent);
+      }
+
+    ToggleFieldVisible (#brColumnPerStoim, true);
+    ToggleFieldVisible (#trColumnPerStoim, true);
+
+  }
+  else
+  {
+    ToggleFieldVisible (#brColumnPerStoim, false);
+    ToggleFieldVisible (#trColumnPerStoim, false);
+  }
+  /* Дата ликвидации будет и для стандартной функциональности
+  else
+    SetFieldAndLabelVisible (#Katos.dtReserv1, OS_Reserv_Use );
+  */
+
+  ToggleFieldSelectable (#CoName,  DOC_PICKOTVPODR );
+
+#ifdef __TPR2__
+  if ( OS_Comp_Use )
+  {
+    SetTabbedSheetVisible(brCompOsBr,   KatOs.cCompOs = 0);
+    SetTabbedSheetVisible(brCompOsScr,  KatOs.cCompOs = 0);
+  }
+  SetFieldandLabelVisible (#KatosCompUp.InNum,  OS_Comp_Use );
+  ToggleFieldVisible      (#KatosCompUp.NameOs, OS_Comp_Use );
+  SetFieldandLabelVisible (#SpKatOs.NoUse,      OS_Comp_Use and (KatOs.cCompOs <> 0));     // Только для ведомых светим
+
+  ToggleFieldSelectable (#CoFilial.Name,  Doc_PickCOFilial );
+#end
+
+}

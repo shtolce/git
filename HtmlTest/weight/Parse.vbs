@@ -1,3 +1,4 @@
+On Error Resume Next
 Class Logger
    private pFSO
    private fileDescr
@@ -43,20 +44,29 @@ End Class
 Dim s:Set s=(new Logger).Init("D:\Scale\ARCSIS\logger\")
 s.writeLine "Начато выполнение скрипта:"&date&time
 
-    dim testObj
-    dim rootFolderName
-    dim Folder
-    '------------------------------------------------------------
-    'Dim strDBDesc: strDBDesc = "(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=sqlserver)(PORT=1433)))(CONNECT_DATA=(SID=arscis)))"
-    Dim strUserID1: strUserID1 = "sa1"
-    Dim strPassword1: strPassword1 = "Shtolce11021980"
-    Dim ADODBConnection: Set ADODBConnection = CreateObject("ADODB.Connection")
-    Dim strConnection
-    strConnection = "DRIVER={SQL Server};SERVER=sqlserver;DATABASE=arscis;UID=sa1;PWD=Shtolce11021980"
-    ADODBConnection.Open strConnection
-    rootFolderName="D:\Scale\ARCSIS\"
-    '------------------------------------------------------------
-
+dim testObj
+dim rootFolderName
+dim Folder
+'------------------------------------------------------------
+'Dim strDBDesc: strDBDesc = "(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=sqlserver)(PORT=1433)))(CONNECT_DATA=(SID=arscis)))"
+Dim strUserID1: strUserID1 = "sa1"
+Dim strPassword1: strPassword1 = "Shtolce11021980"
+Dim ADODBConnection: Set ADODBConnection = CreateObject("ADODB.Connection")
+Dim strConnection
+strConnection = "DRIVER={SQL Server};SERVER=sqlserver;DATABASE=arscis;UID=sa1;PWD=Shtolce11021980"
+ADODBConnection.Open strConnection
+rootFolderName="D:\Scale\ARCSIS\"
+'------------------------------------------------------------
+If Err.Number <> 0 Then
+    'WScript.Echo "Error: " & Err.Number
+    'WScript.Echo "Source: " &  Err.Source
+    'WScript.Echo "Description: " &  Err.Description
+    s.writeLine "Ошибка соединения :"&Err.Source&"->"&Err.Description
+    Err.Clear             ' Clear the Error
+    On Error Goto 0
+else
+    'MsgBox "Связь с БД MSSQL установлена"
+End If
 Dim strDBDesc: strDBDesc = "(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=AS3017)(PORT=1521) ))(CONNECT_DATA=(SERVICE_NAME=VCHERASH))) "
 Dim strUserID: strUserID = "gal#dmkim"
 Dim strPassword: strPassword = "123456789"
@@ -66,6 +76,18 @@ strConnectionOra = "Driver={Microsoft ODBC for Oracle};Server=" & strDBDesc & _
                 ";Uid=" & strUserID & ";Pwd=" & strPassword & ";"
 
 ADODBConnectionOra.Open strConnectionOra
+
+If Err.Number <> 0 Then
+    'WScript.Echo "Error: " & Err.Number
+    'WScript.Echo "Source: " &  Err.Source
+    'WScript.Echo "Description: " &  Err.Description
+    s.writeLine "Ошибка соединения :"&Err.Source&"->"&Err.Description
+    Err.Clear             ' Clear the Error
+    WScript.Quit
+    On Error Goto 0
+else
+    'MsgBox "Связь с БД Oracle установлена"
+End If
 
 '------------------------------------------------------------
 'создадим базовую модель элементов коллекции файлов каталога
@@ -408,6 +430,9 @@ Sub SqlInsert(byval ws_number,byval ws_timestamp,byval ws_comment,byval r_number
     'проверка на существование акта
     if CInt(NumRecOfActs)<=0 then
         SET result=ADODBConnectionOra.execute(strSQLQuery1)
+        if result=false then
+        s.writeline "ошибка вставки в таблицы Oracle "&"ActScale"
+        end if
 
     end if
 
@@ -455,6 +480,9 @@ Sub SqlInsert(byval ws_number,byval ws_timestamp,byval ws_comment,byval r_number
     'if CInt(NumRecOfSpActs)<=0 then
         SET result=ADODBConnectionOra.execute(strSQLQuery1)
     'end if
+    if result=false then
+    s.writeline "ошибка вставки в таблицы Oracle "&"spActScale"
+    end if
 
 
 

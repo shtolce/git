@@ -1,0 +1,1120 @@
+/*
+ ╔═══════════════════════════════════════════════════════════════════════════╗
+ ║ Система       : Основные средства                                         ║
+ ║ Назначение    : Интерфейсы просмотра                                      ║
+ ╚═══════════════════════════════════════════════════════════════════════════╝
+*/
+
+#include NalGr_M.vpp     // Для привязки к налоговым группам
+
+//----------------------------------------------------------------------------
+// Окно настройки пересчёта накопленной переоценки стоимости и износа
+//----------------------------------------------------------------------------
+Window NastrFillPereoc 'Настройка пересчета' (,hcNoContext, sci1Esc), Gray;
+  Show at (,,67,12);
+
+panel NastrPanelPereocNastr;
+  show at (,,,8);
+Embedded scOSSumsShow 'Настройка пересчета' interface iOSSums.wiEditTunes;
+end;
+end;//panel NastrPanelPereocNastr
+
+panel NastrPanelPereocButtons;
+  show at (,9,,);
+screen NastrScreenPereoc;
+buttons
+  cmOk, Default,, 'Пересчет накопленной переоценки стоимости и износа';
+  cmCancel,,,     'Отмена операции';
+
+<<
+
+                 <.Продолжить.>        <.  Отмена  .>
+
+>>
+
+end;//screen
+end;//panel NastrPanelPereocButtons;
+
+HandleEvent //Window NastrFillPereoc
+cmOk:
+{
+  bClickedOk := True;
+  CloseWindow(NastrFillPereoc);
+}
+
+cmCancel:
+  bContinueOper := False;
+
+cmClose:
+{
+  if (not bClickedOk)
+    bContinueOper := False;
+}
+
+end;//HandleEvent
+end;//Window NastrFillPereoc
+
+
+
+//------------------------------------------------------------------------------
+Window wiKatOborot 'Отбор проводок' escclose, gray;
+  show at (,5,38,11);
+
+Panel pKatOborot
+  table tOborotSel;
+
+Screen scKatOborot ('', hcOSBProvodki, sci13Esc);
+  NoTableNavigation;
+Fields
+  dStOborot  ('Начальная дата для отбора проводок') : noProtect;
+  dEndOborot ('Конечная дата для отбора проводок')  : noProtect;
+Buttons
+  cmRegetOborot,default,, 'Выбрать проводки за период',;
+  cmCancel,,,             'Отмена операции';
+<<
+
+ Дата `с`.@@@@@@@@@@ `по`.@@@@@@@@@@
+
+  <.Продолжить.>    <.  Отмена  .>
+
+>>
+end;
+end; // panel
+
+HandleEvent // window
+//-----------------------------------------------------
+cmInit:
+{
+    var bDateChanged : boolean;   bDateChanged:=false;
+    if not ReadMyDsk(dEndOborot, 'KatOsS_dEndOborot', bDateChanged)
+      dEndOborot := date(1,1,2100);
+    if bDateChanged              // Если конечная дата сохранялась не сегодня,
+      dEndOborot := Cur_Date();  // то будем фильтроваться до сегодняшней даты.
+}
+cmDone:
+{
+   SaveMyDsk(dStOborot,  'KatOsS_dStOborot');
+   SaveMyDsk(dEndOborot, 'KatOsS_dEndOborot');
+}
+//-----------------------------------------------------
+cmRegetOborot:
+{
+  bOborotSelSuccess := false;
+  if (  (dStOborot > dEndOborot)
+    AND (dEndOborot != ZeroDate) )
+  {
+    Message('Начальная дата не может быть больше конечной', Warning + CancelButton);
+    Abort; Exit;
+  }
+
+  GetOborot;
+  bOborotSuccess := true;
+  CloseWindow(wiKatOborot);
+}
+//-----------------------------------------------------
+end; // handleevent window
+end;
+
+// -----------------------------------------------------------
+// общие поля для всех доп. окон
+//-------------------------------------------------------------------------------
+#declare FlOtchPer
+  KatOs.OtchPer ('Отчетный период') : ['Month YYYY г.'], noprotect;
+#end;
+
+#declare FlBarKod
+  Katos.BarKod ('Номенклатурный номер'),noprotect, #FCI_ColorS(Katos.BarKod);
+  Katos.Kod    ('Код партии',,sci1Esc), #FCI_ColorS(Katos.Kod);
+#end;
+
+#declare FlDopInNum
+  KatOs.DopInNum ('Имущественный номер',,sci13Esc), #FCI_ColorS(KatOs.DopInNum);
+  Katos.DatGar   ('Дата гарантии',,sci1Esc), #FCI_ColorD(Katos.DatGar);
+#end;
+
+#declare FlRegNum
+  Katos.RegNum  ('Регистрационный номер транспортного средства',,sci1Esc), #FCI_ColorS(Katos.RegNum);
+  Transp.GarNom ('Гаражный номер',,sci13Esc) : Protect, #FCI_ColorS_IF(Transp.GarNom,Not IsValid(#Transp));
+#end;
+
+#declare FlAdresOS
+  FullAdresOS   ( 'Адрес объекта учета ОС',,sci13Esc): Protect, #FCI_ColorS(FullAdresOS);
+#end
+
+#declare FlAdresNMA
+  FullAdresOS   ( 'Адрес объекта учета НМА',,sci13Esc): Protect;
+#end
+
+#declare FlKatStroy
+  KatStroyName      ('Только для объектов, поступивших из Капитального строительства',,sci134Esc) : protect, #FCI_ColorS(KatStroyName);
+  KatStroyDataReg   : skip, NoStatic;
+  KatStroyNoSvidReg : skip, NoStatic;
+#end;
+
+//-------------------------------------------------------------------------------
+
+Window wiDopInfoOs 'Дополнительная информация', EscClose;
+  Show At (,,95,26);
+
+Screen DopInfoOs ('',hcOSFInvKartDop,sci13Esc);
+ Table Katos;
+  BEVEL Bvl1 {,3 ,,,bsRaised,bsHorizontal};
+  BEVEL Bvl1 {,8 ,,,bsRaised,bsHorizontal};
+  BEVEL Bvl1 {,19,,,bsRaised,bsHorizontal};
+  BEVEL Bvl1 {,25,,,bsRaised,bsHorizontal};
+    Fields
+      KatosLink.NameOs ('Наименование вышестоящего ОС'), Protect;   // Сложный объект
+      ComplexOrNo      ('Сложный объект',,sci1Esc);
+#ifdef __TPR2__
+      KatosCompUp.InNum  ('Инвентарный номер  основного объекта ОС'), Protect;
+      KatosCompUp.NameOs ('Наименование основного объекта ОС'), Protect;
+#end
+      #FlBarKod             // Номенклатурный номер  / Код партии
+      #FlDopInNum           // Имущественный номер   / Дата гарантии
+      #FlRegNum             // Регистрационный номер / Гаражный номер
+      #FlAdresOS            // Адрес объекта ОС
+
+      SpKatOS.StoimPs  ('Стоимость при поступлении',,sci1Esc)                   : [14.2,'\2p[|-]3666`666`666`666`666.88'] NoProtect, CalcButton, #FCI_ColorDo(SpKatOS.StoimPs);
+      SpKatOs.IznosPs  ('Амортизация при поступлении',,sci1Esc)                 : [14.2,'\2p[|-]3666`666`666`666`666.88'] NoProtect, CalcButton, #FCI_ColorDo(SpKatOs.IznosPs),
+                       {Label = sNameFieldIznosPs};
+
+      SpKatOs.PerStoim ('Накопленная переоценка стоимости',,sci1Esc)            : [14.2,'\2p[|-]3666`666`666`666`666.88'] NoProtect, CalcButton, #FCI_ColorDo(SpKatOs.PerStoim);
+      SpKatOs.PerSumIzn('Накопленная переоценка суммы износа',,sci1Esc)         : [14.2,'\2p[|-]3666`666`666`666`666.88'] NoProtect, CalcButton, #FCI_ColorDo(SpKatOs.PerSumIzn);
+
+      SpKatOs.DbReserv ('Стоимость',,sci1Esc)                                   : [14.2,'\2p[|-]3666`666`666`666`666.88'] NoProtect, CalcButton, #FCI_ColorDo(SpKatOs.DbReserv),
+                       {Label = if (((KatOs.DatEk>Date(31,12,2001))or(KatOs.DatEk=ZeroDate)), 'Базовая стоимость' + if(SpKatOs.dtReserv <> ZeroDate, ' на '+String(SpKatOs.dtReserv), '' ), 'Остаточная стоим. на 31.12.01')};
+      SpKatOs.StoimL   ('Ликвидационная стоимость',,sci1Esc)                    : [14.2,'\2p[|-]3666`666`666`666`666.88'] NoProtect, CalcButton, #FCI_ColorDo(SpKatOs.StoimL);
+
+      KatOs.FullProd   ('Ресурс объекта (планируемый общий объем продукции)',,sci1Esc) : [14.2,'\2p[|-]3666`666`666`666`666.88'] NoProtect, #FCI_ColorDo(KatOs.FullProd),
+                       {Label = if (wCountry = ccUkr, 'Объем продукции', 'Ресурс объекта')};
+      SpKatOs.ResDouble ('Чистая стоимость (цена) производителя МЦ',,sci1Esc)   : [14.2,'\2p[|-]3666`666`666`666`666.88'] NoProtect, CalcButton, #FCI_ColorDo(SpKatOs.ResDouble);
+
+      SpKatOs.Poprkoef ('Поправочный коэффициент',,sci1Esc)                     : [4.2], NoProtect, #FCI_ColorDo(SpKatOs.Poprkoef);
+      SpKatOs.SumOtkl                                                           : [14.2,'\2p[|-]3666`666`666`666`666.88'] Skip,    // Износ за месяц без учета поправочных коэффициентов
+         {Label = 'Амортизация за месяц без учета поправ. коэфф.'};
+
+      SpKatOs.SumFld  ('Фиксированная сумма амортизации',,sci1Esc)              : [14.2,'\2p[|-]3666`666`666`666`666.88'] NoProtect, CalcButton;
+      SimVolVAmort    ('Валюта фиксированной суммы амортизации')                : Protect;  // Фиксированная сумма амортизации / Валюта
+
+#ifdef __TPR2__
+      Katos.dtReserv1  ('Плановая дата ликвидации ОС.'), #FCI_ColorD(Katos.dtReserv1);
+      Katos.dtLikvid   ('Фактическая дата ликвидации ОС.'), #FCI_ColorD(Katos.dtLikvid);
+      SpKatOs.PerReserv ('Резерв на переоценку/обесценение',,sci1Esc)           : [14.2,'\2p[|-]3666`666`666`666`666.88'] noprotect, CalcButton, #FCI_ColorDo(SpKatOs.PerReserv);
+      SpKatOs.PerUbit   ('Убыток от обесценения',,sci1Esc)                      : [14.2,'\2p[|-]3666`666`666`666`666.88'] noprotect, CalcButton, #FCI_ColorDo(SpKatOs.PerUbit);
+      KatOs.Movable     ('Тип имущества ОС ',,sci1378Esc) : [LIST 0 'неопределено',
+                                                                  1 'недвижимое',
+                                                                  2 'движимое' ], Protect;
+      SpKatos.SrokIspPost ('Срок полезного использования при поступлении',,sci178Esc)   : [5.2], NoProtect;
+
+      SpKatOs.NoUse     ('Не использовать объект по текущему методу учета',,sci1Esc) : NoProtect;
+#else
+      Katos.dtReserv1  ('Плановая дата ликвидации ОС.');
+#end
+
+      #FlKatStroy           // Объект строительства / Дата регистрации / Номер свидетельства
+      [Nakl_SkladOS]  #ShowKau(cgKau_KatSopr,fcRecSopr_Sklad_OS) ('Накладная на перевод в ОС',,sci134Esc)  : Protect, NoStatic, #FCI_ColorS(Nakl_SkladOS);
+      [NaklParam]     #ShowKau(cgKau_KatSopr,fcRecKatSopr)       ('Накладная на покупку',,sci134Esc)       : Protect, #FCI_ColorS(NaklParam);           // Накладная на покупку
+      [Post]          #ShowKau(cgKau_KatOrg, KatSopr.cOrgBase)                                             : Skip, NoStatic; // Поставщик из накладной на покупку
+#ifdef __TPR2__
+  vsNameTune ('Набор аналитик целевого учета'): Protect;
+  vsRole1    : Skip; vsKau1  ('Аналитика целевого учета 1-го уровня'): skip, NoStatic;
+  vsRole2    : Skip; vsKau2  ('Аналитика целевого учета 2-го уровня'): skip, NoStatic;
+  vsRole3    : Skip; vsKau3  ('Аналитика целевого учета 3-го уровня'): skip, NoStatic;
+  vsRole4    : Skip; vsKau4  ('Аналитика целевого учета 4-го уровня'): skip, NoStatic;
+  vsRole5    : Skip; vsKau5  ('Аналитика целевого учета 5-го уровня'): skip, NoStatic;
+  vsRole6    : Skip; vsKau6  ('Аналитика целевого учета 6-го уровня'): skip, NoStatic;
+  vsRole7    : Skip; vsKau7  ('Аналитика целевого учета 7-го уровня'): skip, NoStatic;
+  vsRole8    : Skip; vsKau8  ('Аналитика целевого учета 8-го уровня'): skip, NoStatic;
+  vsRole9    : Skip; vsKau9  ('Аналитика целевого учета 9-го уровня'): skip, NoStatic;
+  vsRole10   : Skip; vsKau10 ('Аналитика целевого учета 10-го уровня'): skip, NoStatic;
+#end
+<<
+
+`Вышестоящий объект`   .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  [.] Сложный объект`
+#ifdef __TPR2__
+`Основной объект`      .@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#else
+
+#end
+
+`Номенклатурный номер` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ `Код партии`     .@@@@@@@@@@@@@@
+`Имущественный номер`  .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ `Дата гарантии`  .@@@@@@@@@@@@@@
+`Регистрационный номер`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ `Гаражный номер` .@@@@@@@@@@@@@@
+`Адрес объекта        `.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+`Стоимость при поступлении`.@@@@@@@@@@@@@@@@@@@`Label`                   .@@@@@@@@@@@@@@@@@@@
+`Переоценка стоимости`     .@@@@@@@@@@@@@@@@@@@`Переоценка амортизации`  .@@@@@@@@@@@@@@@@@@@
+ `Label`                   .@@@@@@@@@@@@@@@@@@@`Ликвидационная стоимость`.@@@@@@@@@@@@@@@@@@@
+ `Label`                   .@@@@@@@@@@@@@@@@@@@ `Cтоимость производителя`.@@@@@@@@@@@@@@@@@@@
+`Поправочный коэффициент`  .@@@@@@@@ `Label`                                 .@@@@@@@@@@@@@@@
+`Фиксированная сумма амортизации` .@@@@@@@@@@@@@@@@@@@.@@@@@
+#ifdef __TPR2__
+`Плановая дата ликвидации` .@@@@@@@@@@               `Фактическая дата ликвидации`.@@@@@@@@@@
+`Резерв на обесценение`    .@@@@@@@@@@@@@@@@@@@   `Убыток от обесценения`.@@@@@@@@@@@@@@@@@@@
+`Имущество`                .@@@@@@@@@@@@@@@@@@@                 `СПИ при поступлениии`.@@@@@@
+ [.] Не использовать объект по текущему методу учета`
+#else
+                                                        `Плановая дата ликвидации`.@@@@@@@@@@
+#end
+
+`Объект строительства` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ Дата регистрации      .@@@@@@@@@@ Номер свидетельства .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Накладная склад->ОС`  .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Накладная на покупку` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ Поставщик             .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#ifdef __TPR2__
+                              Набор аналитик целевого учета
+        .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+.@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ .@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+.@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ .@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+.@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ .@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+.@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ .@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+.@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ .@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#end
+>>
+end; // screen
+
+//------------------------------------------------------------------------------
+Screen DopInfoOsN ('',hcOSFInvKartDop,sci13Esc);
+  BEVEL Bvl1 {,3 ,,,bsRaised,bsHorizontal};
+  BEVEL Bvl1 {,6 ,,,bsRaised,bsHorizontal};
+  BEVEL Bvl1 {,15,,,bsRaised,bsHorizontal};
+    Fields
+       KatosLink.NameOs ('Наименование вышестоящего ОС'),protect;   // Сложный объект
+       ComplexOrNo      ('Сложный объект',,sci1Esc);
+
+       #FlDopInNum           // Имущественный номер   / Дата гарантии
+       #FlAdresNMA            // Адрес объекта НМА
+
+       SpKatOS.StoimPs ('Стоимость при поступлении',,sci1Esc):[14.2,'\2p[|-]3666`666`666`666`666.88'] noprotect, CalcButton;
+       SpKatOs.IznosPs ('Износ при поступлении',,sci1Esc)    :[14.2,'\2p[|-]3666`666`666`666`666.88'] noprotect, CalcButton,
+                       {Label = sNameFieldIznosPs};
+
+      SpKatOs.PerStoim ('Накопленная переоценка стоимости',,sci1Esc)            : [14.2,'\2p[|-]3666`666`666`666`666.88'] noprotect, CalcButton;
+      SpKatOs.PerSumIzn('Накопленная переоценка суммы амортизации',,sci1Esc)    : [14.2,'\2p[|-]3666`666`666`666`666.88'] noprotect, CalcButton;
+
+
+       SpKatOs.StoimL   ('Ликвидационная стоимость',,sci1Esc)           :[14.2,'\2p[|-]3666`666`666`666`666.88'] noprotect, CalcButton;
+       SpKatOs.Poprkoef('Поправочный коэффициент',,sci1Esc) :[4.2], noprotect;
+
+       SpKatOs.DbReserv ('Стоимость',,sci1Esc):[14.2,'\2p[|-]3666`666`666`666`666.88'] noprotect, CalcButton,
+                        {Label = if (((KatOs.DatEk>date(31,12,2001))or(KatOs.DatEk=ZeroDate)), 'Базовая стоимость' + if(SpKatOs.dtReserv != ZeroDate, ' на '+string(SpKatOs.dtReserv), '' ), 'Остаточная стоим. на 31.12.01')};
+
+       sFullNameFieldSIznM + ' без учета поправочных коэффициентов' : Skip;  // Износ за ... без учета поправочных коэффициентов
+       SpKatOs.SumOtkl :[14.2,'\2p[|-]3666`666`666`666`666.88'] skip, NoStatic;  // Износ за месяц без учета поправочных коэффициентов
+
+       SpKatOs.SumFld  ('Фиксированная сумма амортизации',,sci1Esc):[14.2,'\2p[|-]3666`666`666`666`666.88'] noprotect, CalcButton;
+       SimVolVAmort    ('Валюта фиксированной суммы амортизации'): protect;  // Фиксированная сумма амортизации / Валюта
+
+       #FlKatStroy           // Объект строительства / Дата регистрации / Номер свидетельства
+       [Nakl_SkladOSN]  #ShowKau(cgKau_KatSopr,fcRecSopr_Sklad_OS) ('Накладная на перевод в НМА',,sci134Esc)  : protect, NoStatic;
+       [NaklParamN]     #ShowKau(cgKau_KatSopr,fcRecKatSopr) ('Накладная на покупку',,sci134Esc)              : protect;    // Накладная на покупку
+       [PostN]          #ShowKau(cgKau_KatOrg, KatSopr.cOrgBase)                                              : skip, NoStatic; // Поставщик из накладной на покупку
+
+<<
+
+`Вышестоящий объект`   .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  [.] Сложный объект`
+
+
+`Имущественный номер`  .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ `Дата гарантии`.@@@@@@@@@@@@@@
+`Адрес объекта        `.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+`Стоимость при поступлении`.@@@@@@@@@@@@@@@@@@@`Label`                  .@@@@@@@@@@@@@@@@@@@
+`Переоценка стоимости`     .@@@@@@@@@@@@@@@@@@@`Переоценка амортизации` .@@@@@@@@@@@@@@@@@@@
+`Ликвидационная стоимость` .@@@@@@@@@@@@@@@@@@@`Поправочный коэффициент`           .@@@@@@@@
+
+
+ `Label`                   .@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           .@@@@@@@@@@@@@@
+ `Сумма амортизации`       .@@@@@@@@@@@@@@@@@@@                     `Валюта` .@@@@@@@@@@@@@@
+
+`Объект строительства` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ Дата регистрации      .@@@@@@@@@@ Номер свидетельства .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Накладная склад->НМА` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Накладная на покупку` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ Поставщик             .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+>>
+end; // screen
+
+end;  // window
+
+//------------------------------------------------------------------------------
+WindowEvent wiDopInfoOs;  // окно Дополнительной информации
+// HandleEvent  // окно Дополнительной информации
+cmInit:
+{
+  Var loScreenForStatusNotEdit : Longint;
+  loScreenForStatusNotEdit := 0;
+
+  Var vwKauKol : Word;
+  vwKauKol := 0;
+  Var i : Byte;
+  case wTip of
+    15:
+    {
+      SetFormat(DopInfoOs);
+      #ifdef __TPR2__
+      if (isValid(#SaldTuneSop))
+      {
+        oTune.GetTune(SaldTuneSop.wType);
+        vwKauKol := oTune.KauQnt;
+      }
+      for(i := 1; i <= 10; i++)
+      {
+        if i > vwKauKol
+        {
+        case i of
+          1:  {ClearFieldState(#vsRole1, sfVisible); ClearFieldState(#vsKau1, sfVisible);}
+          2:  {ClearFieldState(#vsRole2, sfVisible); ClearFieldState(#vsKau2, sfVisible);}
+          3:  {ClearFieldState(#vsRole3, sfVisible); ClearFieldState(#vsKau3, sfVisible);}
+          4:  {ClearFieldState(#vsRole4, sfVisible); ClearFieldState(#vsKau4, sfVisible);}
+          5:  {ClearFieldState(#vsRole5, sfVisible); ClearFieldState(#vsKau5, sfVisible);}
+          6:  {ClearFieldState(#vsRole6, sfVisible); ClearFieldState(#vsKau6, sfVisible);}
+          7:  {ClearFieldState(#vsRole7, sfVisible); ClearFieldState(#vsKau7, sfVisible);}
+          8:  {ClearFieldState(#vsRole8, sfVisible); ClearFieldState(#vsKau8, sfVisible);}
+          9:  {ClearFieldState(#vsRole9, sfVisible); ClearFieldState(#vsKau9, sfVisible);}
+          10: {ClearFieldState(#vsRole10, sfVisible); ClearFieldState(#vsKau10, sfVisible);}
+        end;
+        }
+        else
+        {
+        case i of
+          1:  {SetFieldState(#vsRole1, sfVisible); SetFieldState(#vsKau1, sfVisible);}
+          2:  {SetFieldState(#vsRole2, sfVisible); SetFieldState(#vsKau2, sfVisible);}
+          3:  {SetFieldState(#vsRole3, sfVisible); SetFieldState(#vsKau3, sfVisible);}
+          4:  {SetFieldState(#vsRole4, sfVisible); SetFieldState(#vsKau4, sfVisible);}
+          5:  {SetFieldState(#vsRole5, sfVisible); SetFieldState(#vsKau5, sfVisible);}
+          6:  {SetFieldState(#vsRole6, sfVisible); SetFieldState(#vsKau6, sfVisible);}
+          7:  {SetFieldState(#vsRole7, sfVisible); SetFieldState(#vsKau7, sfVisible);}
+          8:  {SetFieldState(#vsRole8, sfVisible); SetFieldState(#vsKau8, sfVisible);}
+          9:  {SetFieldState(#vsRole9, sfVisible); SetFieldState(#vsKau9, sfVisible);}
+          10: {SetFieldState(#vsRole10, sfVisible); SetFieldState(#vsKau10, sfVisible);}
+        end;
+        }
+      }
+      vwKauKol := (vwKauKol / 2);
+      LocateWin(Origin_X, Origin_Y, 94, 28 + vwKauKol, wiDopInfoOs);
+      #end
+    }
+    16:
+    {
+        SetFormat(DopInfoOsN);
+    }
+  end;
+
+  case TipDock of
+    115, cgOs_157_Rsrv : loScreenForStatusNotEdit := DopInfoOs;
+    116 : loScreenForStatusNotEdit := DopInfoOsN;
+  else
+    if Not pOsFun.CheckEditKatOS(0)
+    {
+        case wTip of
+          15 : loScreenForStatusNotEdit := DopInfoOs;
+          16 : loScreenForStatusNotEdit := DopInfoOsN;
+        end;
+    }
+  end;
+
+  if (loScreenForStatusNotEdit <> 0)
+    SetHelpAndStatusContext(loScreenForStatusNotEdit, -1, sci1Esc, hcKeepCurrent);
+
+  var CurFld: longInt;   CurFld:=0;   // стать на поле с которм стояли
+  ReadMyDSk(CurFld, 'KatOss_CurField_DopWin', true);
+  CurFld := if (CurFld=0,#Katos.BarKod, CurFld);
+  SelectField(CurFld);
+  PutCommand(cmPlPor01);
+}
+
+cmDone:
+  SaveMyDSk(CurField, 'KatOss_CurField_DopWin')
+
+cmValue9:// Просмотр объекта строительства
+{
+  if KatOs.wOrigType = osfKatStroy
+    RunInterface('KatStroy', KatOs.cOrigDoc, false, 0, false, False, False);
+}
+
+cmHotKeys :
+{
+  if Not pOsFun.CheckEditKatOS(0)
+    DisableCommands(aArrCommands)
+  else
+    EnableCommands(aArrCommands);
+
+  case Katos.TiDk of
+    15,16  :  PutHotCommand(RunMenu('katos_HotKeys_DopInfo'));
+  end; // case
+}
+
+#ifdef __TPR2__
+cmPick:
+{
+  case CurField of
+    #vsNameTune:
+    {
+      RunInterface('EditMtr2Spec_2', coSpSopr, SpSopUsl.nRec, cgPr_View, cgAct_None, 0);
+    }
+  end;
+}
+#end
+cmValue18 :    // групповая замена поля (Sanny)
+  if ( UpdateTable )
+    if (CheckValidRecord)
+      GroupEdit;
+
+cmValue30 :    // Вызов исходного документа Накладной и т.д
+{
+  // if (KatOs.wReserv1 = osfKatStroy)  // исходный документ - строительство. Признак сбрасывается при выборе приходной накладной.
+  if (isValid(#SpVvStroyN))
+  {
+    // if GetFirst SpVvStroy where (( KatOs.cInSpOrder  ==  SpVvStroy.nRec )) = tsOk  //привязка операции поступления из  УКСа
+      if GetFirst VvStroy where (( SpVvStroyN.cVvStroy == VvStroy.nRec )) = tsOk
+        RunInterface('VvStroy', VvStroy.wType, VvSTroy.NRec);
+      else
+        Message('По инвентарной карточке нет накладной перевода из УКС в ОС.',  Information + OkButton);
+  }
+  else if ( KatOs.cSpOrder <> 0)  // накладная на передачу в ОС актуальна только для поступления
+  {
+    if ( GetFirst SpOrder where ((KatOs.cSpOrder == SpOrder.NRec  )) = tsOk )
+      if ( GetFirst SklOrder where (( SpOrder.cSklOrder == SklOrder.NRec )) = tsOk )
+        if ( GetFirst KatSopr where (( SklOrder.cSopr  == KatSopr.NRec )) = tsOk  )
+          RunInterface('SopInMov', KatSopr.VidSopr, KatSopr.NRec );
+        else
+          Message('По инвентарной карточке нет накладной перевода из склада в ОС.',  Information + OkButton);
+  }
+  else
+    Message('По инвентарной карточке нет исходного документа.',  Information + OkButton);
+
+}
+
+cmEdit:
+{
+  case curField  of
+    #Nakl_SkladOS, #Nakl_SkladOSN:
+      if ( KatOs.cSpOrder <> 0)  // накладная на передачу в ОС
+        {
+           if (wTip = 15)
+             RunInterface('SopInMov', 601, fcRecSopr_Sklad_OS );
+           else
+             RunInterface('SopInMov', 605, fcRecSopr_Sklad_OS );
+         // if ( GetFirst SpOrder where ((KatOs.cSpOrder == SpOrder.NRec  )) = tsOk )
+         // if ( GetFirst SklOrder where (( SpOrder.cSklOrder == SklOrder.NRec )) = tsOk )
+         //   if ( GetFirst KatSopr where (( SklOrder.cSopr  == KatSopr.NRec )) = tsOk  )
+         //      RunInterface('SopInMov', 601, fcRecSopr_Sklad_OS );
+            /*  var cRec : conmp;
+              cRec := fcRec_KatSopr_OS;
+              #GetCodeKau_Single(cgKau_KatSopr,fcRec_KatSopr_OS);  */
+        }
+
+    #KatStroyName:
+      if (KatOs.wOrigType = osfKatStroy)
+        RunInterface('KatStroy', KatOs.cOrigDoc, false, 0, false, False, False);
+
+    #NaklParam, #NaklParamN:
+    {
+   #ifdef __TPR2__
+     //теперь если установлен в #NaklParamN акт то вызывается окно с вкладками - списком приходных и актов
+     RunInterface('PickDeliveryNoteOrAkt', KatSopr.nRec, 1, false);
+   #else
+     RunInterface('Spis_PrihNakl', 0, KatSopr.nRec, 0, false); //было до ПИРа 180.10509
+   #end
+    }
+
+
+#ifdef __TPR2__
+    #KatNotes.Name :
+     RunInterface('StatLog', 0, KatOs.NRec, wTipOper, KatNotes.Status, KatOs.cNote, 0);
+#end
+
+  end; // case}
+}
+
+end;  // WindowEvent
+
+
+//--------------------------------------------------------------------
+//--------------------------------------------------------------------
+//--------------------------------------------------------------------
+WindowEvent wiEditKatos; //окно Редактирования ИК
+//------------------------------------------------------------------------------
+cmInit:
+{
+  var boStatusLineCanEditKatOS : boolean;
+  boStatusLineCanEditKatOS := True;
+
+  // if (OS_Complex = 0)
+    EnableCommand(cmAccording);
+
+// для вычисления значений сложных объектов (Sanny)
+  OldSpKatosStoim  := SpKatos.Stoim;
+  OldSpKatosStoimPs:= SpKatos.StoimPs;
+  OldKatOsKol      := KatOs.Kol;
+  isChangeKatosKol := False;
+
+  SetFormatScrKatOsEdit(IsVisiblePrice);
+
+  /* case TipDock of
+  //----------
+    15, 16, cgOs_315_PrevOS :
+    {
+      SetFormatScrKatOsEdit(IsVisiblePrice);
+    }
+  end; // case */
+
+  SetTitles();
+
+  if (TipDock = 115)  or (TipDock = 116)
+  {
+    boStatusLineCanEditKatOS := False;
+    SetHelpAndStatusContext(brSpMoveOs, -1, sci14EnEsc, hcKeepCurrent);
+  }
+  else
+    boStatusLineCanEditKatOS := pOsFun.CheckEditKatOS(0);
+
+  if Not boStatusLineCanEditKatOS
+  {
+    SetHelpAndStatusContext(KatosScr,-1,sci1Esc, hcKeepCurrent);
+    SetHelpAndStatusContext(KatosBut,-1,sci1Esc, hcKeepCurrent);
+
+    SetHelpAndStatusContext(KatosScr,#Katos.ZavNom,   sci1Esc, hcKeepCurrent);
+    SetHelpAndStatusContext(KatosScr,#Katos.Kol,      sci1Esc, hcKeepCurrent);
+    SetHelpAndStatusContext(KatosScr,#Katos.PsNum,    sci1Esc, hcKeepCurrent);
+    SetHelpAndStatusContext(KatosScr,#SpKatOs.Stoim,  sci1Esc, hcKeepCurrent);
+    SetHelpAndStatusContext(KatosScr,#SpKatOs.SumIzn, sci1Esc, hcKeepCurrent);
+    SetHelpAndStatusContext(KatosScr,#SpKatOs.SIznM,  sci1Esc, hcKeepCurrent);
+    SetHelpAndStatusContext(KatosScr,#SpKatos.IspPs,  sci1Esc, hcKeepCurrent);
+    SetHelpAndStatusContext(KatosScr,#SpKatos.SrokIsp,sci1Esc, hcKeepCurrent);
+    SetHelpAndStatusContext(KatosScr,#SpKatos.IspCur, sci1Esc, hcKeepCurrent);
+  }
+
+  iSostByIF.InitSostParams(wTip);
+  ProcessCommand(cmPositionChanged);
+
+  Var CurFld : LongInt; CurFld:=0;   // стать на поле с котором стояли
+  ReadMyDSk(CurFld, 'KatOss_CurField_Win', True);
+  CurFld := if (CurFld=0,#Katos.ZavNom, CurFld);
+  SelectField(CurFld);
+//        SelectFieldInFormat(KatosScr,#Katos.ZavNom);
+}
+
+//------------------------------------------------------------------------------
+cmDone :
+{
+  EnableCommand(cmLegend);
+
+  if (OS_Complex = 0) or (TipDock  mod 100 = cgOs_57_Rsrv)
+    DisableCommand(cmAccording);
+
+  if ( UpdateTable)
+    SetTitles;
+
+  SaveMyDSk(CurField, 'KatOss_CurField_Win');
+
+  if (isTree)
+    MyJumpToRecord();
+  RescanPanel(#Katos);
+
+  if (GrupVbr = 8)               // Если зашли в компонент, то при выходе из окна надо закрыть бровзе.
+    CloseInterface(cmDefault);   // Иначе интерфес картотеки плодится и начинаются глюки.
+}
+
+
+
+//------------------------------------------------------------------------------
+cmChangeTabbedSheetFormat:
+{
+   UpdateTable();
+   ChangeTabbedSheet();
+
+/*
+   case Target  of
+     scNalDrag      :
+     {
+        var isEdit: boolean;
+        isEdit := not ( IsProtected(#KatOs) or (OS_NoEditDragM_Arxiv and isValid(#ArcIznos)) );
+        iNalDrag.SetNalDragParams(1, Katos.Nrec , isEdit);
+     }
+     ProbTrBr       :  iSpecOb.SetSpecObParams(KatOs.cSPOSOB, KatOs.Nrec, (Katos.cSPOSOB <> 0) and (not IsProtected(#KatOs)) );
+     brReservOs     :  pRsrv.SetReserv(Katos.Nrec);
+    scMcInOs :
+    {
+      iMcInOs.SetKatOs(KatOs.NRec);
+      iMcInOs.RereadMcInOsShow;
+    }
+    scOsRazn        :   iOsRaznW.SetOsRaznParamsEdit(KatOs.TiDk, KatOs.nRec, KatOs.OtchPer, not IsProtected(#KatOs));
+    brSpMoveOs      :   iOS_Oper.ReScanOS_Oper(KatOS.NRec, word(0));
+    brEditSostByIF  :   OnShowSostByIF();
+    scLinkList      :
+      {
+          if ( KatOS.NRec <> 0 )
+          {
+            var wModeView : word = 0;
+            if Not pOsFun.CanEditOs(KatOs.NRec, false)
+              wModeView := 1;
+            iLnkL.ShowLnkList(KatOS.NRec, (KatOS.TiDk mod 100), wModeView);
+          }
+      }
+    brKatOborot   :
+      {
+         if ( (not bOborotSelSuccess)  AND bOborotSuccess )
+           GetOborot();
+      }
+    brArcScr:      pGetArc.SetKatOs(KatOs.nRec);
+    brCompOsScr :  pCompOs.SetCompOs(Katos.Nrec);
+   end; // case
+*/
+}
+
+cmValue16 :   //Печать регистра информации об объекте
+{
+  if (UpDateTable)
+    RunInterface('OsInfo',wTip,KatOs.nRec);
+}
+
+cmOpenSearch :
+{
+  if ( CurWindow <> -1 )
+  {
+    case CurField of
+      #GrOs.NameGr                  : QuickChoiceName := 'qcGrOsNameGr';
+      #VidNormaS.KOD, #VidNorma.Kod : QuickChoiceName := 'qcVidNormaKod';
+      #IspOs.NameIs                 : QuickChoiceName := 'qcIsPosNameIs';
+      #PrSb.Name                    : QuickChoiceName := 'qcPrSbKod';
+      #fKatPodrName                 : QuickChoiceName := 'qcKatPodrName';
+      #fKatMolName                  : QuickChoiceName := 'qcKatMolName';
+      #OsAlg.Name                   : QuickChoiceName := 'qcOsAlgName';
+      #Sposob.NameSb                : QuickChoiceName := 'qcSposobNameSb';
+      #KodOf.Kod_of                 : QuickChoiceName := 'qcKodofKod_of';
+      #KlassOs.Kod                  : QuickChoiceName := 'qcKatAmGr_kod';
+
+    end; //case
+
+    ProcessCommand(cmPick);
+  }
+}
+//------------------------------------------------------------------------------
+/*   Это событие не работает здесь
+cmIdle:
+{ }
+*/
+
+//------------------------------------------------------------------------------
+cmExprFieldChanged :
+{
+  case CurField of
+    #OstSrokPolIsp : //Оставшийся срок полезного использования
+    {
+      //методику расчёта этого поля с иcпользованием переменной qqq не менять !!!!
+      //это сделано на случай когда удаляем значение поля по cmDelOnProtect или
+      //когда вводим в поле значение eeeeee или ещё что (если удастся...)...
+      var qqq : double;
+      qqq := 0;
+      qqq := Double(ExprFieldValue);
+      SpKatos.IspCur := SpKatos.SrokIsp - SpKatos.IspPs - qqq;
+      SetModified(True);
+    }
+  end;
+}
+//------------------------------------------------------------------------------
+cmAccording:
+{
+  if ( UpdateTable )
+  {
+    var ValAmort, ValAmortPer : double = 0;
+    iAmort.RasAmorForInform(Katos.TiDk, Katos.NRec, NastrOs.NRec, true, ValAmort, ValAmortPer);
+  }
+
+  if ( CurFormatInArea(brSpMoveOs) = brSpMoveOs )
+    iOS_Oper.ReScanOS_Oper(KatOS.NRec, word(0));
+}
+
+cmLegend:                     // привязка к налоговым группам
+  RunWindowModal(wiNalGrOs);
+
+//------------------------------------------------------------------------------
+cmValue13:                    // привязка к дереву формы 11 ОС
+  if grupvbr = 0
+  {
+    delete Pick where (( ConstPick == Pick.wList ));
+    _loop SpForm where ((KatOs.NRec == SpForm.cKatOS)) ordered by index SpForm03
+    {
+       if (SpForm.wType = 11)
+       {
+         ClearBuffer(#Pick);
+         Pick.wList  := ConstPick;
+         Pick.cRec   := SpForm.cKatForm;
+         insert current Pick;
+       }
+    }
+
+    if (RunInterface(form11, 0, 3, wTip, 11) = cmDefault)
+    {
+
+      delete SpForm where (( KatOs.Nrec == SpForm.cKatOs
+                                 and 11 == SpForm.wType (noIndex) ));
+      delete SpForm where (( KatOs.Nrec == SpForm.cKatOs                // Старые строки  - если они не сконвертировались почему то
+                                 and 0 == SpForm.wType (noIndex) ));
+
+      _loop Pick where (( ConstPick == Pick.wList ))
+      {
+        ClearBuffer(#SpForm);
+        SpForm.cKatOs   := KatOS.NRec;
+        SpForm.cKatForm := Pick.cRec;
+        SpForm.wType    := 11;
+        insert current SpForm;
+      }
+    }
+
+    delete Pick where (( ConstPick == Pick.wList ));
+    RescanPanel(#KatOs);
+  }
+
+//------------------------------------------------------------------------------
+cmHotKeys :
+{
+  if ( CurTable = #tOborotSel)
+    PutHotCommand(RunMenu('mnuKatOsOborot'));
+  else
+  {
+    if Not pOsFun.CheckEditKatOS(0)
+      DisableCommands(aArrCommands)
+    else
+    {
+      EnableCommands(aArrCommands);
+     //Привязка карточки к налоговым группам
+      case wCountry of
+        0,1 : DisableCommand(cmLegend);
+      else
+        EnableCommand(cmLegend);
+      end;
+
+      if isNalRegLicense()
+        EnableCommand(cmValue16)
+      else
+        DisableCommand(cmValue16);
+    }
+
+    ChkAbleShowSostByIF;
+
+    case Katos.TiDk of
+    //----------------
+      15, 16, cgOs_315_PrevOS :
+      {
+        SetCommandEnabled( cmXchangeMCSetup, (KatOS.cMC <> 0) and (Katos.TiDk=15) );  // Перечень серийных номеров
+        SetCommandEnabled( cmValue17,        (OS_Complex=1) and (Katos.TiDk=15));         // Пересчет сумм по сложному объекту
+
+        PutHotCommand(RunMenu('katos_HotKeys_OS_WIN'));
+        // PutHotCommand(RunDynMenu('F_OS::katos_HotKeys_OS_Win' + sVidNormMenu));
+      }
+      cgOs_57_Rsrv :
+        PutHotCommand(RunMenu('katos_HotKeys_RSRV_WIN'));
+    //----------------
+      115,  116 : PutHotCommand(RunMenu('katos_HotKeys_OS_Arc_Win'));
+      cgOs_157_Rsrv : PutHotCommand(RunMenu('katos_HotKeys_RSRV_Arc_Win'));
+    //----------------
+    end; // case
+  }
+}
+//------------------------------------------------------------------------------
+//..Перечень серийных номеров МЦ
+cmXchangeMCSetup:
+{
+  var wModeView : word;
+  wModeView := iOSSerialN.GetModeView(KatOS.TiDk, KatOS.NRec, KatOS.cMC);
+
+  if (IsProtected(tnKatOs))
+    wModeView := wModeView AND (Not 1);
+
+  iOSSerialN.SetSerialNForObject(KatOS.TiDk, KatOS.NRec, KatOS.cMC, wModeView);
+}
+//------------------------------------------------------------------------------
+// Печать формы ОС-6 по одной карточке, в окне редактирования
+cmPrintDoc :
+{
+  UpDateTable;
+  var Prefix, strDynMenu: string;
+  Prefix := 'F_OS::';
+  strDynMenu := '';
+
+  if ( KatOs.isLeaf = 1 )
+    DisableCommand(cmValue8);
+
+  if ( KatOs.isLeaf = 0 )  //использование сложных объектов
+    strDynMenu := Prefix + 'GetPrintKatos;' +
+                  Prefix + 'mnuPrnPrilKatos';
+
+   /*
+  else
+   if (Katos.tidk mod 100 = 16)
+    {
+      strDynMenu := Prefix + 'GetPrintKatos;' +
+                    'SEPARATOR;' +
+                    Prefix + 'mnuPrnOS_Oper'
+    }*/
+
+  if ( strDynMenu = '' )
+  {
+    iFormOS6.PrintFormOS6( wTip, KatOs.nRec, NastrOs.nRec, myPlansNo, KatOS.OtchPer, False );
+  }
+  else
+    case RunDynMenu(strDynMenu) of
+      cmValue6 :
+      {
+        iFormOS6.PrintFormOS6( wTip , KatOs.nRec, NastrOs.nRec, myPlansNo, KatOS.OtchPer, False );
+        Stop;
+      }
+      cmValue8 :
+        if (Katos.isLeaf = 1)
+          Message('Данное приложение печатается только для сложного объекта',Information);
+        else
+          PrintReestrKatos(0);
+          // PrintReeKatosTxt(0);
+    end;  //case
+
+  if KatOs.isLeaf = 1
+    EnableCommand(cmValue8);
+
+}//cmPrintDoc
+
+cmValue39 :       // Печать реестра операций
+  {
+      iPrnOSOper.PrintKatOSOper(KatOS.NRec, NastrOS.NRec, 1);
+  }
+
+//------------------------------------------------------------------------------
+cmMenu:
+  if (not UpdateTable)
+    Abort;
+
+//------------------------------------------------------------------------------
+cmEditBudget :     // Посмотреть архив
+  ProcessCommand(cmEditBudget);
+
+//------------------------------------------------------------------------------
+cmDocBas:    // удаление стиражированных карточек (Sanny)
+{
+  if ( UpdateTable )
+  {
+    iTirOs.DelTirKart;
+    RereadRecord(#Katos);
+  }
+}
+//------------------------------------------------------------------------------
+cmNal:       // тиражирование карточек (Sanny)
+{
+  if ( UpdateTable )
+  {
+    if Not iUserListPodr.IsAvailablePodr(KatOS.cPodr, KatOS.TiDk)
+      if ( Message('Настройка ограничивает Ваш список доступных подразделений.'#13
+                 + 'Тиражировать карточку с подразделением "' + KatPodr.Name
+                 + '" не рекомендуется.'#13
+                 + 'Продолжить ?', Confirmation + YesNo + mfSwapButtons) <> cmYes)
+        Exit;
+
+    var cNewKatOsNRec : comp;
+    cNewKatOsNRec := iTirOs.RunTirOs(KatOs.NRec);
+    if ( cNewKatOsNRec = 0 )
+    {
+      Message('Тиражирование инвентарных карточек'#13 + 'не осуществилось.', Information + OkButton);
+    }
+    else
+    {
+      if Message('Тиражирование инвентарных карточек'#13 + 'завершено успешно.'#13#13 +
+                 'Перейти к редактированию новой карточки?', Confirmation + YesNo ) = cmYes
+      {
+        PushPos(tnKatOs);
+        _try
+        {
+          GetFirst KatOs where (( cNewKatOsNRec == KatOs.NRec ));
+          if (IsProtected(#KatOs))
+            ProtectRecord(#KatOs,false);
+          if (IsProtected(#SpKatOs))
+            ProtectRecord(#SpKatOs,false);
+          ClearFieldOption(#AllMemo.Mem, ofProtected);
+          DropPos(tnKatOs);
+          ProcessCommand(cmPositionChanged); // отрабатываем перемещение
+        }
+        _except
+        on ExDataBase:
+        {
+          Message('Переход к редактированию новой карточки'#13 + ExploreException);
+          PopPos(tnKatOs);
+        }
+      }
+
+      RereadRecord(#Katos);
+    }
+  }
+}
+//------------------------------------------------------------------------------
+cmValue17 :    // пересчет суммы по сложному объекту
+{
+ if KatOs.isLeaf = 0
+   if UpdateTable
+   {
+     pOsFun.ReCalcComplexOS(KatOs.NRec);
+     ReReadRecord(#SpKatOs);
+     ReDrawPanel(#KatOs);
+     ReScanPanel(#KatOs);
+   }
+}
+
+//------------------------------------------------------------------------------
+cmEdit:
+{
+  if ( CurTable = #tOborotSel )
+  {
+    if isValid(#tOborotSel)
+    {
+      RunInterfaceNoModal('F_Oborot::EditOborot', cgiSingleEdit,  cgiOborot_OneOborot,  0, Oborot.Nrec, NullRef);
+      RereadRecord(#tOborotSel);
+    }
+  }
+  else  // CurTable = #Katos
+  {
+     case CurField of
+       #KatosLink.Innum, #KatosLink.NameOs :
+       {
+         var Tip : word;    Tip := if (TipDock=cgOs_57_Rsrv, 15, TipDock);
+         RunInterface('Katoss', Tip, Katos.cHigherOs, 0, 0, 0, 0, 0);
+         RereadRecord(#KatOs);
+       }
+      #ifdef __TPR2__
+       #KatNotes.Name :
+         RunInterface('StatLog', 0, KatOs.NRec, wTipOper, KatNotes.Status, KatOs.cNote, 0);
+
+       #LikvidOs.NoDoc, #LikvidOs.Name :
+         RunInterface('LikVidOss', cgiNo, Katos.cLikvidOs);
+      #end
+     end; // case
+  }
+}
+
+//------------------------------------------------------------------------------
+cmValue18 :  // групповая замена поля
+{
+  if ( UpdateTable )
+    if (CheckValidRecord)
+      GroupEdit;
+}
+//------------------------------------------------------------------------------
+cmHozOper :      // отбор проводок по карточке
+{
+  if (UpDateTable)
+  {
+    RunWindowModal(wiKatOborot);
+    Stop;
+  }
+}
+//------------------------------------------------------------------------------
+cmColumnClicked :
+{
+  if Target = #Oborot.DatOb
+  {
+    case (GetColumnSorting(brKatOborot,Target)) of
+    //--------------------------------------------
+      -1,0 :
+      {
+        SetColumnSorting(brKatOborot,Target,1);
+        SetTableBackOrderIn(#tOborotSel,false);
+        SortOb := 0;
+      }
+    //--------------------------------------------
+       1   :
+       {
+         SetColumnSorting(brKatOborot,Target,-1);
+         SetTableBackOrderIn(#tOborotSel,true);
+         SortOb := 1;
+       }
+    //--------------------------------------------
+    end; //case
+
+    rescanPanel(#tOborotSel);
+  }
+}
+//------------------------------------------------------------------------------
+cmAttrib :   // Дополнительная информация
+{
+  if CurWindow = wiEditKatos
+  {
+    RunWindow(wiDopInfoOs);
+    Stop;
+  }
+}
+//------------------------------------------------------------------------------
+cmPlansNo :       // перейти на другой план счетов
+{
+  if (CurFormatInArea(brKatOborot)  = brKatOborot)
+  {
+    if iPSManager.PickPlansSch(myPlansNo)
+    {
+      // перечитываем проводки по другому плану счетов
+      // ??? if (dStOborot <= dEndOborot) or (dEndOborot = ZeroDate) !!! уточнить у Голдина
+      if bOborotSuccess
+        GetOborot;
+    }
+  }
+  else
+    if (UpdateTable)
+      iPSManager.PickPlansSch(myPlansNo);
+
+  onChangePlansSch(myPlansNo);
+}
+//------------------------------------------------------------------------------
+cmIEHist:    // выбор метода
+  ProcessCommand(cmIEHist); //ChangeNastrOS;
+//------------------------------------------------------------------------------
+cmPickClass:      // формирование внешних классификаторов
+  GetClassifier;
+//------------------------------------------------------------------------------
+cmPickAttr:       // формирование внешней атрибутики
+  GetAttribute;
+//------------------------------------------------------------------------------
+cmKauReff :
+  ExecuteKauReff;
+//------------------------------------------------------------------------------
+cmViewSp:
+  ProcessCommand(cmViewSp);
+//------------------------------------------------------------------------------
+cmInsLowLevel:     // создать по шаблону
+  ProcessCommand(cmInsLowLevel);
+//------------------------------------------------------------------------------
+
+cmValue40 : //  Копировать данные из другого МУ 102.171584
+{
+var cRec : comp=0;
+
+  UpdateTable();
+  if( Message('Копировать в текущий метод учета карточки '#13#3 + 'данные из другого метода учета?', Confirmation + YesNo ) = cmYes)
+  {
+    NrecNastr := NastrOs.Nrec;
+    if (RunInterface('NastrOs',wTip,5,NrecNastr,0) = cmDefault)
+    {
+      if (NrecNastr = NastrOs.Nrec)
+        {
+           Message('Выбран текущий метод учета.'#13#3 + 'Копирование не будет проведено.', Confirmation );
+           abort; stop; exit;
+        }
+      if GetFirst NASTROSO where ((NrecNastr == NASTROSO.Nrec)) = tsOk {}
+
+      if GetFirst SpKatOsO where ((NrecNastr  == SpKatosO.cNastrOs and
+                                   Katos.Nrec == SpKatosO.cKatos)) = tsOk
+        {
+           var cOper : comp;
+           cRec := SpKatOs.nRec;
+           cOper  := SpKatOs.cHozOper;
+           SpKatOs.Buffer := type$SpKatOs(SpKatOsO.Buffer);
+           SpKatOs.nRec := cRec;
+           SpKatOs.cHozOper := cOper;  // хозоперация
+           SpKatOs.cNastrOs := NastrOs.Nrec;
+           Update current SpKatOs;
+           RereadRecord(#SpKatos);
+           RescanPanel(#Katos);
+        }
+    }
+  }
+}
+
+
+end;  // Handler  wiEditKatos

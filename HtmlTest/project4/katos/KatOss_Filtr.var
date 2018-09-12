@@ -1,0 +1,97 @@
+//--------------------------------------------------------------
+// переменные для KatOs.Vip  ArcAmor.Vip
+//--------------------------------------------------------------
+
+   // переменные для птичек
+   FilKat, FilKatExt   : longint;   // Главная птичка -  1-я закладка
+   FilPas        : word;      // Номер паспорта -  1-я закладка
+   FilDD         : word;      // даты - 2-я закладка
+   FilSelKs      : word;      // Строительство
+
+// для фильтров
+
+   FilInNum,     FilName,   FilZvIz,
+   FilModTip,    FilNorm,   FilMetod,
+   FilHozOper,   FilTipOb,  FilOKOF,
+   FilKlass,
+   FilKlass1,   FilKlass2,   FilKlass3,
+   FilKlass4,   FilKlass5,   FilKlass6,
+   FilNote
+     : string[120];
+
+   FilImNum,    FilZavN,   FilPasN   : string[20];
+   FilBarKod : string[30];
+
+   FilDvd1,   FilDvd2,
+   FilDv1,    FilDv2,
+   FilDp1,    FilDp2,
+   FilDb1,    FilDb2,
+   FilOtchPer    : date;
+
+   cFilZnakOtchPer,
+   FlFilOtchPer         : word;
+
+   wStoimZaEd     : word;
+
+   FilStoim,   FilSumIzn,    FilSIznM,
+   FilSum,     FilPoprkoef,
+   FilIspPs,   FilIspCur,    FilSrokIsp,
+   FilOstSrok, FilKol
+     : double;
+
+   cFilKlass1,    cFilKlass2,   cFilKlass3,
+   cFilKlass4,    cFilKlass5,   cFilKlass6,
+   cFilMetod,     cFilHozOper,  cFilTipOb,
+   cFilNorm,      cFilVid,      cFilGr,
+   cFilOKOF,      cFilAmGr,     cFilPrSb,
+   cFilCO,        cFilIsp,      cFilCOFilial,  cFilcNote  
+      : comp;
+
+   cFilZnak,
+   cFilZnakStoim,    cFilZnakSumIzn,    cFilZnakSIznM,
+   cFilZnakIspPs,    cFilZnakIspCur,    cFilZnakSrokIsp,
+   cFilZnakOstSrok,  cFilZnakPoprkoef,
+   wFilKlass1,       wFilKlass2,       wFilKlass3,
+   wFilKlass4,       wFilKlass5,       wFilKlass6,
+   cFilDrg,
+   cFilSobs,
+   cFilInvCard,
+   cFilKol
+     : word;
+
+#ifdef Gal9_1
+  wFilKlass   : word;
+#else
+  wFilKlass   : comp;
+#end
+
+   // фильтры по внешним КАУ
+   wFilVnKau1,   wFilVnKau2,  wFilVnKau3,
+   wFilVnKau4,   wFilVnKau5,  wFilVnKau6 : word; // группа
+   cFilVnKau1,   cFilVnKau2,  cFilVnKau3,
+   cFilVnKau4,   cFilVnKau5,  cFilVnKau6 : comp; // объект
+   FilKauName1,  FilKauName2, FilKauName3,
+   FilKauName4,  FilKauName5, FilKauName6 : string;
+   FilvsNameTune, FilvsRole1, FilvsRole2, FilvsRole3,
+   FilvsRole4, FilvsRole5, FilvsRole6,
+   FilvsRole7, FilvsRole8, FilvsRole9, FilvsRole10,
+   FilvsKau1, FilvsKau2, FilvsKau3,
+   FilvsKau4, FilvsKau5, FilvsKau6,
+   FilvsKau7, FilvsKau8, FilvsKau9, FilvsKau10  : string;
+   wFilCUKau1,   wFilCUKau2,  wFilCUKau3,
+   wFilCUKau4,   wFilCUKau5,  wFilCUKau6,
+   wFilCUKau7,   wFilCUKau8,  wFilCUKau9,  wFilCUKau10 : word; // группа
+   vwSaldTune: word;
+   vcSaldTune: comp;
+
+   // фильтры по объектам строительства
+   wFilVvSysOper : word;   // тип операции: поступление, изменение стоимости
+   cFilStroy     : comp;   // ссылка на объект строительства
+   cFilAddr      : comp;   // ссылка на адресс
+
+   N_int       : byte;       //для FiltrOs.vpp
+   myFiltrR    : boolean;
+   SortOb      : word;
+
+   fGrDescr    : tDesGr;
+   fDescr      : tDescr;
