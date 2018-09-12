@@ -1,0 +1,2263 @@
+const
+  cgPick_Norm      =    121; // VidNorma (ОС:Каталог норм амортизации)
+
+  cgSel_GrOs        =     1; // Пометка ИК по группам ОС
+  cgSel_Vid         =     2; // по виду
+  cgSel_Norm        =     4; // по норме
+  cgSel_IspOs       =     8; // по подразделениям
+  cgSel_Podr        =    16; // по подразделениям
+  cgSel_MOL         =    32; // по Мол
+  cgSel_Metod       =    64; // по Алгоритм амортизации
+  cgSel_TXO         =   128; // по ТХО
+  cgSel_Accord      =   256; // проверка соответствия
+  cgSel_DM          =   512; // по ДМ
+  cgSel_AttachDoc   =  1024; // по Прикрепленным документам
+  cgSel_Arendator   =  2048; // по Арендатору
+  cgSel_Arendodatel =  4096; // по Арендодателю
+  cgSel_BindedCU    =  8192; // по Целевому учету
+  cgSel_BindedKAU   =  16384; // по Внешним КАУ
+  cgOtbor_TXOPost     =   1; // по ТХО поступления
+  cgOtbor_TXOVnPerem  =   2; // по ТХО внутренних перемещений
+  cgOtbor_TXOIzmStoim =   4; // по ТХО изменения стоимости
+  cgOtbor_TXOVibil    =   8; // по ТХО выбытия
+  cgOtbor_TXOPereoc   =  16; // по ТХО переоценки
+  cgOtbor_TXOIzmGroup =  32; // по ТХО изменения группы/вида
+  cgOtbor_TXOIzmParam =  64; // по ТХО изменения параметров
+end;
+
+Var  boNullOnly : Boolean;
+Var  fdBeginDate, fdEndDate : Date;       // для поиска ИК по условию
+Var  fwFindTitle, fwFindCondition, fwFindPr, fwHistCond : Word;
+Var  wSelCheck ,fwKolFindGrOs ,fwKolFindVid ,fwKolFindNorm
+    ,fwKolFindIspOs ,fwKolFindPodr ,fwKolFindMol ,fwKolFindMetod ,fwKolFindTxo
+    ,fwKolFindTxoPost ,fwKolFindTxoVnPerem ,fwKolFindTxoIzmStoim
+    ,fwKolFindTxoVibil ,fwKolFindTxoPereoc ,fwKolFindTxoIzmGroup
+    ,fwKolFindTxoIzmParam ,fwCheckAccord, fwBindedKAU, fwBindedKAUkod
+    ,fwFindDM, fwAttachDoc, fwArendator, fwArendodatel : Word;
+Var  fsFindGrOs ,fsFindVid ,fsFindNorm
+    ,fsFindIspOs ,fsFindPodr ,fsFindMol
+    ,fsFindMetod ,fsFindTXO ,fsFindTXOPereoc
+    ,fsFindTxoPost ,fsFindTxoVnPerem ,fsFindTxoIzmStoim
+    ,fsFindTxoVibil ,fsFindTXOIzmGroup ,fsFindTXOIzmParam
+    ,fsFindOperPost ,fsFindOperVnPerem ,fsFindOperIzmStoim
+    ,fsFindOperVibil ,fsFindOperIzmGroup ,fsFindOperIzmParam
+    ,fsFindOperPereoc, fsBindedKAUkod, fsFindDM, fsAttachDoc
+    ,fsArendator, fsArendodatel : String;
+Var  MarkerAlg, MarkerTxo, MarkerTxoAmmort, MarkerOrg
+    ,MarkerTxoPost, MarkerTxoVnPerem, MarkerTxoIzmStoim
+    ,MarkerTxoVibil, MarkerTxoPereoc, MarkerTxoIzmGroup
+    ,MarkerTxoIzmParam, MarkerArendator, MarkerArendodatel : tPtr;
+
+Var cHigherKatOs : Comp;
+Var cMoveOsPost, cMoveOsVnPerem, cMoveOsIzmStoim, cMoveOsVibil,
+    cMoveOsPereoc, cMoveOsIzmGroup, cMoveOsIzmParam : Comp;
+
+Function GetfsFindCondition : String;
+{
+  if fwFindTitle = 1
+    Result := if (fwFindCondition = 0, '',
+         if (fwFindCondition = 1, 'поступления',
+           if (fwFindCondition = 2, 'внутреннего перемещения',
+             if (fwFindCondition = 4, 'изменения стоимости',
+               if (fwFindCondition = 8, 'выбытия',
+                 if (fwFindCondition = 16, 'переоценки',
+                   if (fwFindCondition = 32, 'изменения ' + if(wTip = 15, 'группы/вида', 'вида/нормы'),
+                     if (fwFindCondition = 64,'изменения параметров', 'множественный выбор'))))))));
+  else
+    if fwFindTitle = 5
+      Result := slParams.Name;
+}                                      //       (FieldName = fsFindCondition)
+
+//------------------------------------------------------------------------------
+// заполнение таблицы описания параметров
+Procedure FillParams;
+{
+  slParams.NumKod := 1;
+  slParams.Name   := 'Количество';
+  Insert Current slParams;
+
+  slParams.NumKod := 2;
+  slParams.Name   := 'Срок полезного использования';
+  Insert Current slParams;
+
+  slParams.NumKod := 3;
+  slParams.Name   := 'Стоимость';
+  Insert Current slParams;
+
+  slParams.NumKod := 4;
+  slParams.Name   := sNameFieldSumIzn; //'Сумма износа';
+  Insert Current slParams;
+
+  slParams.NumKod := 5;
+  slParams.Name   := sNameFieldSIznM;  //'Износ за месяц';
+  Insert Current slParams;
+
+  slParams.NumKod := 6;
+  slParams.Name   := sNameFieldSIznM + ' без учета поправочных коэффициентов';
+  Insert Current slParams;
+
+  slParams.NumKod := 7;
+  slParams.Name   := 'Стоимость при поступлении';
+  Insert Current slParams;
+
+  slParams.NumKod := 8;
+  slParams.Name   := 'Износ при поступлении';
+  Insert Current slParams;
+
+  slParams.NumKod := 9;
+  slParams.Name   := 'Норма';
+  Insert Current slParams;
+
+  slParams.NumKod := 10;
+  slParams.Name   := 'Операция начисления амортизации';
+  Insert Current slParams;
+
+  slParams.NumKod := 11;
+  slParams.Name   := 'Алгоритм начисления амортизации';
+  Insert Current slParams;
+
+  slParams.NumKod := 12;
+  slParams.Name   := 'Тип объекта';
+  Insert Current slParams;
+
+  slParams.NumKod := 13;
+  slParams.Name   := 'Коэффициент индексации износа';
+  Insert Current slParams;
+
+  slParams.NumKod := 14;
+  slParams.Name   := 'Поправочный коэффициент (по виду)';
+  Insert Current slParams;
+
+  slParams.NumKod := 15;
+  slParams.Name   := 'Поправочный коэффициент';
+  Insert Current slParams;
+
+  slParams.NumKod := 16;
+  slParams.Name   := 'МОЛ';
+  Insert Current slParams;
+
+  slParams.NumKod := 17;
+  slParams.Name   := 'Подразделение';
+  Insert Current slParams;
+
+  slParams.NumKod := 18;
+  slParams.Name   := 'Признак использования';
+  Insert Current slParams;
+
+  slParams.NumKod := 19;
+  slParams.Name   := 'Вышестоящий объект';
+  Insert Current slParams;
+
+  slParams.NumKod := 20;
+  slParams.Name   := 'Инвентарный номер';
+  Insert Current slParams;
+
+  slParams.NumKod := 21;
+  slParams.Name   := 'Срок использования после поступления';
+  Insert Current slParams;
+
+  slParams.NumKod := 22;
+  slParams.Name   := 'Группа';
+  Insert Current slParams;
+
+  slParams.NumKod := 23;
+  slParams.Name   := 'Вид';
+  Insert Current slParams;
+
+  slParams.NumKod := 24;
+  slParams.Name   := 'Аморт. группа';
+  Insert Current slParams;
+
+  slParams.NumKod := 25;
+  slParams.Name   := 'Базовая стоимость (остаточная стоимость на...)';
+  Insert Current slParams;
+
+  slParams.NumKod := 26;
+  slParams.Name   := 'Признак собственности';
+  Insert Current slParams;
+
+  slParams.NumKod := 27;
+  slParams.Name   := 'Центр ответственности';
+  Insert Current slParams;
+
+  slParams.NumKod := 28;
+  slParams.Name   := 'Код ОС по ОКОФ';
+  Insert Current slParams;
+
+  slParams.NumKod := 29;
+  slParams.Name   := 'Фиксированная сумма амортизации';
+  Insert Current slParams;
+
+  slParams.NumKod := 30;
+  slParams.Name   := 'Ликвидационная стоимость';
+  Insert Current slParams;
+}
+
+//------------------------------------------------------------------------------
+// Функция для определения даты, когда объект полностью износился
+Function DateOsIzn(cpKatOs: Comp; cpNastrOs: Comp; dpOtchPer: Date) : Date;
+Var
+  ArcDate : Date;
+{
+  DateOsIzn := ZeroDate;
+  ArcDate   := ZeRoDate;
+
+  // если спецификация ИК не найдена,
+  // то определить ничего нельзя, а значит, выход и дата := 0
+  if (GetFirst SpKatos where (( cpNastrOs == SpKatos.cNastrOs and
+                                cpKatOs   == SpKatos.cKatos       )) <> tsOk)
+    Exit;
+
+  // если остаточная стоимость больше нуля,
+  // то ИО не полностью самортизировал, а значит, выход и дата := 0
+  if (SpKatOs.Stoim - SpKatOs.SumIzn - SpKatOs.SiznM > 0)
+    Exit;
+  // если остаточная стоимость меньше или равна нулю и месячная сумма износа не равна нулю,
+  // то ИО полностью износился в текущем месяце и возвращается отчетный период карточки
+  else
+    if (SpKatOs.Stoim - SpKatOs.SumIzn - SpKatOs.SiznM <= 0) and (SpKatOs.SiznM <> 0)
+    {
+      DateOsIzn := dpOtchPer;
+      Exit;
+    }
+
+  // если мы не вышли из процедуры раньше, то ИО полностью самортизировал, но не в текущем периоде
+  // поэтому осуществим поиск даты в архиве начисления амортизации
+
+  // будем искать с конца архива до начала архива, пока остаточная стоимость больше нуля
+  if (GetLast ArcIznos where (( cpKatOs   == ArcIznos.cKatOs and
+                                cpNastrOs == ArcIznos.cNastrOs   )) Ordered By ArcIznos.Data = tsOk)
+  {
+    While (ArcIznos.Stoim - ArcIznos.SumIzn - ArcIznos.SiznM <= 0)
+    {
+      ArcDate := ArcIznos.Data;
+
+      // если износ за месяц не равен нулю, то мы нашли дату
+      if (ArcIznos.SiznM <> 0)
+      {
+        DateOsIzn := ArcIznos.Data;
+        Exit;
+      }
+
+      // если мы перебрали весь архив, но так и не нашли износ за месяц,
+      // то искомая дата - это первая в архиве
+      if (GetPrev ArcIznos where (( cpKatOs   == ArcIznos.cKatOs and
+                                    cpNastrOs == ArcIznos.cNastrOs   )) Ordered By ArcIznos.Data <> tsOk)
+      {
+        DateOsIzn := ArcIznos.Data;
+        Exit;
+      }
+    }
+    // если остаточная стоимость стала больше нуля, а месяный износ не равный нулю мы так и не нашли
+    // то искрмая дата - это дата предыдущего периода архива
+    DateOsIzn := ArcIznos.Data;
+  }
+  // если архива нет, то определить по нему ничего нельзя, а значит,
+  // ИО полностью износился в текущем месяце и возвращается отчетный период карточки
+  else
+    DateOsIzn := dpOtchPer;
+}
+
+//------------------------------------------------------------------------------
+// функция пометки записей для выгрузки в таблицу в памяти
+Procedure MarkForInMemLoad;
+{
+  InsertMarker(MarkerInMemo, KatOs.NRec);
+
+  cHigherKatOs := KatOs.cHigherOs;
+
+  While( GetFirst KatOsTrans where ((cHigherKatOs == KatOsTrans.NRec)) = tsOk )
+  {
+    cHigherKatOs := KatOsTrans.cHigherOs;
+
+    if not FoundMarker(MarkerInMemo, KatOsTrans.NRec)
+    {
+      InsertMarker(MarkerInMemo, KatOsTrans.NRec);
+      boSwitchView := True;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// функция выгрузки помеченных записей в таблицу в памяти
+Procedure InMemLoad;
+{
+  if GetMarkerCount(MarkerInMemo) <> 0
+  {
+    boInMemTitle := True;
+    PushConditionForLeave(tcInMemByMarker, #KatOs);
+    ReInitTable(#KatOs, fmMemory + fmWriteThru + mfFilters);
+    MTRetrieve(#KatOs, mfClear + mfFilters);
+    PopConditionForLeave(tcInMemByMarker, #KatOs);
+    KillPick;
+  }
+}
+
+//------------------------------------------------------------------------------
+// выбор по несовпадению значений полей: Вид - Норма, Ам.группа - ОКОФ, Подразделение - МОЛ
+Function SelectByAccording : Boolean;
+{
+  case fwCheckAccord of
+    0 : Result := not ( ((VidNorma.cVid = KatOs.cVid) or (KatOs.cVid = 0)) and (VidNorma.cVid <> 0) );
+    1 : Result := (SpKatOs.cGrAm <> KodOf.cAmGr);
+    2 : Result := ( (KatMol.cSkl <> 0) and (KatMol.cSkl <> KatOS.cPodr) );
+  end;
+}
+
+//------------------------------------------------------------------------------
+// Поиск полностью изношенных объектов за период
+Procedure FindOsFullIznos;
+Var
+  dCurDate : Date;
+{
+  _loop KatOs
+  {
+    dCurdate := DateOsIzn(KatOs.nRec, NastrOs.nRec, KatOs.OtchPer);
+
+    if (dCurdate <> 0) and (dCurdate >= fdBeginDate) and (fdEndDate = 0 or dCurdate <= fdEndDate)
+    {
+      MarkOS(True, KatOs.nRec);
+      if boInMemLoad
+        MarkForInMemLoad;
+    }
+
+    if (not NextVisual)
+      Break;
+  }
+
+  if boInMemLoad
+    InMemLoad;
+  ReReadRecord(#KatOs);
+}
+
+//------------------------------------------------------------------------------
+// Функция, которая возвращает true или false в зависимости от типа операции
+Function IsUsedOperation(wSysOper: Word) : Boolean;
+{
+  IsUsedOperation := False;
+
+  case (wSysOper) of
+    cgOs_1_Post   : IsUsedOperation := (fwFindCondition and 1) = 1;
+    cgOs_2_VnuPer : IsUsedOperation := (fwFindCondition and 2) = 2;
+    cgOs_3_IzmStm : IsUsedOperation := (fwFindCondition and 4) = 4;
+    cgOs_4_Vybyt  : IsUsedOperation := (fwFindCondition and 8) = 8;
+    cgOs_6_Pereoz : IsUsedOperation := (fwFindCondition and 16) = 16;
+    cgOs_7_IzmGrV : IsUsedOperation := (fwFindCondition and 32) = 32;
+    cgOs_9_ChgPar : IsUsedOperation := (fwFindCondition and 64) = 64;
+  end;
+
+  if (IsUsedOperation)
+    IsUsedOperation := pCheckOper.OperProvUcht(SpMoveOs.cMoveOs, NastrOs.nRec);
+}
+
+//------------------------------------------------------------------------------
+Function CheckOperSelected : Boolean;
+Var
+  doOper : Boolean;
+{
+  doOper := False;
+
+  case SpMoveOs.SysOper of
+    1: doOper := if((fwFindCondition and cgOtbor_TXOPost) <> 0,     if(cMoveOsPost <> 0,     True, False), False);
+    2: doOper := if((fwFindCondition and cgOtbor_TXOVnPerem) <> 0,  if(cMoveOsVnPerem <> 0,  True, False), False);
+    3: doOper := if((fwFindCondition and cgOtbor_TXOIzmStoim) <> 0, if(cMoveOsIzmStoim <> 0, True, False), False);
+    4: doOper := if((fwFindCondition and cgOtbor_TXOVibil) <> 0,    if(cMoveOsVibil <> 0,    True, False), False);
+    6: doOper := if((fwFindCondition and cgOtbor_TXOPereoc) <> 0,   if(cMoveOsPereoc <> 0,   True, False), False);
+    7: doOper := if((fwFindCondition and cgOtbor_TXOIzmGroup) <> 0, if(cMoveOsIzmGroup <> 0, True, False), False);
+    9: doOper := if((fwFindCondition and cgOtbor_TXOIzmParam) <> 0, if(cMoveOsIzmParam <> 0, True, False), False);
+  end;
+
+  Result := doOper;
+}
+
+//------------------------------------------------------------------------------
+Function SelectByOperation : Boolean;
+{
+  Result := False;
+
+  if ((fwFindCondition and cgOtbor_TXOPost) <> 0)
+    if SpMoveOs.SysOper = 1
+      if(cMoveOsPost = SpMoveOs.cMoveOs)
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOVnPerem) <> 0)
+    if SpMoveOs.SysOper = 2
+      if(cMoveOsVnPerem = SpMoveOs.cMoveOs)
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOIzmStoim) <> 0)
+    if SpMoveOs.SysOper = 3
+      if(cMoveOsIzmStoim = SpMoveOs.cMoveOs)
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOVibil) <> 0)
+    if SpMoveOs.SysOper = 4
+      if(cMoveOsVibil = SpMoveOs.cMoveOs)
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOPereoc) <> 0)
+    if SpMoveOs.SysOper = 6
+      if(cMoveOsPereoc = SpMoveOs.cMoveOs)
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOIzmGroup) <> 0)
+    if SpMoveOs.SysOper = 7
+      if(cMoveOsIzmGroup = SpMoveOs.cMoveOs)
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOIzmParam) <> 0)
+    if SpMoveOs.SysOper = 9
+      if(cMoveOsIzmParam = SpMoveOs.cMoveOs)
+      {
+        Result := True;
+        Exit;
+      }
+}
+
+//------------------------------------------------------------------------------
+Function SelectByHozOper : Boolean;
+{
+  Result := False;
+
+  if ((fwFindCondition and cgOtbor_TXOPost) <> 0)
+    if SpMoveOs.SysOper = 1
+      if fwKolFindTxoPost <> 0
+      {
+        if (FoundMarker(MarkerTxoPost, SpMove.cHozOper))
+        {
+          Result := True;
+          Exit;
+        }
+      }
+      else
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOVnPerem) <> 0)
+    if SpMoveOs.SysOper = 2
+      if fwKolFindTxoVnPerem <> 0
+      {
+        if (FoundMarker(MarkerTxoVnPerem, SpMove.cHozOper))
+        {
+          Result := True;
+          Exit;
+        }
+      }
+      else
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOIzmStoim) <> 0)
+    if SpMoveOs.SysOper = 3
+      if fwKolFindTxoIzmStoim <> 0
+      {
+        if (FoundMarker(MarkerTxoIzmStoim, SpMove.cHozOper))
+        {
+          Result := True;
+          Exit;
+        }
+      }
+      else
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOVibil) <> 0)
+    if SpMoveOs.SysOper = 4
+      if fwKolFindTxoVibil <> 0
+      {
+        if (FoundMarker(MarkerTxoVibil, SpMove.cHozOper))
+        {
+          Result := True;
+          Exit;
+        }
+      }
+      else
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOPereoc) <> 0)
+    if SpMoveOs.SysOper = 6
+      if fwKolFindTxoPereoc <> 0
+      {
+        if (FoundMarker(MarkerTxoPereoc, SpMove.cHozOper))
+        {
+          Result := True;
+          Exit;
+        }
+      }
+      else
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOIzmGroup) <> 0)
+    if SpMoveOs.SysOper = 7
+      if fwKolFindTxoIzmGroup <> 0
+      {
+        if (FoundMarker(MarkerTxoIzmGroup, SpMove.cHozOper))
+        {
+          Result := True;
+          Exit;
+        }
+      }
+      else
+      {
+        Result := True;
+        Exit;
+      }
+
+  if ((fwFindCondition and cgOtbor_TXOIzmParam) <> 0)
+    if SpMoveOs.SysOper = 9
+      if fwKolFindTxoIzmParam <> 0
+      {
+        if (FoundMarker(MarkerTxoIzmParam, SpMove.cHozOper))
+        {
+          Result := True;
+          Exit;
+        }
+      }
+      else
+      {
+        Result := True;
+        Exit;
+      }
+}
+
+//------------------------------------------------------------------------------
+// Поиск инвентарных карточек по операциям за период
+Procedure FindOsByOperation;
+Var
+  boMarkOS : Boolean;
+{
+  dBeginDate := fdBeginDate;
+  dEndDate   := fdEndDate;
+
+  // установка ограничений
+  if (fdEndDate = Date(0, 0, 0))
+    PushBounds(tbbyNullOsOper);
+  else
+    PushBounds(tbbyOsOperation);
+
+  _loop KatOs
+  {
+    if (not NextVisual)
+      Break;
+
+    boMarkOS := False;
+    if (RecordExists SpMoveOs = tsOk)
+    {
+      _loop SpMoveOs
+      {
+        if CheckOperSelected
+        {
+          if SelectByOperation
+          {
+            boMarkOS := True;
+            Break;
+          }
+        }
+        else
+          if SelectByHozOper
+          {
+            boMarkOS := True;
+            Break;
+          }
+      }
+
+      if boMarkOS
+      {
+        if ((fwFindCondition and 16) <> 0) and (fwFindPr <> 0) // переоценка
+        {
+          Var Pr : Word = 0;
+          if fwFindPr = 1
+          {
+            if (not iRasKoef.GetPrKoef(dBeginDate, dEndDate, KatOs.nRec, NastrOs.Nrec, pr))
+              MarkOS(True, KatOs.nRec);
+          }
+          else
+            if (iRasKoef.GetPrKoef(dBeginDate, dEndDate, KatOs.nRec, NastrOs.Nrec, pr))
+              MarkOS(True, KatOs.nRec);
+        }
+        else
+          MarkOS(True, KatOs.nRec);
+
+        if boInMemLoad
+          MarkForInMemLoad;
+      }
+    }
+  }
+
+  if (fdEndDate = ZeroDate)
+    PopBounds(tbbyNullOsOper);
+  else
+    PopBounds(tbbyOsOperation);
+
+  if boInMemLoad
+    InMemLoad;
+  ReReadRecord(#KatOs);
+}
+
+//------------------------------------------------------------------------------
+// поиск инвентарных карточек с амортизационной льготой
+Procedure FindOsByAmortPrem;
+Var
+  boMarkOS : Boolean;
+{
+  dBeginDate := fdBeginDate;
+  dEndDate   := fdEndDate;
+
+  // установка ограничений
+  if (fdEndDate = Date(0, 0, 0))
+    PushBounds(tbbyNullOsOper);
+  else
+    PushBounds(tbbyOsOperation);
+
+  _loop KatOs
+  {
+    if (not NextVisual)
+      Break;
+
+    boMarkOS := False;
+    if (RecordExists SpMoveOs = tsOk)
+    {
+      _loop SpMoveOs
+      {
+        if not (SpMoveOs.SysOper = 1 or SpMoveOs.SysOper = 3)
+          Continue;
+
+        if GetFirst KlassOsOsn where ((MoveOs.cOsnov == KlassOsOsn.NRec)) = tsOk
+          if KlassOsOsn.Doubl <> 0
+          {
+            boMarkOS := True;
+            Break;
+          }
+      }
+
+      if boMarkOS
+      {
+        if ((fwFindCondition and 16) <> 0) and  (fwFindPr <> 0) // переоценка
+        {
+          Var Pr : Word = 0;
+          if fwFindPr = 1
+          {
+            if (not iRasKoef.GetPrKoef(dBeginDate, dEndDate, KatOs.nRec, NastrOs.Nrec, pr))
+              MarkOS(True, KatOs.nRec);
+          }
+          else
+            if (iRasKoef.GetPrKoef(dBeginDate, dEndDate, KatOs.nRec, NastrOs.Nrec, pr))
+              MarkOS(True, KatOs.nRec);
+        }
+        else
+          MarkOS(True, KatOs.nRec);
+
+        if boInMemLoad
+          MarkForInMemLoad;
+      }
+    }
+  }
+
+  if (fdEndDate = ZeroDate)
+    PopBounds(tbbyNullOsOper);
+  else
+    PopBounds(tbbyOsOperation);
+
+  if boInMemLoad
+    InMemLoad;
+  ReReadRecord(#KatOs);
+}
+
+//------------------------------------------------------------------------------
+// поиск инвентарных карточек поступивших с помеченными
+Procedure FindOsPostWithMarked;
+{
+  AddBounds(tbMarkBounds1);
+  AddBounds(tbMarkBounds2);
+  AddBounds(tbMarkBounds3);
+  AddBounds(tbMarkBounds4);
+
+  loPickKatOS._LOOP Pick
+    MarkTogetherInOperAndPartlyMove(loPickKatOS.Pick.cRec);
+
+  SubBounds(tbMarkBounds4);
+  SubBounds(tbMarkBounds3);
+  SubBounds(tbMarkBounds2);
+  SubBounds(tbMarkBounds1);
+
+  Var CountSelTbl, kol : LongInt;
+  CountSelTbl := 0;  kol := wPickNum;
+
+  PushPos(#KatOs);
+  _loop tmpMySelTbl
+  {
+    if (loPickKatOS.GetFirst Pick
+                    where (( cgPick_KatOs       == Pick.wList and
+                             tmpMySelTbl.cKatOs == Pick.cRec )) <> tsOk)
+    {
+      MarkOS(True, tmpMySelTbl.cKatOs);
+
+      if (GetFirst KatOs where ((tmpMySelTbl.cKatOs == KatOs.NRec)) <> tsOk) {};
+      if boInMemLoad
+        MarkForInMemLoad;
+    }
+  }
+
+  PopPos(#KatOs);
+  Delete All tmpMySelTbl;
+
+  if boInMemLoad
+    InMemLoad;
+  ReReadRecord(#KatOs);
+}
+
+//------------------------------------------------------------------------------
+// поиск инвентарных карточек ОС в залоге
+Procedure FindOsInZalog;
+{
+  PushPos(#KatOs);
+  _loop KatOs
+  {
+    if (not NextVisual)
+      Break;
+
+    if GetFirst Aval where (( Word(2)   == Aval.TipOrg and
+                        KatOs.Nrec == Aval.cOrg (NoIndex) )) = tsOk
+    {
+      MarkOS(True, KatOs.nRec);
+
+      if boInMemLoad
+        MarkForInMemLoad;
+    }
+  }
+  PopPos(#KatOs);
+
+  if boInMemLoad
+    InMemLoad;
+  ReReadRecord(#KatOs);
+}
+
+//------------------------------------------------------------------------------
+// поиск инвентарных карточек с историей изменения по определенному параметру
+Procedure FindOsChangeHist;
+{
+  dBeginDate := fdBeginDate;
+  dEndDate   := fdEndDate;
+
+  PushPos(#KatOs);
+  _loop KatOs
+  {
+    if (not NextVisual)
+      Break;
+
+    if (GetFirst ArcIznosFind <> tsOK)
+      Continue;
+
+    if (GetFirst ArcIznOS_N <> tsOK)
+    {
+      Message('Внутренняя ошибка: несинхронные выборки');
+      Abort;
+      Exit;
+    }
+
+    if (ArcIznosFind.nRec <> ArcIznOS_N.nRec)
+    {
+      Message('Внутренняя ошибка: несинхронные выборки');
+      Abort;
+      Exit;
+    }
+
+    if KatOS.OtchPer <= ArcIznosFind.Data
+      Continue;
+
+    _loop ArcIznosFind
+    {
+      Var fBeyondArc : Boolean;
+      fBeyondArc := False;
+
+      if GetNext ArcIznos_N <> tsOk
+      {
+        if (KatOS.OtchPer <= dEndDate)
+         fBeyondArc := True;
+        else
+         Break;
+      }
+
+      case fwHistCond of
+        1:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.Kol <> KatOS.Kol)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.Kol <> ArcIznOS_N.Kol)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        2:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.SrokIsp <> SpKatOS_Cur.SrokIsp)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.SrokIsp <> ArcIznOS_N.SrokIsp)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        3:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.Stoim <> SpKatOS_Cur.Stoim)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.Stoim <> ArcIznOS_N.Stoim)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        4:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.SumIzn <> SpKatOS_Cur.SumIzn)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.SumIzn <> ArcIznOS_N.SumIzn)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        5:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.SiznM <> SpKatOS_Cur.SiznM)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.SiznM <> ArcIznOS_N.SiznM)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        6:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.SumOtkl <> SpKatOS_Cur.SumOtkl)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.SumOtkl <> ArcIznOS_N.SumOtkl)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        7:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.StoimPs <> SpKatOS_Cur.StoimPs)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.StoimPs <> ArcIznOS_N.StoimPs)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        8:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.IznosPS <> SpKatOS_Cur.IznosPS)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.IznosPS <> ArcIznOS_N.IznosPS)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        9:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cNorma <> SpKatOS_Cur.cNorma)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cNorma <> ArcIznOS_N.cNorma)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        10:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cHozOper <> SpKatOS_Cur.cHozOper)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cHozOper <> ArcIznOS_N.cHozOper)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        11:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cMetod <> SpKatOS_Cur.cMetod)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cMetod <> ArcIznOS_N.cMetod)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        12:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.isLeaf <> KatOS.isLeaf)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.isLeaf <> ArcIznOS_N.isLeaf)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        13:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.KoofIz <> NastrOS_Cur.KIAO)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.KoofIz <> ArcIznOS_N.KoofIz)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        14:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.KoofYsk <> VidNorma_Cur_cVid.Norma)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.KoofYsk <> ArcIznOS_N.KoofYsk)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        15:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.KoofSm <> SpKatOS_Cur.Poprkoef)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.KoofSm <> ArcIznOS_N.KoofSm)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        16:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cMol <> KatOS.cMol)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cMol <> ArcIznOS_N.cMol)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        17:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cKatPodr <> KatOS.cPodr)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cKatPodr <> ArcIznOS_N.cKatPodr)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        18:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cIsp <> SpKatOS_Cur.cIsp)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cIsp <> ArcIznOS_N.cIsp)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        19:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (KatOS_Higher.nRec <> KatOS.cHigherOS)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (KatOS_Higher.nRec <> KatOS_Higher_N.nRec)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        20:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.InNum <> KatOS.InNum)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.InNum <> ArcIznOS_N.InNum)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        21:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.IspCur <> SpKatOS_Cur.IspCur)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.IspCur <> ArcIznOS_N.IspCur)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        22:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cGrup <> KatOS.cGrup)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cGrup <> ArcIznOS_N.cGrup)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        23:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cVid <> KatOS.cVid)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cVid <> ArcIznOS_N.cVid)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        24:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cGrAm <> SpKatOS_Cur.cGrAm)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cGrAm <> ArcIznOS_N.cGrAm)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        25:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.dbReserv <> SpKatOS_Cur.dbReserv)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.dbReserv <> ArcIznOS_N.dbReserv)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        26:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cPrSb <> KatOS.cPrSb)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cPrSb <> ArcIznOS_N.cPrSb)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        27:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cCO <> KatOS.cCO)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cCO <> ArcIznOS_N.cCO)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        #ifdef GAL9_1
+        28:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.cOKOF <> KatOS.cOKOF)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.cOKOF <> ArcIznOS_N.cOKOF)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        29:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.SumFld <> SpKatOS_Cur.SumFld)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.SumFld <> ArcIznOS_N.SumFld)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        30:
+        {
+          if (fBeyondArc or (KatOS.OtchPer <= ArcIznOS_N.Data))
+          {
+            if (ArcIznosFind.StoimL <> SpKatOS_Cur.StoimL)
+            {
+              MarkOS(True, KatOs.nRec);
+              if boInMemLoad
+                MarkForInMemLoad;
+              Break;
+            }
+          }
+
+          if (ArcIznosFind.StoimL <> ArcIznOS_N.StoimL)
+          {
+            MarkOS(True, KatOs.nRec);
+            if boInMemLoad
+              MarkForInMemLoad;
+            Break;
+          }
+        }
+        #end
+      end;
+    }
+  }
+  PopPos(#KatOs);
+
+  if boInMemLoad
+    InMemLoad;
+  ReReadRecord(#KatOs);
+
+  if wPickNum <> 0 or GetMarkerCount(MarkerInMemo) <> 0
+  {
+    intChangeHist.SetDatePeriod(dBeginDate, dEndDate);
+    if CurTabInWindow(wnMainWindow) = scChangeHist
+      intChangeHist.SetChangeHistParam(KatOS.nRec, NastrOs.nRec, 1);
+  }
+}
+
+//------------------------------------------------------------------------------
+// выгрузка в память уже помеченных
+Procedure FindOsByMarked;
+{
+  PushPos(#KatOs);
+  _loop KatOs
+  {
+    if (not NextVisual)
+      Break;
+
+    if RecordExists Pick where ((cgPick_KatOs == Pick.wList and
+                                  KatOs.NRec  == Pick.cRec)) = tsOk
+      if boInMemLoad
+        MarkForInMemLoad;
+  }
+  PopPos(#KatOs);
+
+  if boInMemLoad
+    InMemLoad;
+  ReReadRecord(#KatOs);
+}
+
+//------------------------------------------------------------------------------
+// поиск ИК имеющих резервы
+Procedure FindOsByReserves;
+{
+  PushPos(#KatOs);
+  _loop KatOs
+  {
+    if (not NextVisual)
+      Break;
+
+    if GetFirst KatOsReserv where (( cgOs_57_Rsrv == KatOsReserv.TiDk and
+                                       KatOs.Nrec == KatOsReserv.cHigherOs )) = tsOk
+    {
+      MarkOS(True, KatOs.nRec);
+
+      if boInMemLoad
+        MarkForInMemLoad;
+    }
+  }
+  PopPos(#KatOs);
+
+  if boInMemLoad
+    InMemLoad;
+  ReReadRecord(#KatOs);
+}
+
+//------------------------------------------------------------------------------
+// Выбор по Группам Ос
+Function SelectByGrOS : Boolean;
+{
+  Result := False;
+
+  if RecordExists PickS where (( cgPick_GrOs == PickS.wlist
+                             and KatOs.cGrup == PickS.crec )) = tsOk
+    Result := True;
+}
+//------------------------------------------------------------------------------
+// Выбор по Видам Ос
+Function SelectByVid : Boolean;
+{
+  Result := False;
+
+  if RecordExists PickS where (( cgPick_VidNorm == PickS.wlist
+                                and KatOs.cVid  == PickS.cRec )) = tsOk
+    Result := True;
+}
+//------------------------------------------------------------------------------
+// Выбор по Нормам Ос
+Function SelectByNorm : Boolean;
+{
+  Result := False;
+
+  if RecordExists PickS where (( cgPick_Norm == PickS.wlist
+                         and SpKatOs.cNorma  == PickS.cRec )) = tsOk
+    Result := True;
+}
+
+//------------------------------------------------------------------------------
+// Выбор по Признаку использования
+Function SelectByIspOs : Boolean;
+{
+  Result := False;
+
+  if RecordExists PickS where (( cgPick_IspOs == PickS.wlist
+                             and SpKatOs.cIsp == PickS.cRec )) = tsOk
+    Result := True;
+}
+
+//------------------------------------------------------------------------------
+// Выбор по подразделениям
+Function SelectByPodr : Boolean;
+{
+  Result := False;
+
+  if RecordExists PickS where (( cgPick_Sklad == PickS.wlist
+                              and KatOs.cPodr == PickS.cRec )) = tsOk
+    Result := True;
+}
+//------------------------------------------------------------------------------
+// Выбор по МОЛ
+Function SelectByMol : Boolean;
+{
+  Result := False;
+
+  if RecordExists PickS where (( cgPick_Mol == PickS.wList
+                             and KatOs.cMol == PickS.cRec )) = tsOk
+    Result := True;
+}
+
+//------------------------------------------------------------------------------
+// Выбор по Алгоритмам
+Function SelectByMetod : Boolean;
+{
+  Result := False;
+
+  if (GetFirst SpKatOs = tsOk)
+    if (FoundMarker(MarkerAlg, SpKatOs.cMetod))
+      Result := True;
+}
+//------------------------------------------------------------------------------
+// Выбор по ТХО
+Function SelectByTxo : Boolean;
+{
+  Result := False;
+
+  if (GetFirst SpKatOs = tsOk)
+    if (FoundMarker(MarkerTxoAmmort, SpKatOs.cHozOper))
+      Result := True;
+}
+
+//------------------------------------------------------------------------------
+// Выбор по ДМ
+Function SelectByDM : Boolean;
+{
+  Result := False;
+
+  _loop NalDrag where ((Word(1) == TiDk and
+                        KatOs.NRec == NalDrag.cKatOs))
+  if fwFindDM <> 0
+  {
+    if RecordExists PickS where (( cgPick_Drag == PickS.wlist
+                                and NalDrag.cKatDrag == PickS.crec )) = tsOk
+    {
+      Result := True;
+      Break;
+    }
+  }
+  else
+    if NalDrag.cKatDrag <> 0
+    {
+      Result := True;
+      Break;
+    }
+}
+
+//------------------------------------------------------------------------------
+// Выбор по типу прикрепленного документа
+Function SelectByAttachDoc : Boolean;
+{
+  Result := False;
+
+  _loop DocInfo where ((KatOs.NRec == DocInfo.cDoc    and
+                        KatOs.TiDk == DocInfo.DocType and
+                        Word(4)    == DocInfo.InfoType   ))
+    if RecordExists PickS where (( cgPick_KlassOs == PickS.wlist
+                                and DocInfo.cLang == PickS.crec )) = tsOk
+    {
+       Result := True;
+       Break;
+    }
+}
+
+//------------------------------------------------------------------------------
+// Выбор по арендатору
+Function SelectByArendator : Boolean;
+{
+  Result := False;
+
+  _loop DocInfo where ((KatOs.NRec == DocInfo.cDoc    and
+                        KatOs.TiDk == DocInfo.DocType and
+                        Word(4)    == DocInfo.InfoType   ))
+    if iKatKl.GetKatKl_NumKod(DocInfo.cLang) = cgDoc_Arenda
+      if (fwArendator <> 0)
+      {
+        if FoundMarker(MarkerArendator, otSpDIArenda.cArendator)
+        {
+          Result := True;
+          Break;
+        }
+      }
+      else
+      {
+        Result := True;
+        Break;
+      }
+}
+
+//------------------------------------------------------------------------------
+// Выбор по арендодателю
+Function SelectByArendodatel : Boolean;
+{
+  Result := False;
+
+  _loop DocInfo where ((KatOs.NRec == DocInfo.cDoc    and
+                        KatOs.TiDk == DocInfo.DocType and
+                        Word(4)    == DocInfo.InfoType   ))
+    if iKatKl.GetKatKl_NumKod(DocInfo.cLang) = cgDoc_Hranenie
+      if (fwArendodatel <> 0)
+      {
+        if FoundMarker(MarkerArendodatel, otSpDIArenda.cArendator)
+        {
+          Result := True;
+          Break;
+        }
+      }
+      else
+      {
+        Result := True;
+        Break;
+      }
+}
+
+function SelKauReff(wFilKau: word; coTable: word): Boolean;
+{
+  Result := false;
+  #ifdef __TPR2__
+  case coTable of
+    word(coKatOs):
+    {
+      if GetFirst tmp_KauReff1 where
+                      (( word(coKatOs)  ==  tmp_KauReff1.coTable
+                         and KatOs.NRec == tmp_KauReff1.cRec
+                         and wFilKau    == tmp_KauReff1.wKau )) = tsOk
+        Result := true;
+    }
+    word(coSpSopr):
+    {
+        if GetFirst tmp_KauReff1 where
+                       (( word(coSpSopr)     ==  tmp_KauReff1.coTable
+                          and wFilKau        ==  tmp_KauReff1.wKau
+                          and SpSopR_L.NRec  == tmp_KauReff1.cRec )) = tsOk
+           Result := true;
+    }
+  end;
+  #end
+}
+
+function SelSpecMTR: Boolean;
+{
+  var Nrec_SpSopr: comp;
+  Result := false;
+
+  #ifdef __TPR2__
+  Nrec_SpSopr := GetRefSopr_Sklad_OS(KatOs.cSpOrder);
+
+  _LOOP SpSopR_L where ((Nrec_SpSopr == SpSopR_L.cSopr))
+  {
+    if ((wFilCUKau1) <> 0) or ((wFilCUKau2) <> 0) or ((wFilCUKau3) <> 0)
+        or ((wFilCUKau4) <> 0) or ((wFilCUKau5) <> 0) or ((wFilCUKau6) <> 0)
+          or ((wFilCUKau7) <> 0) or ((wFilCUKau8) <> 0) or ((wFilCUKau9) <> 0) or ((wFilCUKau10) <> 0)
+   {
+     if ((wFilCUKau1) <> 0)
+     {
+        Result := SelKauReff(wFilCUKau1, word(coSpSopr));
+     }
+     if ((wFilCUKau2) <> 0)
+     {
+        Result := SelKauReff(wFilCUKau2, word(coSpSopr));
+     }
+     if ((wFilCUKau3) <> 0)
+     {
+        Result := SelKauReff(wFilCUKau3, word(coSpSopr));
+     }
+     if ((wFilCUKau4) <> 0)
+     {
+        Result := SelKauReff(wFilCUKau4, word(coSpSopr));
+     }
+     if ((wFilCUKau5) <> 0)
+     {
+        Result := SelKauReff(wFilCUKau5, word(coSpSopr));
+     }
+     if ((wFilCUKau6) <> 0)
+     {
+        Result := SelKauReff(wFilCUKau6, word(coSpSopr));
+     }
+     if ((wFilCUKau7) <> 0)
+     {
+        Result := SelKauReff(wFilCUKau7, word(coSpSopr));
+     }
+     if ((wFilCUKau8) <> 0)
+     {
+        Result := SelKauReff(wFilCUKau8, word(coSpSopr));
+     }
+     if ((wFilCUKau9) <> 0)
+     {
+        Result := SelKauReff(wFilCUKau9, word(coSpSopr));
+     }
+     if ((wFilCUKau10) <> 0)
+     {
+        Result := SelKauReff(wFilCUKau10, word(coSpSopr));
+     }
+   }
+  }
+  #end
+
+}
+
+//------------------------------------------------------------------------------
+// Выбор по наличию/отсутствию внешних КАУ
+Function SelectByBindedKAU : Boolean;
+{
+  Result := False;
+
+  case fwBindedKAUkod of
+    0:
+    {
+      if GetFirst KauReff where((  coKatOs == KauReff.coTable and
+                                KatOs.NRec == KauReff.cRec  )) = tsOk
+      {
+        if fwBindedKAU = 1
+          if boNullOnly
+          {
+            if KauReff.cKau = 0
+              Result := True;
+          }
+          else
+  #ifdef __TPR2__
+            if ((wFilVnKau1) <> 0) or ((wFilVnKau2) <> 0) or ((wFilVnKau3) <> 0)
+                  or ((wFilVnKau4) <> 0) or ((wFilVnKau5) <> 0) or ((wFilVnKau6) <> 0)
+            {
+              Result := True;
+
+              if (Result) and ((wFilVnKau1) <> 0)
+              {
+                Result := SelKauReff(wFilVnKau1, word(coKatOs));
+              }
+
+              if (Result) and ((wFilVnKau2) <> 0)
+              {
+                Result := SelKauReff(wFilVnKau2, word(coKatOs));
+              }
+
+              if (Result) and ((wFilVnKau3) <> 0)
+              {
+                Result := SelKauReff(wFilVnKau3, word(coKatOs));
+              }
+
+              if (Result) and ((wFilVnKau4) <> 0)
+              {
+                Result := SelKauReff(wFilVnKau4, word(coKatOs));
+              }
+
+              if (Result) and ((wFilVnKau5) <> 0)
+              {
+                Result := SelKauReff(wFilVnKau5, word(coKatOs));
+              }
+
+              if (Result) and ((wFilVnKau6) <> 0)
+              {
+                Result := SelKauReff(wFilVnKau6, word(coKatOs));
+              }
+            }
+            else
+     #end
+              Result := True;
+      }
+      else
+        if fwBindedKAU = 0
+          Result := True;
+    }
+    else
+    {
+      if GetFirst KauReff where((      coKatOs == KauReff.coTable and
+                                    KatOs.NRec == KauReff.cRec and
+                                fwBindedKAUkod == KauReff.wKau        )) = tsOk
+      {
+        if fwBindedKAU = 1
+          if boNullOnly
+          {
+            if KauReff.cKau = 0
+              Result := True;
+          }
+          else
+            Result := True;
+      }
+      else
+        if fwBindedKAU = 0
+          Result := True;
+    }
+  end;
+}
+
+//------------------------------------------------------------------------------
+// Поиск инвентарных карточек по ...
+Procedure SelectOS;
+Var
+  bSelOS : Boolean;
+{
+  bSelOS := False;
+
+  // SetBoundsByLinkTbl(False); // снять ограничения на подчиненные таблицы
+
+  MarkerAlg := InitMarker('GetAlgAm_Marker', 8, 20, 20, False);
+
+  _loop KatOs
+  {
+    if (Not NextVisual)
+      Break;
+
+    bSelOS := False;
+    if (not bSelOS) and ((wSelCheck and cgSel_GrOs) <> 0)
+      bSelOS := SelectByGrOS;
+    if (not bSelOS) and ((wSelCheck and cgSel_Vid) <> 0)
+      bSelOS := SelectByVid;
+    if (not bSelOS) and ((wSelCheck and cgSel_Norm) <> 0)
+      bSelOS := SelectByNorm;
+
+    if (not bSelOS) and ((wSelCheck and cgSel_IspOs) <> 0)
+      bSelOS := SelectByIspOs;
+
+    if (not bSelOS) and ((wSelCheck and cgSel_Podr) <> 0)
+      bSelOS := SelectByPodr;
+    if (not bSelOS) and ((wSelCheck and cgSel_Mol) <> 0)
+      bSelOS := SelectByMol;
+
+    if (not bSelOS) and ((wSelCheck and cgSel_Metod) <> 0)
+      bSelOS := SelectByMetod;
+    if (not bSelOS) and ((wSelCheck and cgSel_Txo) <> 0)
+      bSelOS := SelectByTxo;
+
+    if (not bSelOs) and ((wSelCheck and cgSel_Accord) <> 0)
+      bSelOs := SelectByAccording;
+    if (not bSelOs) and ((wSelCheck and cgSel_DM) <> 0)
+      bSelOs := SelectByDM;
+    if (not bSelOs) and ((wSelCheck and cgSel_AttachDoc) <> 0)
+      bSelOS := SelectByAttachDoc;
+    if (not bSelOs) and ((wSelCheck and cgSel_Arendator) <> 0)
+      bSelOS := SelectByArendator;
+    if (not bSelOs) and ((wSelCheck and cgSel_Arendodatel) <> 0)
+      bSelOS := SelectByArendodatel;
+    if (not bSelOs) and ((wSelCheck and cgSel_BindedKAU) <> 0)
+      bSelOs := SelectByBindedKAU;
+    if (not bSelOs) and ((wSelCheck and cgSel_BindedCU) <> 0)
+      bSelOS := SelSpecMTR;
+
+    if (bSelOS)
+    {
+      MarkOS(True, KatOs.nRec);
+      if boInMemLoad
+        MarkForInMemLoad;
+    }
+  }
+
+  if boInMemLoad
+    InMemLoad;
+  ReReadRecord(#KatOs);
+  DoneMarker(MarkerAlg, 'GetAlgAm_Marker');
+
+  // SetBoundsByLinkTbl(True);  // установить ограничения на подчиненные таблицы
+}
+
+//------------------------------------------------------------------------------
+// Окно для выбора типа операции для поиска инвентарных карточек
+Window wiSetFindOperation 'Выбор операций' (, hcOSLiznosAll, sci1Esc) EscClose, Gray;
+  Show at (, , 90, 11);
+Screen scSetFindOperationOS (, hcNoContext, sci1Esc);
+  Table MyStruct;
+Fields
+  fwFindCondition    ('Выбор операций',,sci13Esc)                             : NoProtect;
+  fsFindTxoPost      ('Выбранные ТХО поступления',,sci13Esc)                  : Protect;
+  fsFindOperPost     ('Выбранная операция поступления',,sci13Esc)             : Protect;
+  fsFindTxoVnPerem   ('Выбранные ТХО внутреннего перемещения',,sci13Esc)      : Protect;
+  fsFindOpervnPerem  ('Выбранная операция внутреннего перемещения',,sci13Esc) : Protect;
+  fsFindTxoIzmStoim  ('Выбранные ТХО изменения стоимости',,sci13Esc)          : Protect;
+  fsFindOperIzmStoim ('Выбранная операция изменения стоимости',,sci13Esc)     : Protect;
+  fsFindTxoVibil     ('Выбранные ТХО выбытия',,sci13Esc)                      : Protect;
+  fsFindOperVibil    ('Выбранная операция выбытия',,sci13Esc)                 : Protect;
+  fwFindPr           ('Способ переоценки',,sci13Esc) :
+                      [LIST 0 ' ', 'индексная', 'прямая'], Protect;
+
+  fsFindTxoPereoc    ('Выбранные ТХО переоценки',,sci13Esc)                   : Protect;
+  fsFindOperPereoc   ('Выбранная операция переоценки',,sci13Esc)              : Protect;
+  fsFindTxoIzmGroup  ('Выбранные ТХО изменения группы/вида',,sci13Esc)        : Protect;
+  fsFindOperIzmGroup ('Выбранная операция изменения группы/вида',,sci13Esc)   : Protect;
+  fsFindTxoIzmParam  ('Выбранные ТХО изменения параметров',,sci13Esc)         : Protect;
+  fsFindOperIzmParam ('Выбранная операция изменения параметров',,sci13Esc)    : Protect;
+Buttons
+  cmClose, Default,, 'Выбор операций',, sci1Esc;
+<<
+                                               выбор ТХО             выбор Операции
+   [.] Поступление`                    .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Внутреннее перемещение`         .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Изменение стоимости`            .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Выбытие`                        .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Переоценка`        .@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Изменение группы/вида`          .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Изменение параметров`           .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+
+                                   <.~П~родолжить.>
+>>
+End; // Screen scSetFindOperationOS
+
+Screen scSetFindOperationNMA (,hcNoContext,sci1Esc);
+  Table MyStruct;
+Fields
+  fwFindCondition    ('Выбор операций',,sci13Esc)                             : NoProtect;
+  fsFindTxoPost      ('Выбранные ТХО поступления',,sci13Esc)                  : Protect;
+  fsFindOperPost     ('Выбранная операция поступления',,sci13Esc)             : Protect;
+  fsFindTxoVnPerem   ('Выбранные ТХО внутреннего перемещения',,sci13Esc)      : Protect;
+  fsFindOpervnPerem  ('Выбранная операция внутреннего перемещения',,sci13Esc) : Protect;
+  fsFindTxoIzmStoim  ('Выбранные ТХО изменения стоимости',,sci13Esc)          : Protect;
+  fsFindOperIzmStoim ('Выбранная операция изменения стоимости',,sci13Esc)     : Protect;
+  fsFindTxoVibil     ('Выбранные ТХО выбытия',,sci13Esc)                      : Protect;
+  fsFindOperVibil    ('Выбранная операция выбытия',,sci13Esc)                 : Protect;
+  fsFindTxoPereoc    ('Выбранные ТХО переоценки',,sci13Esc)                   : Protect;
+  fsFindOperPereoc   ('Выбранная операция переоценки',,sci13Esc)              : Protect;
+  fsFindTxoIzmGroup  ('Выбранные ТХО изменения группы/вида',,sci13Esc)        : Protect;
+  fsFindOperIzmGroup ('Выбранная операция изменения группы/вида',,sci13Esc)   : Protect;
+  fsFindTxoIzmParam  ('Выбранные ТХО изменения параметров',,sci13Esc)         : Protect;
+  fsFindOperIzmParam ('Выбранная операция изменения параметров',,sci13Esc)    : Protect;
+Buttons
+  cmClose, Default,, 'Выбор операций',, sci1Esc;
+<<
+                                         выбор ТХО             выбор Операции
+   [.] Поступление`              .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Внутреннее перемещение`   .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Изменение стоимости`      .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Выбытие`                  .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Переоценка`               .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Изменение вида/нормы`     .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+   [.] Изменение параметров`     .@@@@@@@@@@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@@
+
+                             <.~П~родолжить.>
+>>
+End; // Screen scSetFindOperationNMA
+
+HandleEvent // Window wiSetFindOperation
+//--------------------------------------
+cmInit:
+{
+  if (wTip = Word(15))
+    SetFormat(scSetFindOperationOS);
+  else
+    SetFormat(scSetFindOperationNMA);
+}
+
+cmPick:
+{
+  case CurField of
+    #fsFindTXOPost:
+    {
+      fwKolFindTxoPost := 0;
+      fsFindTxoPost    := '';
+      if (RunInterface('GetHozOper', myPlansNo, TipDock mod 100, 1, cFilHozOper, (cgiPick or cgiMulti or cgiNotEdit)) = cmDefault)
+      {
+        MarkerTxo := InitMarker('HOZOPER', 8, 20, 20, False);
+        ClearMarker(MarkerTxoPost);
+        CopyMarker(MarkerTxoPost, MarkerTxo);
+        fwKolFindTxoPost := GetMarkerCount(MarkerTxoPost);
+
+        if fwKolFindTxoPost = 1
+        {
+          if (GetFirst HozOper where ((cFilHozOper == HozOper.Nrec)) = tsOk)
+            fsFindTxoPost := HozOper.NAME1;
+        }
+        else
+          fsFindTxoPost := 'множественный выбор (' + String(fwKolFindTxoPost) + ')';
+
+        DoneMarker(MarkerTxo, 'HOZOPER');
+      }
+    }
+
+    #fsFindTXOVnPerem:
+    {
+      fwKolFindTxoVnPerem := 0;
+      fsFindTxoVnPerem    := '';
+      if (RunInterface('GetHozOper' ,myPlansNo, TipDock mod 100, 2, cFilHozOper, (cgiPick or cgiMulti or cgiNotEdit)) = cmDefault)
+      {
+        MarkerTxo := InitMarker('HOZOPER', 8, 20, 20, False);
+        ClearMarker(MarkerTxoVnPerem);
+        CopyMarker(MarkerTxoVnPerem, MarkerTxo);
+        fwKolFindTxoVnPerem :=  GetMarkerCount(MarkerTxoVnPerem);
+
+        if fwKolFindTxoVnPerem = 1
+        {
+          if (GetFirst HozOper where ((cFilHozOper == HozOper.Nrec)) = tsOk)
+            fsFindTxoVnPerem := HozOper.NAME1;
+        }
+        else
+          fsFindTxoVnPerem := 'множественный выбор (' + String(fwKolFindTxoVnPerem) + ')';
+
+        DoneMarker(MarkerTxo, 'HOZOPER');
+      }
+    }
+
+    #fsFindTXOIzmStoim:
+    {
+      fwKolFindTxoIzmStoim := 0;
+      fsFindTxoIzmStoim    := '';
+      if (RunInterface('GetHozOper', myPlansNo, TipDock mod 100, 3, cFilHozOper, (cgiPick or cgiMulti or cgiNotEdit)) = cmDefault)
+      {
+        MarkerTxo := InitMarker('HOZOPER', 8, 20, 20, False);
+        ClearMarker(MarkerTxoIzmStoim);
+        CopyMarker(MarkerTxoIzmStoim, MarkerTxo);
+        fwKolFindTxoIzmStoim := GetMarkerCount(MarkerTxoIzmStoim);
+
+        if fwKolFindTxoIzmStoim = 1
+        {
+          if (GetFirst HozOper where ((cFilHozOper == HozOper.Nrec)) = tsOk)
+            fsFindTxoIzmStoim := HozOper.NAME1;
+        }
+        else
+          fsFindTxoIzmStoim := 'множественный выбор (' + String(fwKolFindTxoIzmStoim) + ')';
+
+        DoneMarker(MarkerTxo, 'HOZOPER');
+      }
+    }
+
+    #fsFindTXOVibil:
+    {
+      fwKolFindTxoVibil := 0;
+      fsFindTxoVibil    := '';
+      if (RunInterface('GetHozOper', myPlansNo, TipDock mod 100, 4, cFilHozOper, (cgiPick or cgiMulti or cgiNotEdit)) = cmDefault)
+      {
+        MarkerTxo := InitMarker('HOZOPER', 8, 20, 20, False);
+        ClearMarker(MarkerTxoVibil);
+        CopyMarker(MarkerTxoVibil, MarkerTxo);
+        fwKolFindTxoVibil := GetMarkerCount(MarkerTxoVibil);
+
+        if fwKolFindTxoVibil = 1
+        {
+          if (GetFirst HozOper where ((cFilHozOper == HozOper.Nrec)) = tsOk)
+            fsFindTxoVibil := HozOper.NAME1;
+        }
+        else
+          fsFindTxoVibil := 'множественный выбор (' + String(fwKolFindTxoVibil) + ')';
+
+        DoneMarker(MarkerTxo, 'HOZOPER');
+      }
+    }
+
+    #fsFindTXOPereoc:
+    {
+      fwKolFindTxoPereoc := 0;
+      fsFindTxoPereoc    := '';
+      if (RunInterface('GetHozOper', myPlansNo, TipDock mod 100, 6, cFilHozOper, (cgiPick or cgiMulti or cgiNotEdit)) = cmDefault)
+      {
+        MarkerTxo := InitMarker('HOZOPER', 8, 20, 20, False);
+        ClearMarker(MarkerTxoPereoc);
+        CopyMarker(MarkerTxoPereoc, MarkerTxo);
+        fwKolFindTxoPereoc := GetMarkerCount(MarkerTxoPereoc);
+
+        if fwKolFindTxoPereoc = 1
+        {
+          // fsFindTxo := 'множественный выбор ('  + string(fwKolFindTxo) + ')'
+          if (GetFirst HozOper where ((cFilHozOper == HozOper.Nrec)) = tsOk)
+            fsFindTxoPereoc := HozOper.NAME1;
+        }
+        else
+          fsFindTxoPereoc := 'множественный выбор (' + String(fwKolFindTxoPereoc) + ')';
+
+        DoneMarker(MarkerTxo, 'HOZOPER');
+      }
+    }
+
+    #fsFindTXOIzmGroup:
+    {
+      fwKolFindTxoIzmGroup := 0;
+      fsFindTxoIzmGroup    := '';
+      if (RunInterface('GetHozOper', myPlansNo, TipDock mod 100, 7, cFilHozOper, (cgiPick or cgiMulti or cgiNotEdit)) = cmDefault)
+      {
+        MarkerTxo := InitMarker('HOZOPER', 8, 20, 20, False);
+        ClearMarker(MarkerTxoIzmGroup);
+        CopyMarker(MarkerTxoIzmGroup, MarkerTxo);
+        fwKolFindTxoIzmGroup := GetMarkerCount(MarkerTxoIzmGroup);
+
+        if fwKolFindTxoIzmGroup = 1
+        {
+          if (GetFirst HozOper where ((cFilHozOper == HozOper.Nrec)) = tsOk)
+            fsFindTxoIzmGroup := HozOper.NAME1;
+        }
+        else
+          fsFindTxoIzmGroup := 'множественный выбор (' + String(fwKolFindTxoIzmGroup) + ')';
+
+        DoneMarker(MarkerTxo, 'HOZOPER');
+      }
+    }
+
+    #fsFindTXOIzmParam:
+    {
+      fwKolFindTxoIzmParam := 0;
+      fsFindTxoIzmParam    := '';
+      if (RunInterface('GetHozOper', myPlansNo, TipDock mod 100, 9, cFilHozOper, (cgiPick or cgiMulti or cgiNotEdit)) = cmDefault)
+      {
+        MarkerTxo := InitMarker('HOZOPER', 8, 20, 20, False);
+        ClearMarker(MarkerTxoIzmParam);
+        CopyMarker(MarkerTxoIzmParam, MarkerTxo);
+        fwKolFindTxoIzmParam := GetMarkerCount(MarkerTxoIzmParam);
+
+        if fwKolFindTxoIzmParam = 1
+        {
+          if (GetFirst HozOper where ((cFilHozOper == HozOper.Nrec)) = tsOk)
+            fsFindTxoIzmParam := HozOper.NAME1;
+        }
+        else
+          fsFindTxoIzmParam := 'множественный выбор (' + String(fwKolFindTxoIzmParam) + ')';
+
+        DoneMarker(MarkerTxo, 'HOZOPER');
+      }
+    }
+
+    #fsFindOperPost:
+    {
+      fsFindOperPost := '';
+      cMoveOsPost    := 0;
+      if(RunInterface('MoveOs', 1, TipDock mod 100, 0, cMoveOsPost, False, Word(1)) = cmDefault)
+        if( GetFirst MoveOs where((cMoveOsPost == MoveOs.NRec)) = tsOk )
+          fsFindOperPost := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+    }
+
+    #fsFindOperVnPerem:
+    {
+      fsFindOperVnPerem := '';
+      cMoveOsVnPerem    := 0;
+      if(RunInterface('MoveOs', 2, TipDock mod 100, 0, cMoveOsVnPerem, False, Word(1)) = cmDefault)
+        if( GetFirst MoveOs where((cMoveOsVnPerem == MoveOs.NRec)) = tsOk )
+          fsFindOperVnPerem := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+    }
+
+    #fsFindOperIzmStoim:
+    {
+      fsFindOperIzmStoim := '';
+      cMoveOsIzmStoim    := 0;
+      if(RunInterface('MoveOs', 3, TipDock mod 100, 0, cMoveOsIzmStoim, False, Word(1)) = cmDefault)
+        if( GetFirst MoveOs where((cMoveOsIzmStoim == MoveOs.NRec)) = tsOk )
+          fsFindOperIzmStoim := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+    }
+
+    #fsFindOperVibil:
+    {
+      fsFindOperVibil := '';
+      cMoveOsVibil    := 0;
+      if(RunInterface('MoveOs', 4, TipDock mod 100, 0, cMoveOsVibil, False, Word(1)) = cmDefault)
+        if( GetFirst MoveOs where((cMoveOsVibil == MoveOs.NRec)) = tsOk )
+          fsFindOperVibil := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+    }
+
+    #fsFindOperPereoc:
+    {
+      fsFindOperPereoc := '';
+      cMoveOsPereoc    := 0;
+      if(RunInterface('MoveOs', 6, TipDock mod 100, 0, cMoveOsPereoc, False, Word(1)) = cmDefault)
+        if( GetFirst MoveOs where((cMoveOsPereoc == MoveOs.NRec)) = tsOk )
+          fsFindOperPereoc := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+    }
+
+    #fsFindOperIzmGroup:
+    {
+      fsFindOperIzmGroup := '';
+      cMoveOsIzmGroup    := 0;
+      if(RunInterface('MoveOs', 7, TipDock mod 100, 0, cMoveOsIzmGroup, False, Word(1)) = cmDefault)
+        if( GetFirst MoveOs where((cMoveOsIzmGroup == MoveOs.NRec)) = tsOk )
+          fsFindOperIzmGroup := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+    }
+
+    #fsFindOperIzmParam:
+    {
+      fsFindOperIzmParam := '';
+      cMoveOsIzmParam    := 0;
+      if(RunInterface('MoveOs', 9, TipDock mod 100, 0, cMoveOsIzmParam, False, Word(1)) = cmDefault)
+        if( GetFirst MoveOs where((cMoveOsIzmParam == MoveOs.NRec)) = tsOk )
+          fsFindOperIzmParam := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+    }
+  end;
+}
+
+//--------------------------------------
+End; // HandleEvent Window wiSetFindOperation
+End; // Window wiSetFindOperation
+
+//------------------------------------------------------------------------------
+// Окно для выбора типа операции для поиска инвентарных карточек
+Window wiSetFindChangeHist 'Выбор параметра' EscClose, Gray;
+  Show at (, , 40, 15);
+
+Browse brSetFindChangeHistOS (,, sci1EnEsc);
+  Table slParams;
+Fields
+  slParams.Name 'Выбор операций' : Protect;
+End; // Browse brSetFindChangeHistOS
+
+HandleEvent
+cmDefault:
+{
+  fwHistCond := slParams.NumKod;
+  CloseWindow(wiSetFindChangeHist);
+}
+cmCancel:
+  if GetFirst slParams where ((fwHistCond == slParams.NumKod)) <> tsOk {}
+End;
+End; // Window wiSetFindChangeHist

@@ -1,0 +1,1804 @@
+/*
+ ╔═══════════════════════════════════════════════════════════════════════════╗
+ ║ Система       : Бухгалтерский контур                                      ║
+ ║ Назначение    : Отчеты по ОС                                              ║
+ ╚═══════════════════════════════════════════════════════════════════════════╝
+*/
+
+Const
+  cntChFullOper = 1023;
+
+  cgFirstNumOs = 1;
+  cgLastNumOs  = 49;
+  cgFirstNumLinkOs = 101;
+  cgLastNumLinkOs  = 127;
+  cgOsLgota        = 49; // Номер поля  - Аморт льгота
+end;
+
+//------------------------------------------------------------------------------
+var
+  wReestrPrintSort    : word; //Порядок сортировки при печати
+  bContinueFormReestr : boolean;
+var VidRep : word;
+var isPickOS     : boolean;
+var pMarker: IMarker(Marker) new;
+var AllFrColumns : word;
+var IsReserv : boolean;
+
+!-----------------------------------------------------------------------------------------------------
+! при добавлении полей не забываем менять cntMaxFrColumn
+!-----------------------------------------------------------------------------------------------------
+// Установить наименования поля по номеру для работы с конфигуратором
+function GetFldTitleByNum(Num : word) : string;
+{
+
+  case num of
+    1 :  result := 'Наименование'                           ;
+    2 :  result := 'Инвентарный'#13'номер'                  ;
+    3 :  result := 'Номер'#13'паспорта'                     ;
+    4 :  result := 'Регистр.'#13'номер'                     ;
+    5 :  result := 'Заводской'#13'номер'                    ;
+    6 :  result := 'Номенклатурный'#13'номер'               ;
+    7 :  result := 'Дата'#13'гарантии'                      ;
+    8 :  result := 'Дата'#13'выпуска'                       ;
+    9 :  result := 'Дата ввода' + ''#13 + 'в эксплуатацию'  ;
+    10:  result := 'Дата'#13'поступления'                   ;
+    11:  result := 'Дата'#13'выбытия'                       ;
+    12:  result := 'Дата'#13'ликвидации'                    ;
+    13:  result := 'Кол-во объектов'#13'в ИК'               ;
+    14:  result := 'Модель,'#13'тип, марка'                 ;
+    15:  result := 'Изготовитель'                           ;
+    16:  result := 'Код'#13'партии'                         ;
+    17:  result := 'Отчетный'#13'период'                    ;
+    18:  result := 'Дополнительный'#13'инвентарный номер'   ;
+    19:  result := 'Номер'#13'записи'                       ;
+    20:  result := 'Номер'#13'филиала'                      ;
+    21:  result := 'Дескриптор'                             ;
+    22:  result := 'Группа'                                 ;
+    23:  result := 'Тип'#13'документа'                      ;
+    24:  result := 'Ед. Изм.'                               ;
+    25:  result := 'Группа ОС'                              ;
+    26:  result := 'Вид ОС'                                 ;
+    27:  result := 'Подразделение'                          ;
+    28:  result := 'МОЛ'                                    ;
+    29:  result := 'Код нормы'#13'амортизации'              ;
+    30:  result := 'Норма'#13'амортизации'                  ;
+    31:  result := 'Использование ОС'                       ;
+    32:  result := if(not IsReserv, 'Стоимость', 'Сумма резерва') ;
+    33:  result := 'Накопленная'#13'амортизация'            ;
+    34:  result := 'Амортизация'#13'за отч.период'          ;
+    35:  result := 'Стоимость при'#13'поступлении'          ;
+    36:  result := 'Износ'#13'при поступлении'              ;
+    37:  result := 'Фиксированная сумма'#13'амортизации'    ;
+    38:  result := 'Срок полезного'#13'использования'       ;
+    39:  result := 'Валюта'                                 ;
+    40:  result := 'Метод начисления'#13'амортизации'       ;
+    41:  result := 'ТХО амортизации'                        ;
+    42:  result := 'Тип объекта'                            ;
+    43:  result := 'Код группировки по'#13'ОКОФ'              ;
+    44:  result := 'Наименование кода'#13'группировки по ОКОФ';
+    45:  result := 'Поправочный'#13'коэффициент'              ;
+    46:  result := 'Остаточная'#13'стоимость'                 ;
+    47:  result := 'Код'#13'аморт. группы'     ;
+    48:  result := 'Амортизационная'#13'группа'             ;
+    49:  result := 'Амортизационная'#13'льгота'             ;
+
+             // поля для резервов
+    101:  result := 'ОС:'#13'Наименование'                                 ;
+    102:  result := 'ОС:'#13'Инвентарный'#13'номер'                        ;
+    103:  result := 'ОС:'#13'Номер'#13'паспорта'                           ;
+    104:  result := 'ОС:'#13'Регистр.'#13'номер'                           ;
+    105:  result := 'ОС:'#13'Заводской'#13'номер'                          ;
+    106:  result := 'ОС:'#13'Номенклатурный'#13'номер'                     ;
+    107:  result := 'ОС:'#13'Дата'#13'выпуска'                             ;
+    108:  result := 'ОС:'#13'Дата ввода в'#13'эксплуатацию'                ;
+    109:  result := 'ОС:'#13'Дата'#13'поступления'                         ;
+    110:  result := 'ОС:'#13'Дата'#13'выбытия'                             ;
+    111:  result := 'ОС:'#13'Дата'#13'ликвидации'                          ;
+    112:  result := 'ОС:'#13'Кол-во объектов'#13'в ИК'                     ;
+    113:  result := 'ОС:'#13'Модель,'#13'тип, марка'                       ;
+    114:  result := 'ОС:'#13'Изготовитель'                                 ;
+    115:  result := 'ОС:'#13'Отчетный'#13'период'                          ;
+    116:  result := 'ОС:'#13'Первоначальная'#13'стоимость'                 ;
+    117:  result := 'ОС:'#13'Сумма амортизации'                            ;
+    118:  result := 'ОС:'#13'Амортизация за месяц'                         ;
+    119:  result := 'ОС:'#13'Стоимость при'#13'поступлении'                ;
+    120:  result := 'ОС:'#13'Амортизация '#13'при поступлении'             ;
+    121:  result := 'ОС:'#13'Фиксированная'#13'сумма'#13'амортизации'      ;
+    122:  result := 'ОС:'#13'Ликвидационная'#13'стоимость'                 ;
+    123:  result := 'ОС:'#13'Срок'#13'использования'#13'до поступления'    ;
+    124:  result := 'ОС:'#13'Срок'#13'использования'#13'после поступления' ;
+    125:  result := 'ОС:'#13'Накопленная'#13'переоценка'#13'стоимости'     ;
+    126:  result := 'ОС:'#13'Накопленная'#13'переоценка'#13'суммы износа'  ;
+    127:  result := 'ОС:'#13'Остаточная'#13'стоимость'                     ;
+    else
+      result := 'поле не определено';
+  end;
+} // GetFldTitleByNum
+
+
+//------------------------------------------------------------------------------
+// получение наименования поля по номеру для работы с конфигуратором
+// Наименование должно совпадать в наименованием в CommonFrFld
+function GetFldNameByNum(Num : word) : string;
+{
+  var Pref : string;  Pref :='';
+
+  result := if (IsTree, 'c_TFRREEKATOS_', 'c_BFRREEKATOS_');
+
+  if (IsReserv)
+    result :=  'c_BFRREERESERVOS_';
+
+  case num of
+    1 :  result += 'KATOS.NAMEOS_'     + 'Наименование'                        ;
+    2 :  result += 'Katos.InNum_'      + 'Инвентарный_номер'                   ;
+    3 :  result += 'Katos.PsNum_'      + 'Номер_паспорта'                      ;
+    4 :  result += 'Katos.RegNum_'     + 'Регистр.номер'                       ;
+    5 :  result += 'Katos.ZavNom_'     + 'Заводской_номер'                     ;
+    6 :  result += 'Katos.BarKod_'     + 'Номенклатурный_номер'                ;
+    7 :  result += 'Katos.DatGar_'     + 'Дата_гарантии'                       ;
+    8 :  result += 'KatOs.GODV_'       + 'Дата_выпуска'                        ;
+    9 :  result += 'Katos.DATEK_'      + 'Дата_ввода_в_эксплуатацию'           ;
+    10:  result += 'KatOs.DatOk_'      + 'Дата_поступления'                    ;
+    11:  result += 'Katos.DatV_'       + 'Дата_выбытия'                        ;
+    12:  result += 'Katos.dtReserv1_'  + 'Дата_ликвидации'                     ;
+    13:  result += 'Katos.Kol_'        + 'Кол-во_объектов_в_ИК'                ;
+    14:  result += 'Katos.TipMark_'    + 'Модель,_тип,_марка'                  ;
+    15:  result += 'Katos.NameIzg_'    + 'Изготовитель'                        ;
+    16:  result += 'Katos.Kod_'        + 'Код_партии'                          ;
+    17:  result += 'Katos.OtchPer_'    + 'Отчетный_период'                     ;
+    18:  result += 'KatOs.DopInNum_'   + 'Дополнительный_инвентарный_номер'    ;
+    19:  result += 'KatOs.Nrec_'       + 'Номер_записи'                        ;
+    20:  result += 'KatOs.FilialNo_'   + 'Номер_филиала'                       ;
+    21:  result += 'KatOs.Descr_'      + 'дескриптор_к_номеру_документа'       ;
+    22:  result += 'KatOs.DesGr_'      + 'код_группы_пользователей'            ;
+    23:  result += 'KatOs.TiDk_'       + 'Тип_документа'                       ;
+    24:  result += 'KatEd.ABBR_'       + 'Ед._Изм.'                            ;
+    25:  result += 'GrOs.NameGr_'      + 'Группа_ОС'                           ;
+    26:  result += 'VidNormaS.NAME_'   + 'Вид_ОС'                              ;
+    27:  result += 'KatPodr.Name_'     + 'Подразделение'                       ;
+    28:  result += 'KatMol.Name_'      + 'МОЛ'                                 ;
+    29:  result += 'VidNorma.KOD_'     + 'Код_нормы_амортизации'               ;
+    30:  result += 'VidNorma.Norma_'   + 'Норма_амортизации'                   ;
+    31:  result += 'IspOs.NameIs_'     + 'Использование_ОС'                    ;
+    32:  result += 'Балансовая_стоимость'                                      ;
+    33:  result += 'Сумма_амортизации'                                         ;
+    34:  result += 'Амортизация_за_месяц'                                      ;
+    35:  result += 'Стоимость_при_поступлении'                                 ;
+    36:  result += 'Износ_при_поступлении'                                     ;
+    37:  result += 'Фиксированная_сумма_амортизации'                           ;
+    38:  result += 'SpKatos.SrokIsp_'  + 'Срок_полезного_использования'        ;
+    39:  result += 'KlVal.Dollar_'     + 'Валюта'                              ;
+    40:  result += 'OsAlg.Name_'       + 'Метод_начисления_амортизации'        ;
+    41:  result += 'HozOper.Name1_'    + 'ТХО_амортизации'                     ;
+    42:  result += 'Sposob.NameSb_'    + 'Тип_объекта'                         ;
+    43:  result += 'KodOf.Kod_of_'     + 'Код_группировки_по_ОКОФ'             ;
+    44:  result += 'KodOf.Name_of_'    + 'Наименование_кода_группировки_по_ОКОФ' ;
+    45:  result += 'SpKatOs.Poprkoef_' + 'Поправочный_коэффициент'             ;
+    46:  result += 'Остаточная_стоимость'                                      ;
+    47:  result += 'KlassOs.Kod_'      + 'Код_амортизационной_группы'   ;
+    48:  result += 'KlassOs.Name_'     + 'Амортизационная_группа'       ;
+    49:  result += 'Амортизационная_льгота'       ;
+
+             // поля для резервов
+    101:  result += 'KATOSLink.NAMEOS_ОС:Наименование'                                 ;
+    102:  result += 'KatosLink.InNum_ОС:Инвентарный_номер'                             ;
+    103:  result += 'KATOSLink.PsNum_ОС:Номер_паспорта'                                ;
+    104:  result += 'KATOSLink.RegNum_ОС:Регистр.номер'                                ;
+    105:  result += 'KATOSLink.ZavNom_ОС:Заводской_номер'                              ;
+    106:  result += 'KATOSLink.BarKod_ОС:Номенклатурный_номер'                         ;
+    107:  result += 'KATOSLink.GODV_ОС:Дата_выпуска'                                   ;
+    108:  result += 'KATOSLink.DATEK_ОС:Дата_ввода_в_эксплуатацию'                     ;
+    109:  result += 'KATOSLink.DatOk_ОС:Дата_поступления'                              ;
+    110:  result += 'KATOSLink.DatV_ОС:Дата_выбытия'                                   ;
+    111:  result += 'KATOSLink.dtReserv1_ОС:Дата_ликвидации'                           ;
+    112:  result += 'KATOSLink.Kol_ОС:Кол-во_объектов_в_ИК'                            ;
+    113:  result += 'KATOSLink.TipMark_ОС:Модель,_тип,_марка'                          ;
+    114:  result += 'KATOSLink.NameIzg_ОС:Изготовитель'                                ;
+    115:  result += 'KATOSLink.OtchPer_ОС:Отчетный_период'                             ;
+    116:  result += 'ОС:Первоначальная_стоимость'                                      ;
+    117:  result += 'ОС:Сумма_амортизации'                                             ;
+    118:  result += 'ОС:Амортизация_за_месяц'                                          ;
+    119:  result += 'ОС:Стоимость_при_поступлении'                                     ;
+    120:  result += 'ОС:Износ_при_поступлении'                                         ;
+    121:  result += 'ОС:Фиксированная_сумма_амортизации'                               ;
+    122:  result += 'ОС:Ликвидационная_стоимость'                                      ;
+    123:  result += 'SpKatosLink.IspPs_ОС:Срок_использования_до_поступления'           ;
+    124:  result += 'SpKatosLink.IspCur_ОС:Срок_использования_после_поступления'       ;
+    125:  result += 'ОС:Накопленная_переоценка_стоимости'                              ;
+    126:  result += 'ОС:Накопленная_переоценка_суммы_износа'                           ;
+    127:  result += 'ОС:Остаточная_стоимость'                                          ;
+    else
+      result := 'поле не определено';
+  end;
+}  // GetFldNameByNum
+
+!-----------------------------------------------------------------------------------------------------
+! при добавлении полей не забываем менять cntMaxFrOsColumn, cntMaxFrResColumn
+!-----------------------------------------------------------------------------------------------------
+
+#declare CommonFrFld (N1=)
+  Katos.InNum                'Инвентарный номер'               ('Инвентарный номер'                          ): [10], protect;
+  Katos.NameOs               'Наименование'                    ('Наименование'                               ): [40], protect;
+  Katos.PsNum                'Номер паспорта'                  ('Номер паспорта'                             ): [10], protect;
+  Katos.RegNum               'Регистр.номер'                   ('Регистр.номер'                              ): [10], protect;
+  Katos.ZavNom               'Заводской номер'                 ('Заводской номер'                            ): [10], protect;
+  Katos.BarKod               'Номенклатурный номер'            ('Номенклатурный номер'                       ): [10], protect;
+  Katos.DatGar               'Дата гарантии'                   ('Дата гарантии'                              ): [10], protect, centered, noAutoSize;
+  KatOs.GODV                 'Дата выпуска'                    ('Дата выпуска'                               ): [10], protect, centered, noAutoSize;
+  Katos.DATEK                'Дата ввода в эксплуатацию'       ('Дата ввода в эксплуатацию'                  ): [10], protect, centered, noAutoSize;
+  KatOs.DatOk                'Дата поступления'                ('Дата поступления'                           ): [10], protect, centered, noAutoSize;
+  Katos.DatV                 'Дата выбытия'                    ('Дата выбытия'                               ): [10], protect, centered, noAutoSize;
+  KatOs.dtReserv1            'Дата ликвидации'                 ('Дата ликвидации'                            ): [10], protect, centered, noAutoSize;
+  Katos.Kol                  'Кол-во объектов в ИК'            ('Кол-во объектов в ИК'                       ): [8], [kol_KatOs], protect, noAutoSize;
+  Katos.TipMark              'Модель, тип, марка'              ('Модель, тип, марка'                         ): [10], protect;
+  Katos.NameIzg              'Изготовитель'                    ('Изготовитель'                               ): [10], protect;
+  Katos.Kod                  'Код партии'                      ('Код партии'                                 ): [10], protect;
+  Katos.OtchPer              'Отчетный период'                 ('Отчетный период'                            ): [10,'MM/YYYY'], protect, centered, noAutoSize;
+  KatOs.DopInNum             'Дополнительный инвентарный номер'('Дополнительный инвентарный номер'   ): [10], protect;
+  KatOs.Nrec                 'Номер записи'                    ('Номер записи'                               ): [10], protect;
+  KatOs.FilialNo             'Номер филиала'                   ('Номер филиала'                              ): [10], protect;
+  KatOs.Descr                'Дескриптор к номеру документа'   ('Дескриптор к номеру документа'              ): [6], protect;
+  KatOs.DesGr                'Код группы пользователей'        ('Код группы пользователей'                   ): [6],  protect;
+  KatOs.TiDk                 'Тип документа'                   ('Тип (код) документа'                        ): [6],  protect;
+  KatEd.ABBR                 'Ед. Изм.'                        ('Ед. Изм.'                                   ): [10], protect;
+  GrOs.NameGr                'Группа ОС'                       ('Группа ОС'                                  ): [10], protect;
+  VidNormaS.NAME             'Вид ОС'                          ('Вид ОС'                                     ): [10], protect;
+  KatPodr.Name               'Подразделение'                   ('Подразделение'                              ): [10], protect;
+  KatMol.Name                'МОЛ'                             ('МОЛ'                                        ): [10], protect;
+  VidNorma.KOD               'Код нормы амортизации'           ('Код нормы амортизации'                      ): [10], protect;
+  VidNorma.Norma             'Норма амортизации'               ('Норма амортизации'                          ): [10], protect;
+  IspOs.NameIs               'Использование ОС'                ('Использование ОС'                           ): [10], protect;
+  SpKatos.Stoim * FKatosKol  'Балансовая стоимость'            ('Балансовая стоимость'                       ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatos.SumIzn * FKatosKol 'Сумма амортизации'               ('Сумма амортизации'                          ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatos.SIznM*FKatosKol    'Амортизация за месяц'            ('Амортизация за месяц'                       ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatos.StoimPs*FKatosKol  'Стоимость при поступлении'       ('Стоимость при поступлении'                  ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatos.IznosPs*FKatosKol  'Износ при поступлении'           ('Износ при поступлении'                      ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatos.SumFld*FKatosKol   'Фиксированная сумма амортизации' ('Фиксированная сумма амортизации'            ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatos.SrokIsp            'Срок полезного использования'         ('Срок полезного использования'          ): [13,2], protect, noAutoSize;
+  KlVal.Dollar               'Валюта'                               ('Валюта'                                ): [10], protect;
+  OsAlg.Name                 'Метод начисления амортизации'         ('Метод начисления амортизации'          ): [10], protect;
+  HozOper.Name1              'ТХО амортизации'                      ('ТХО амортизации'                       ): [10], protect;
+  Sposob.NameSb              'Тип объекта'                          ('Тип объекта'                           ): [10], protect;
+  KodOf.Kod_of               'Код группировки по ОКОФ'              ('Код группировки по ОКОФ'               ): [10], protect;
+  KodOf.Name_of              'Наименование кода группировки по ОКОФ'('Наименование кода группировки по ОКОФ' ): [10], protect;
+  SpKatOs.Poprkoef           'Поправочный коэффициент'              ('Поправочный коэффициент'               ): [10], protect;
+  (SpKatos.Stoim - SpKatos.SumIzn - SpKatos.SIznM) * FKatosKol
+                             'Остаточная стоимость'                 ('Остаточная стоимость'                  ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  KlassOs.Kod                'Код амортизационной группы'           ('Код амортизационной группы'            ): [6],  protect;
+  KlassOs.Name               'Амортизационная группа'               ('Амортизационная группа'                ): [10], protect;
+  mt_OSLgota.AllSumL*FKatosKol  'Амортизационная льгота'      ('Накопленная величина Амортизационной льготы' ): [14.2,'\2p[|-]3666`666`666`666`666.88'], Protect, noAutoSize;
+
+// поля для резервов, из родителя - ОС
+  KatosLink.InNum                  'ОС:Инвентарный номер'                    ('Инвентарный номер'                       ): [10], protect;
+  KatosLink.NameOs                 'ОС:Наименование'                         ('Наименование'                            ): [30], protect;
+  KatosLink.PsNum                  'ОС:Номер паспорта'                       ('Номер паспорта'                          ): [10], protect;
+  KatosLink.RegNum                 'ОС:Регистр.номер'                        ('Регистр.номер'                           ): [10], protect;
+  KatosLink.ZavNom                 'ОС:Заводской номер'                      ('Заводской номер'                         ): [10], protect;
+  KatosLink.BarKod                 'ОС:Номенклатурный номер'                 ('Номенклатурный номер'                    ): [10], protect;
+  KatosLink.GODV                   'ОС:Дата выпуска'                         ('Дата выпуска'                            ): [10], protect, centered, noAutoSize;
+  KatosLink.DATEK                  'ОС:Дата ввода в эксплуатацию'            ('Дата ввода в эксплуатацию'               ): [10], protect, centered, noAutoSize;
+  KatosLink.DatOk                  'ОС:Дата поступления'                     ('Дата поступления'                        ): [10], protect, centered, noAutoSize;
+  KatosLink.DatV                   'ОС:Дата выбытия'                         ('Дата выбытия'                            ): [10], protect, centered, noAutoSize;
+  KatosLink.dtReserv1              'ОС:Дата ликвидации'                      ('Дата ликвидации'                         ): [10], protect, centered, noAutoSize;
+  KatosLink.Kol                    'ОС:Кол-во объектов в ИК'                 ('Кол-во объектов в ИК'                    ): [8], [kol_KatOs,'\2p[|-]3666667~99'], protect, noAutoSize;
+  KatosLink.TipMark                'ОС:Модель, тип, марка'                   ('Модель, тип, марка'                      ): [10], protect;
+  KatosLink.NameIzg                'ОС:Изготовитель'                         ('Изготовитель'                            ): [10], protect;
+  KatosLink.OtchPer                'ОС:Отчетный период'                      ('Отчетный период'                         ): [10,'MM/YYYY'], protect, centered, noAutoSize;
+  SpKatosLink.Stoim * FKatosKol    'ОС:Первоначальная стоимость'             ('Первоначальная стоимость'                ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatosLink.SumIzn * FKatosKol   'ОС:Сумма амортзации'                     ('Сумма амортизации'                       ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatosLink.SIznM*FKatosKol      'ОС:Амортизация за месяц'                 ('Амортизация за месяц '                   ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatosLink.StoimPs*FKatosKol    'ОС:Стоимость при поступлении'            ('Стоимость при поступлении'               ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatosLink.IznosPs*FKatosKol    'ОС:Износ при поступлении'                ('Износ при поступлении'                   ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatosLink.SumFld*FKatosKol     'ОС:Фиксированная сумма амортизации'      ('Фиксированная сумма амортизации'         ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatosLink.StoimL*FKatosKol     'ОС:Ликвидационная стоимость'             ('Ликвидационная стоимость'                ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatosLink.IspPs                'ОС:Срок использования до поступления'    ('Срок использования до поступления'       ): [13,2], protect, noAutoSize;
+  SpKatosLink.IspCur               'ОС:Срок использования после поступления' ('Срок использования после поступления'    ): [13,2], protect, noAutoSize;
+  SpKatosLink.PerStoim*FKatosKol   'ОС:Накопленная переоценка стоимости'     ('Накопленная переоценка стоимости'        ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  SpKatosLink.PerSumIzn*FKatosKol  'ОС:Накопленная переоценка суммы износа'  ('Накопленная переоценка суммы износа'     ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+  (SpKatosLink.Stoim - SpKatosLink.SumIzn - SpKatosLink.SIznM) * FKatosKol
+                                   'ОС:Остаточная стоимость'                 ('Остаточная стоимость'                    ): [18,2,'\2p[|-]3666`666`666`666`666.88'], protect, noAutoSize;
+#end
+
+//------------------------------------------------------------------------------
+Window wnUserFrReestr 'Реестр картотеки' escClose doAccept cyan;
+
+!-----------------------------------------------------------------------------------------------------
+! при добавлении полей не забываем менять cntMaxFrOsColumn, cntMaxFrResColumn
+!-----------------------------------------------------------------------------------------------------
+Browse bFrReeKatOS 'Реестр картотеки' ('Реестр картотеки', hcnoContext, sci1Esc);
+  Table KatOs;
+  recMarker = pMarker {KatOs.nRec};
+Fields
+  #CommonFrFld()
+End; // Browse bFrReeKatOS
+
+Tree 0 tFrReeKatOS 'Реестр картотеки' ('Реестр картотеки', hcnoContext, sci1Esc);
+  Table KatOs;
+  // recMarker = pMarker {KatOs.nRec};   // RunTime при его использовании
+Fields
+  #CommonFrFld()
+
+End; // Browse tFrReeKatOS
+
+Browse bFrReeReservOS 'Реестр картотеки резервы ОС' ('Реестр картотеки резервы ОС', hcnoContext, sci1Esc);
+  Table KatOs;
+  recMarker = pMarker {KatOs.nRec};
+Fields
+  #CommonFrFld()
+End; // Browse bFrReeKatOS
+
+//------------------------------------------------------------------------------
+handleevent
+CmInit:
+{
+  IsReserv := false;
+  if ( TipDock = cgOs_57_Rsrv )  or ( TipDock = cgOs_157_Rsrv)   // резервы
+  {
+    IsReserv := true;
+    SetFormat(bFrReeReservOS);
+  }
+  else
+  {
+    if ( isTree )
+      SetFormat(tFrReeKatOS)
+    else
+      SetFormat(bFrReeKatOS);
+  }
+
+  PutCommand(CmValue45);   // пост-обработка колонок
+}
+
+CmValue45:
+{
+  var ColumnName : string;
+  var i : word;
+
+  delete all Columns;
+
+  // получаем список полей для отображения
+  for(i:=cgFirstNumOs; i<=cgLastNumOs; i++)
+  {
+   _loop RepGrOne
+     if (i = RepGroup.Nomer)
+     {
+       Columns.ColNum := RepGroup.Nomer;
+       Columns.ColPos := word(RepGrOne.nPos);
+       if insert current Columns <> tsOk {};
+     }
+  }
+  for(i:=cgFirstNumLinkOs; i<=cgLastNumLinkOs; i++)
+  {
+   _loop RepGrOne
+     if (i = RepGroup.Nomer)
+     {
+       Columns.ColNum := RepGroup.Nomer;
+       Columns.ColPos := word(RepGrOne.nPos);
+       if insert current Columns <> tsOk {};
+     }
+  }
+
+  // GetFldNameByNum  должна возвращать имя совпадающее с описанием макросе  CommonFrFld()
+  // меняем индексы - задаем порядок отображения
+  _loop Columns ordered by Columns.ColPos
+  {
+    ColumnName := GetFldNameByNum(Columns.ColNum);
+    cfsSetProp(ColumnName, cfpIndex, word(Columns.ColPos));
+    cfsSetProp(ColumnName, cfpHidden, false);
+    cfsSetProp(ColumnName, cfpTitle, GetFldTitleByNum(Columns.ColNum));
+  }
+
+ // скрываем колонки
+ for(i:=cgFirstNumOs; i<=cgLastNumOs; i++)
+ {
+  ColumnName := GetFldNameByNum(i);
+  if (GetFirst Columns where ((i == Columns.ColNum)) <> tsOk)
+    cfsSetProp(ColumnName, cfpHidden, true);
+ }
+ for(i:=cgFirstNumLinkOs; i<=cgLastNumLinkOs; i++)
+ {
+  ColumnName := GetFldNameByNum(i);
+  if (GetFirst Columns where ((i == Columns.ColNum)) <> tsOk)
+    cfsSetProp(ColumnName, cfpHidden, true);
+ }
+
+ if (wCountry = ccRus)
+ {
+   var isLgota : boolean = false;
+   delete all mt_OsLgota;
+   if (not IsReserv)
+   {
+     if (GetFirst Columns where ((cgOsLgota == Columns.ColNum)) = tsOk)
+       isLgota := true;
+   }
+
+   if ( IsLgota )
+   {
+     StartNewVisual( vtRotateVisual, vfTimer+vfConfirm+vfBreak,  'Расчет амортизационной льготы', 1);
+     // if ( isTree )
+     //  SubBounds(tbByTree);
+     _loop KatOs
+     {
+       if (not NextVisual)
+         break;
+       iAmort.GetSumCalcAmortLgota( KatOs.nRec, NastrOs.nRec
+                             , KatOS.OtchPer      // дата операции начисления износа
+                             , ZeroDate           // начальная дата периода
+                             , KatOS.OtchPer
+                             , 0 + 2
+                             );
+       RereadRecord(#mt_OsLgota);
+     }
+     // if ( isTree )
+     //  AddBounds(tbByTree);
+     StopVisual('',0);
+   }
+ }
+
+}
+
+cmPrintDoc:
+  PutCommand(cmFreportBrowse);
+
+cmHotKeys :
+ PutHotCommand(RunMenu('F_OS::mnuPrnFrReestr'));
+end
+end;  // window
+
+//----------------------------------------------------------------------------
+// Окно настройки печати реестра с произвольным набором полей
+//----------------------------------------------------------------------------
+Window UserNastrFrReestr 'Настройка печатной формы' (,hcNoContext, sci13Esc), EscClose, doAccept;
+  Show at (25,5,130,10);
+
+Panel UserFrReePanel;
+  NoTableNavigation;
+
+Screen UserFrReeScreen;
+Fields
+  DlgFldNastr : protect, pickButton;
+Buttons
+  cmOk, Default,, 'Продолжить';
+  cmCancel,,,     'Отмена ';
+
+<<
+  `Настройка отображаемых полей`
+  .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+                             <.Продолжить.>         <.  Отмена  .>
+
+>>
+end;//screen
+
+
+HandleEvent // panel
+//------------------
+  cmDelOnProtect :
+  {
+    case CurField of
+      #DlgFldNastr :
+      {
+        SaveMyDsk(comp(0), 'KatOs_UserFrReestr_LastNastr_' + string(TipDock));
+        set cLastNastr := 0;
+      }
+    end;
+  } // cmDelOnProtect
+
+
+end; // HandleEvent panel
+end; // panel NastrPanelIKReestr
+
+HandleEvent //Window NastrPrintIKReestr
+  cmInit:
+  {
+    if ( TipDock = cgOs_57_Rsrv )  or ( TipDock = cgOs_157_Rsrv)   // резервы
+      IsReserv := true;
+
+    if not ReadMyDsk(cLastNastr, 'KatOs_UserFrReestr_LastNastr_' + string(TipDock), false)
+      cLastNastr := 0;
+  }
+
+cmPick:
+{
+  if CurField = #DlgFldNastr
+  {
+    RunInterface('RGroupEditor', if (IsReserv, cgReport_10066, cgReport_10065), 200, '', cLastNastr);
+    if cLastNastr <> 0
+      SaveMyDsk(cLastNastr, 'KatOs_UserFrReestr_LastNastr_' + string(TipDock))
+  }
+}
+cmOk:
+{
+  if cLastNastr = 0
+  {
+    Message('Необходимо выбрать настройку отображаемых полей', OkButton);
+    Exit;
+  }
+
+  if GetFirst RepGrOne <> tsOk
+  {
+    Message('Необходимо выбрать поля для отображения', OkButton);
+    Exit;
+  }
+
+  PutCommand(cmDefault);
+}
+
+end;//HandleEvent
+end;//Window UserFrReestr
+
+//===============================================================================
+
+
+//----------------------------------------------------------------------------
+DataStream ReeKatOsFr
+  (
+    [CFH   ] CommonFormHeader;
+    [Os_nm ] Os_nm ;
+    [metodU] metodU;
+    [Data  ] Data  ;
+    [InvNum] InvNum;
+    [SumSt ] SumSt ;
+    [SumIzn] SumIzn;
+    [HeaderAmort] sNameFieldSumIzn;
+    [PeriodAmort] sNameFieldSIznM;
+    [IsExistArchive] IsExistArchive;
+
+    table FrReestr
+    (
+      [Nrec      ] FrReestr.NRec       ;
+      [cKatOs    ] FrReestr.cKatOs     ;
+      [InvNom    ] FrReestr.InvNom     ;
+      [Naim      ] FrReestr.Naim       ;
+      [Kol       ] FrReestr.Kol        ;
+      [EdIzm     ] FrReestr.EdIzm      ;
+      [ZavNom    ] FrReestr.ZavNom     ;
+      [ZavodIzg  ] FrReestr.ZavodIzg   ;
+      [NomPasp   ] FrReestr.NomPasp    ;
+      [Model     ] FrReestr.Model      ;
+      [NomNom    ] FrReestr.NomNom     ;
+      [KodPart   ] FrReestr.KodPart    ;
+      [RegNomer  ] FrReestr.RegNomer   ;
+      [GrOsnSred ] FrReestr.GrOsnSred  ;
+      [VidOsnSred] FrReestr.VidOsnSred ;
+      [KodNorm   ] FrReestr.KodNorm    ;
+      [NormaAmort] FrReestr.NormaAmort ;
+      [IspOs     ] FrReestr.IspOs      ;
+      [Podr      ] FrReestr.Podr       ;
+      [MOL       ] FrReestr.MOL        ;
+      [BalansSt  ] FrReestr.BalansSt   ;
+      [SumIzn    ] FrReestr.SumIzn     ;
+      [IznosMes  ] FrReestr.IznosMes   ;
+      [StoimPost ] FrReestr.StoimPost  ;
+      [IznPost   ] FrReestr.IznPost    ;
+      [FiksSum   ] FrReestr.FiksSum    ;
+      [OstStoim  ] FrReestr.OstStoim   ;
+      [SrokIsp   ] FrReestr.SrokIsp    ;
+      [DataVup   ] FrReestr.DataVup    ;
+      [DataVVod  ] FrReestr.DataVVod   ;
+      [DataPost  ] FrReestr.DataPost   ;
+      [DataVub   ] FrReestr.DataVub    ;
+      [DataGar   ] FrReestr.DataGar    ;
+      [DataLikv  ] FrReestr.DataLikv   ;
+      [Valut     ] FrReestr.Valut      ;
+      [MetodNach ] FrReestr.MetodNach  ;
+      [TXO       ] FrReestr.TXO        ;
+      [TipOb     ] FrReestr.TipOb      ;
+      [kodGr     ] FrReestr.kodGr      ;
+      [NaimkodGr ] FrReestr.NaimkodGr  ;
+      [koef      ] FrReestr.koef       ;
+    );
+
+    table FrReestrWithOS
+    (
+      [HigherInvNum  ] FrReestrWithOS.HigherInvNum;
+      [HigherOstStoim] FrReestrWithOS.HigherOstStoim;
+      [HigherDatVub  ] FrReestrWithOS.HigherDatVub;
+      [InvNom        ] FrReestrWithOS.InvNom;
+      [OstStoim      ] FrReestrWithOS.OstStoim;
+      [DataLikv      ] FrReestrWithOS.DataLikv;
+    );
+
+    table FrNeOtch
+    (
+      [Nrec      ] FrNeOtch.NRec     ;
+      [invnom    ] FrNeOtch.invnom   ;
+      [naimen    ] FrNeOtch.naimen   ;
+      [otchper   ] FrNeOtch.otchper  ;
+      [polz_id   ] FrNeOtch.polz_id  ;
+      [polz_fio  ] FrNeOtch.polz_fio ;
+      [data      ] FrNeOtch.data     ;
+    );
+  )
+
+  handleevent table FrReestr
+  cmOnProcess:
+  {
+    if( Not NextVisual )
+      AbortProcess;
+  }
+  end;
+
+  HandleEvent
+  cmPreProcess:
+  {
+    StartNewVisual( vtRotateVisual, vfTimer+vfConfirm+vfBreak,  'Формирование отчета по карточкам не в отчетном периоде', 1);
+  }
+
+  cmPostProcess:
+  {
+    StopVisual('',0);
+  }
+  end;
+end;
+
+
+//----------------------------------------------------------------------------
+// Окно настройки печати реестра инвентарных карточек
+//----------------------------------------------------------------------------
+Window NastrPrintIKReestr 'Настройка печатной формы' (,hcOSPrnQuickVedParamPrint, sci1Esc), EscClose;
+  Show at (25,7,80,18);
+
+Panel NastrPanelIKReestr;
+  NoTableNavigation;
+
+Screen NastrScreenIKReestr;
+Fields
+  sFeeSignersStringOsOne ('Комиссия. (F3 - Выбор, Ctrl+F3 - Выбор с параметрами)',, sci13Esc) : PickButton, Protect,
+    {font = { Color = if(iFeeSigners.FeeSignersIsValid, ColorSysBlack, ColorSysRed); } };
+
+  wReestrPrintSort ('Порядок сортировки при печати',hcNoContext,sci1Esc) : NoProtect;
+
+  VidRep   ('Формат отчета'): Protect;
+
+Buttons
+  cmOk, Default,, 'Сформировать отчет';
+  cmCancel,,,     'Отмена операции';
+
+<<
+
+  `Комиссия:`
+  .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+   (.) сохранять порядок сортировки`
+   (.) печатать по порядку пометки`
+
+   Вид отчета:.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+           <.Сформировать.>    <.Отмена.>
+
+>>
+end;//screen
+
+
+HandleEvent // panel
+//------------------
+  cmDelOnProtect :
+  {
+    case CurField of
+      #sFeeSignersStringOsOne :
+        if  iFeeSigners.ClearFeeSigners
+          set sFeeSignersStringOsOne := iFeeSigners.GetFeeSignersName;
+    end;
+  } // cmDelOnProtect
+
+
+end; // HandleEvent panel
+end; // panel NastrPanelIKReestr
+
+HandleEvent //Window NastrPrintIKReestr
+  cmInit:
+  {
+    var lValues: array [0..1] of integer;
+    var sValues: array [0..1] of string;
+    var iNum : word;
+    iNum := 0;
+
+    if tipDock <> cgOs_57_Rsrv
+    {
+      lValues[iNum] := 0;
+      sValues[iNum] := 'Бизнес-текст';
+      iNum++;
+    }
+
+    lValues[iNum] := 1;
+    sValues[iNum] := 'FastReport';
+    iNum++;
+
+    SetEnumList(NastrScreenIKReestr, #VidRep, sValues, lValues);
+
+    bContinueFormReestr := false;
+    wReestrPrintSort:=0;
+
+    ReadMyDsk(wReestrPrintSort, 'wReestrPrintSortIK', true);
+    ReadMyDsk(VidRep,           'KatOss_VidRep', true);
+
+    if tipDock = cgOs_57_Rsrv
+    {
+      VidRep := 1;
+      ClearFieldOption(#VidRep, ofSelectable);
+    }
+
+    // Инициализация объекта, таким образом, чтобы для каждой объектной переменной были разные экземпляры объекта.
+    // Для корректного использования, одновременно и комиссий и ответственных лиц.
+    if (NullVipRef(iFeeSigners))
+    {
+      LoadVipInterface(iFeeSigners);
+      iFeeSigners.InitFeeSignersExt(cgReport_Os, true, true);
+    }
+    set sFeeSignersStringOsOne := iFeeSigners.GetFeeSignersName;
+
+    Putcommand(cmValue10);
+  }
+
+  cmPick:
+  {
+    case CurField of
+      #sFeeSignersStringOsOne :
+      {
+        iFeeSigners.RunWindowFeeSigners(1);
+        set sFeeSignersStringOsOne := iFeeSigners.GetFeeSignersName;
+      }
+    end; // case
+
+    Putcommand(cmValue10);
+  } // cmPick
+
+
+  cmRestoreDoc :
+  {
+    case CurField of
+    //--------------
+      #sFeeSignersStringOsOne :
+      {
+        iFeeSigners.RunWindowFeeSigners(0);
+        set sFeeSignersStringOsOne := iFeeSigners.GetFeeSignersName;
+      }
+    //--------------
+    end; // case
+  } // cmRestoreDoc
+
+  cmOk:
+  {
+    bContinueFormReestr := true;
+    CloseWindow(NastrPrintIKReestr);
+    // PutCommand(cmDefault);
+  }
+
+  // cmCancel: bContinueFormReestr := False;
+
+  cmDone:
+  {
+    SaveMyDsk(wReestrPrintSort, 'wReestrPrintSortIK');
+    SaveMyDsk(VidRep, 'KatOss_VidRep');
+  }
+
+end;//HandleEvent
+end;//Window NastrPrintIKReestr
+
+var
+  SumStoim        : double;
+  SumSumizn       : double;
+
+//------------------------------------------------------------------------------
+Procedure addFltOs (_Npp: word; _Name: string);
+{
+   clearBuffer(#mtFltOs);
+   mtFltOs.Npp  := _Npp;
+   mtFltOs.Name := _Name;
+   insert current mtFltOs;
+}
+
+// Строка - знак неравенства
+Function sGetZnak(_num: word) : string;
+{
+   case _num of
+     0: result:= ' ';
+     1: result:= ' = ';
+     2: result:= ' > ';
+     3: result:= ' < ';
+     4: result:= ' >= ';
+     5: result:= ' <= ';
+     6: result:= ' <> ';
+   end; // case
+} // function sGetZnak(num)
+
+//------------------------------------------------------------------------------
+// Записать с ТП фильтры установленные на KatOs
+Procedure GetFiltersOs;
+{
+   delete all mtFltOs;
+
+   if BoundActive(tbbyKatosInNum)
+     addFltOs (1, 'Инвентарный номер:   ' + FilInNum);
+   if ConditionActive(tccnKatos)
+     addFltOs (2, 'Наименование:        ' + FilName);
+   if ConditionActive(tccnKatosNameIzg)
+     addFltOs (3, 'Наименование завода изготовителя: ' + FilZvIz);
+   if ConditionActive(tccnKatosTipMark)
+     addFltOs (4, 'Модель, тип, марка:  ' + FilModTip);
+   if BoundActive(tbbyKatosKodGr)
+     addFltOs (5, 'Группа:              ' + #ShowKau(cgKau_GrOs, cFilGr));
+   if BoundActive(tbbyKatosKodVid)
+     addFltOs (6, 'Вид:                 ' + #ShowKau(cgKau_VidNor1, cFilVid));
+   if BoundActive(tbbyKatosNorma)
+     addFltOs (7, 'Норма амортизации:   ' + FilNorm);
+   if BoundActive(tbbyKatosKodOf)
+     addFltOs (8, 'Группировка ОКОФ:    ' + FilOKOF);
+   if BoundActive(tbbySpKatOsGrAm)
+     addFltOs (9, 'Амортизационная группа:' + #ShowKau(cgKau_AmortGr, cFilAmGr));
+
+   if ConditionActive(tccnKatosZavNom)
+     addFltOs (10,'Заводской номер:     ' + FilZavN);
+   if ConditionActive(tccnKatosP)
+     addFltOs (11,'Номер паспорта:      ' + FilPasN);
+
+   if BoundActive(tbbyKatosPrIsp)
+     addFltOs (12, 'Признак использования: ' + #ShowKau(cgKau_IspOs, cFilIsp));
+   if BoundActive(tbbyKatosPdrz)
+     addFltOs (13, 'Подразделение:      ' + #ShowKau(cgKau_KatPodr, cNRecPodr));
+   if BoundActive(tbbyKatosMol)
+     addFltOs (14, 'МОЛ:                ' + #ShowKau(cgKau_KatMol, cNRecMol));
+   if BoundActive(tbbyKatosMetod)
+     addFltOs (15, 'Алгоритм начисления амортизации: ' + FilMetod);
+   if BoundActive(tbbyKatosHozOper)
+     addFltOs (16, 'ТХО начисления амортизации:' + FilHozOper);
+   if BoundActive(tbbyKatosSPOSOB)
+     addFltOs (17, 'Тип объекта:        ' + FilTipOb);
+   if ConditionActive(tccnKatosBarKod)
+     addFltOs (18,'Номенклатурный номер: ' + FilBArKod);
+   if ConditionActive(tccnKatosImNum)
+     addFltOs (19,'Имущественный номер: ' + FilImNum);
+   if BoundActive(tbbyKatOsPrSb)
+     addFltOs (20, 'Признак собственности: ' + #ShowKau(cgKau_PrSbOs, cFilPrSb));
+   if BoundActive(tbbyKatOsCO)
+     addFltOs (21, 'Центр ответственности: ' + #ShowKau(cgKau_FpCO, cFilCO));
+
+//------------------------------------------------------------------------------
+   if (FlFilOtchPer = 1)
+     addFltOs (31, 'Отчетный период: ' + sGetZnak(cFilZnakOtchPer) + DateToStr(FilOtchPer,'Month YYYY') );
+
+   if (FilDD and 1) <> 0
+     addFltOs (32, 'Дата выпуска:       ' +
+       if (FilDv1 <> ZeroDate, 'с '  + DateToStr( FilDv1, 'DD/MM/YYYY' ) + ' ', '') +
+       if (FilDv2 <> ZeroDate, 'по ' + DateToStr( FilDv2, 'DD/MM/YYYY' ) + ' ', '')  );
+
+   if (FilDD and 2) <> 0
+     addFltOs (33, 'Дата ввода:         ' +
+       if (FilDvd1 <> ZeroDate, 'с '  + DateToStr( FilDvd1, 'DD/MM/YYYY' ) + ' ', '') +
+       if (FilDvd2 <> ZeroDate, 'по ' + DateToStr( FilDvd2, 'DD/MM/YYYY' ) + ' ', '')  );
+
+   if (FilDD and 4) <> 0
+     addFltOs (34, 'Дата поступления:   ' +
+       if (FilDp1 <> ZeroDate, 'с '  + DateToStr( FilDp1, 'DD/MM/YYYY' ) + ' ', '') +
+       if (FilDp2 <> ZeroDate, 'по ' + DateToStr( FilDp2, 'DD/MM/YYYY' ) + ' ', '')  );
+
+   if (FilDD and 8) <> 0
+     addFltOs (35, 'Дата выбытия:   ' +
+       if (FilDb1 <> ZeroDate, 'с '  + DateToStr( FilDb1, 'DD/MM/YYYY' ) + ' ', '') +
+       if (FilDb2 <> ZeroDate, 'по ' + DateToStr( FilDb2, 'DD/MM/YYYY' ) + ' ', '')  );
+
+//------------------------------------------------------------------------------
+   var sumFormat : string;   SumFormat:='\2p[|-]3666''666''666''666''666''666.88';
+   if ( wStoimZaEd = 1 )
+     {
+        if (cFilZnakStoim > 0)
+          addFltOs (36, 'Cтоимость:          ' + sGetZnak(cFilZnakStoim) + DoubleToStr( FilStoim, SumFormat ));
+        if (cFilZnakSumIzn > 0)
+          addFltOs (37, 'Сумма амортизации :       ' + sGetZnak(cFilZnakSumIzn) + DoubleToStr( FilSumIzn, SumFormat ));
+        if (cFilZnakSIznM > 0)
+          addFltOs (38, 'Амортизация за месяц:     ' + sGetZnak(cFilZnakSIznM) + DoubleToStr( FilSIznM, SumFormat ));
+        if (cFilZnak > 0)
+          addFltOs (39, 'Остаточная стоимость: ' + sGetZnak(cFilZnak) + DoubleToStr( FilSum, SumFormat ));
+     }
+   if (cFilZnakPoprkoef > 0)
+     addFltOs (40, 'Поправочный коэффициент: ' + sGetZnak(cFilZnakPoprkoef) + DoubleToStr( FilPoprkoef, SumFormat ));
+
+   if (cFilZnakIspPs > 0)
+     addFltOs (41, 'Срок использования до поступления: ' + sGetZnak(cFilZnakIspPs) + DoubleToStr( FilIspPs, SumFormat ));
+   if (cFilZnakIspCur > 0)
+     addFltOs (42, 'Срок использования после поступления: ' + sGetZnak(cFilZnakIspCur) + DoubleToStr( FilIspCur, SumFormat ));
+   if (cFilZnakSrokIsp > 0)
+     addFltOs (43, 'Срок полезного использования: ' + sGetZnak(cFilZnakSrokIsp) + DoubleToStr( FilSrokIsp, SumFormat ));
+   if (cFilZnakOstSrok > 0)
+     addFltOs (44, 'Срок полезного использования: ' + sGetZnak(cFilZnakOstSrok) + DoubleToStr( FilOstSrok, SumFormat ));
+
+   if (cFilDrg > 0)
+     addFltOs (45, 'Наличие драгметаллов: ' + if (cFilDrg=1,'есть','нет'));
+
+//------------------------------------------------------------------------------
+   if wFilKlass <> 0
+     addFltOs (90, 'Внешняя классификация: ' + FilKlass + ': ' + FilKlass1 +' '+ FilKlass2 +' '+ FilKlass3
+                   +' '+ FilKlass4 +' '+ FilKlass5 +' '+ FilKlass6);
+
+//------------------------------------------------------------------------------
+   if cFilVnKau1 <> 0
+     addFltOs (91, 'Внешние КАУ:        ' +  GetAnalitikName(wFilVnKau1)  +':  '+ #ShowKau(wFilVnKau1,cFilVnKau1));
+   if cFilVnKau2 <> 0
+     addFltOs (92, 'Внешние КАУ:        ' +  GetAnalitikName(wFilVnKau2)  +':  '+ #ShowKau(wFilVnKau2,cFilVnKau2));
+   if cFilVnKau3 <> 0
+     addFltOs (93, 'Внешние КАУ:        ' +  GetAnalitikName(wFilVnKau3)  +':  '+ #ShowKau(wFilVnKau3,cFilVnKau3));
+   if cFilVnKau4 <> 0
+     addFltOs (94, 'Внешние КАУ:        ' +  GetAnalitikName(wFilVnKau4)  +':  '+ #ShowKau(wFilVnKau4,cFilVnKau4));
+   if cFilVnKau5 <> 0
+     addFltOs (95, 'Внешние КАУ:        ' +  GetAnalitikName(wFilVnKau5)  +':  '+ #ShowKau(wFilVnKau5,cFilVnKau5));
+   if cFilVnKau6 <> 0
+     addFltOs (96, 'Внешние КАУ:        ' +  GetAnalitikName(wFilVnKau6)  +':  '+ #ShowKau(wFilVnKau5,cFilVnKau6));
+
+//------------------------------------------------------------------------------
+   if cFilStroy <> 0
+     addFltOs (97, 'Объект строительства: ' +  #ShowKau(cgKau_ObjBuild, cFilSTroy));
+
+}
+
+//------------------------------------------------------------------------------
+//вывод данных в поток реестра
+Procedure DoPrintReestr(wReestr : word);
+{
+var stInnum  : string[32];
+var stNameOs : string;
+var i : word;
+
+  frmKatRee.PutEventById(feDoLoop,fcCycleOfKart);
+  frmKatRee.write(Katos.Nrec);
+  frmKatRee.write(Katos.cMc);
+
+  if (KatOs.isLeaf = 1)  or  (wReestr=0)
+  {
+    if IsValid(tnSpKatOS)
+    {
+      if (NastrOs.Field4 = 0)
+      {
+        SumStoim  +=  SpKatOs.Stoim  * KatOs.Kol;
+        SumSumizn +=  SpKatOs.Sumizn * KatOs.Kol;
+      }
+      else
+      {
+        SumStoim  += SpKatOs.Stoim;
+        SumSumizn += SpKatOs.Sumizn;
+      }
+    }
+  }
+
+  if (wReestr = 1)
+  {
+    stInnum  := Trim(pOsFun.GetKatOsInNum(KatOs.NRec));
+    stNameOs := Trim(Katos.NameOs);
+
+    if (isTree)
+      for (i:=1; i<=TreeLevel(TreeHandle); i++)
+      {
+        stInnum  := ' ' + stInnum;
+        stNameOs := ' ' + stNameOs;
+      }
+    stInnum := Pad(stInnum,32);
+    frmKatRee.write(stInnum);  // Инвентарный номер
+  }
+  else
+  {
+    stNameOs := Katos.NameOs;
+    frmKatRee.write(pOsFun.GetKatOsInNum(Katos.NRec));
+  }
+
+  frmKatRee.write(stNameOs);      // Наименование
+  frmKatRee.write(trim(string(Katos.Kol,12,OS_RazrKol)));// Количество однотипных объектов
+
+  //Единица_измерения_nRec
+  //Единица_измерения
+  frmKatRee.write(KatEd.nRec);
+  frmKatRee.write(KatEd.ABBR);
+
+  frmKatRee.write(Katos.ZavNom   );      // Заводской номер
+  frmKatRee.write(Katos.NameIzg  );      // Наименование завода-изготовителя
+  frmKatRee.write(Katos.PsNum    );      // Номер паспорта объекта
+  frmKatRee.write(Katos.TipMark  );      // Модель, тип, марка объекта
+  frmKatRee.write(Katos.BarKod   );      // Номенклатурный номер
+  frmKatRee.write(Katos.Kod      );      // Код партии
+  frmKatRee.write(Katos.RegNum   );      // Регистрационный номер транспортного средства
+
+  frmKatRee.write(GrOs.NameGr    );      // Группа основных средств
+  frmKatRee.write(VidNormaS.NAME );      // Вид основных средств
+
+  if Not IsValid(tnSpKatOS)
+   frmKatRee.SkipFormat(3)
+  else
+  {
+    frmKatRee.write(VidNorma.KOD);      // Код нормы амортизации
+    frmKatRee.write(VidNorma.Norma);      // Норма амортизации
+    frmKatRee.write(IspOs.NameIs   );      // Использование ОС
+  }
+
+  frmKatRee.write(KatPodr.Name   );      // Подразделение
+  frmKatRee.write(KatMol.Name    );      // Материально-ответственное лицо
+
+  if Not IsValid(tnSpKatOS)
+    frmKatRee.SkipFormat(7)
+  else
+  {
+    if (NastrOs.Field4 = 0)
+    {
+      frmKatRee.write(SpKatos.Stoim*Katos.Kol);      // Балансовая стоимость
+      frmKatRee.write(SpKatos.SumIzn*Katos.Kol);     // Сумма износа
+      frmKatRee.write(SpKatos.SIznM*Katos.Kol);      // Износ за месяц
+      frmKatRee.write(SpKatos.StoimPs*Katos.Kol);    // Стоимость при поступлении
+      frmKatRee.write(SpKatos.IznosPs*Katos.Kol);    // Износ при поступлении
+      frmKatRee.write(SpKatos.SumFld*Katos.Kol);     // Фиксированная сумма амортизации
+    }
+    else
+    {
+      frmKatRee.write(SpKatos.Stoim);      // Балансовая стоимость
+      frmKatRee.write(SpKatos.SumIzn);     // Сумма износа
+      frmKatRee.write(SpKatos.SIznM);      // Износ за месяц
+      frmKatRee.write(SpKatos.StoimPs);    // Стоимость при поступлении
+      frmKatRee.write(SpKatos.IznosPs);    // Износ при поступлении
+      frmKatRee.write(SpKatos.SumFld);     // Фиксированная сумма амортизации
+    }
+    frmKatRee.write(SpKatos.SrokIsp);      // Срок полезного использования
+  }
+
+  frmKatRee.write (KatOs.GODV);   // Дата выпуска
+
+  frmKatRee.write (Katos.DATEK);  // Дата ввода в эксплуатацию
+
+  frmKatRee.write (Katos.DatOk);   // Дата поступления
+
+  frmKatRee.write (Katos.DatV);   // Дата выбытия
+
+  frmKatRee.write (Katos.DatGar);  // Дата гарантии
+
+  frmKatRee.write(KlValK.Dollar  );      // Валюта
+
+  if Not IsValid(tnSpKatOS)
+   frmKatRee.SkipFormat(2)
+  else
+  {
+    frmKatRee.write(OsAlg.Name     );      // Метод начисления амортизации
+    frmKatRee.write(HozOper.Name1  );      // Типовая хозяйственная операция по начислению амортизации
+  }
+  frmKatRee.write(Sposob.NameSb  );      // Тип объекта
+  frmKatRee.write(KodOf.Kod_of   );      // Код группировки по ОКОФ
+  frmKatRee.write(KodOf.Name_of  );      // Наименование кода группировки по ОКОФ
+
+  frmKatRee.write(if (IsValid(tnSpKatOS), SpKatOs.Poprkoef, 0));    // Поправочный коэффициент
+
+  frmKatRee.write(AllMemo.Mem    );      // Краткая индивидуальная характеристика
+} //DoPrintReestr
+
+// ---------------------------------------------------------------------------
+// Печать картотеки
+// ---------------------------------------------------------------------------
+procedure PrintReeKatosTxt(_Reestr : word);
+{
+var i               : byte;
+var bBreak          : boolean;
+var bPrintIt        : boolean;
+var K_Pick          : longint;
+var I_Pick          : longint;
+var  firstLevel     : word;
+
+  SumStoim  := 0;
+  SumSumizn := 0;
+
+  bBreak := False;
+
+  if (isTree)
+    TreePushPos (TreeHandle);
+  else
+    PushPos(#Katos);
+
+  if (_Reestr = 1)   // Печать из списка
+    {
+      frmKatRee.SetGroup('ReestrEx');
+      if (not isPickOs)
+      {
+        if (isTree)
+          TreeGetFirstEx(trDocument);
+        else
+          if GetFirst Katos = tsOk {};
+        wReestrPrintSort := 0;
+      }
+    }
+  else  // Печать из карточки
+    {
+      frmKatRee.SetGroup('Pril');
+      KillPick();
+      MarkSubOS(true);
+      isPickOs:=true;
+      wReestrPrintSort := 1;
+    }
+
+
+  if (wReestrPrintSort = 0)
+    StartNewVisual(vtIndicatorVisual, vfTimer + vfBreak + vfConfirm,   'Осуществляется формирование отчета...', RecordsInTable(#KatOs) );
+  else
+    StartNewVisual(vtIndicatorVisual, vfTimer + vfBreak + vfConfirm,   'Осуществляется формирование отчета...', wPickNum );
+
+
+  if (KatOs.TiDk mod 100 = 16)
+    frmKatRee.write('НЕМАТЕРИАЛЬНЫХ АКТИВОВ');
+  else
+    frmKatRee.write('ОСНОВНЫХ СРЕДСТВ');
+
+  frmKatRee.write(NastrOs.Name);// Метод учета
+  frmKatRee.write(DateToStr(dGetTune('OS.OTCHPERIOD'),'Month YYYY г.'));
+
+  GetFiltersOs;  // есть ли фильтры
+  if (RecordsInTable(#mtFltOs) > 0)
+  {
+    frmKatRee.PutEventById(feDoLoop,fcFiltersKatOs);
+    frmKatRee.write('Установлены фильтры:');
+    _loop mtFltOs
+      {
+         frmKatRee.PutEventById(feDoLoop,fcFiltersKatOs);
+         frmKatRee.write(mtFltOs.Name);
+      }
+  }
+
+  if (_Reestr = 1)
+    frmKatRee.SkipFormat(1);           // Доп. инвентарный номер
+  else
+    frmKatRee.write(pOsFun.GetKatOsInNum(Katos.NRec));
+
+
+   //если сохраняем порядок сортировки - то всё работает по-старому
+   if (wReestrPrintSort = 0)
+   {
+     I_Pick := 0;
+     var isPrint: boolean;
+     _loop KatOs
+     {
+       if (KatOs.isLeaf = 1) or (not IsTree)
+       {
+         isPrint := true;
+         if (isPickOs) and (not isValid(#Pick))
+           isPrint := false;
+         if (isPrint)
+           {
+             DoPrintReestr(_Reestr);
+             I_Pick++;
+           }
+       }
+       else
+       {
+          TreePushPos (TreeHandle);
+          firstLevel := TreeLevel(trDocument);
+          do
+          {
+            isPrint := true;
+            if (isPickOs) and (not isValid(#Pick))
+              isPrint := false;
+            if (isPrint)
+            {
+              DoPrintReestr(_Reestr);
+              I_Pick++;
+            }
+            tsResult := TreeGetNextEx(trDocument)
+          }
+          while tsResult and (TreeLevel(trDocument) > firstLevel);
+          TreePopPos (TreeHandle);
+       }
+
+      if (isPickOs) and (I_Pick >= wPickNum)
+        Break;
+
+      if (not NextVisual)
+        Break;
+     } // _loop
+
+   }
+   else    //если печатаем по порядку пометки
+   {
+    _loop Pick where ((cgPick_KatOs == Pick.wList))  ordered by Pick.PickNum
+    {
+      if (GetFirst FastFirstRow KatOs where ((Pick.cRec == Katos.NRec)) = tsOk)
+        DoPrintReestr(_Reestr);
+
+      if (not NextVisual)
+        Break;
+    }//loop
+   }
+
+  //frmKatRee.PutEvent(feBreak);
+  frmKatRee.write(SumStoim  );      // ИТОГО Балансовая стоимость
+  frmKatRee.write(SumSumIzn );      // ИТОГО Сумма износа
+
+  #WriteFeeSigners_Os(iFeeSigners,frmKatRee,OSKATREE)   // Подписанты
+
+  StopVisual('',0);
+
+  if (_Reestr = 0)
+    KillPick;
+
+  if (not frmKatRee.error )
+    { if (_Reestr = 1)
+        frmKatRee.ShowFile('Реестр инвентарных карточек');
+      else
+        frmKatRee.ShowFile('Приложение');
+      frmKatRee.AbortForm;
+    }
+  else
+    frmKatRee.AbortForm;
+
+  if (isTree)
+  {
+    TreePopPos (TreeHandle);
+    MyJumpToRecord;
+  }
+  else
+    PopPos(#Katos);
+
+  ReScanPanel(#KatOs);
+}  // PrintReeKatos
+
+// ---------------------------------------------------------------------------
+//вывод данных в поток реестра FastReport
+Procedure DoPrintReestrFr(wReestr : word);
+{
+var stInnum  : string[31];
+var stNameOs : string='';
+var i : word;
+
+  nRec := nRec + 1;
+  ClearBuffer(#FrReestr);
+  FrReestr.nRec := nRec;
+
+  if (wReestr = 1)
+  {
+    stInnum  := Trim(string(pOsFun.GetKatOsInNum(KatOs.NRec)));
+    stNameOs := Trim(string(Katos.NameOs));
+
+    if (isTree)
+      for (i:=1; i<=TreeLevel(TreeHandle); i++)
+      {
+        stInnum  := ' ' + stInnum;
+        stNameOs := ' ' + stNameOs;
+      }
+
+    stInnum := Pad(stInnum,31);
+    if (KatOs.isLeaf = 1)
+    {
+      if (NastrOs.Field4 = 0)
+      {
+        SumStoim  := SumStoim  + SpKatOs.Stoim  * KatOs.Kol;
+        SumSumizn := SumSumizn + SpKatOs.Sumizn * KatOs.Kol;
+      }
+      else
+      {
+        SumStoim  := SumStoim  + SpKatOs.Stoim;
+        SumSumizn := SumSumizn + SpKatOs.Sumizn;
+      }
+    }
+
+    FrReestr.InvNom := stInnum;  // Инвентарный номер
+  }
+  else
+  {
+    if (NastrOs.Field4 = 0)
+    {
+      SumStoim  := SumStoim  + SpKatOs.Stoim  * KatOs.Kol;
+      SumSumizn := SumSumizn + SpKatOs.Sumizn * KatOs.Kol;
+    }
+    else
+    {
+      SumStoim  := SumStoim  + SpKatOs.Stoim;
+      SumSumizn := SumSumizn + SpKatOs.Sumizn;
+    }
+    stNameOs := Katos.NameOs;
+
+    FrReestr.InvNom := pOsFun.GetKatOsInNum(Katos.NRec);
+  }
+
+  FrReestr.cKatOs := Katos.Nrec;
+
+  FrReestr.Naim := stNameOs;      // Наименование
+  FrReestr.Kol  := Katos.Kol; // Количество однотипных объектов
+//  FrReestr.Kol  := trim(string(Katos.Kol,12,OS_RazrKol)); // Количество однотипных объектов
+
+   var sumFormat : string;   SumFormat:='\2p[|-]3666''666''666''666''666''666.88';
+  //Единица_измерения_nRec
+  //Единица_измерения
+  FrReestr.EdIzm       := KatEd.ABBR   ;
+  FrReestr.ZavNom      := Katos.ZavNom ;      // Заводской номер
+  FrReestr.ZavodIzg    := Katos.NameIzg;      // Наименование завода-изготовителя
+  FrReestr.NomPasp     := Katos.PsNum  ;      // Номер паспорта объекта
+  FrReestr.Model       := Katos.TipMark;      // Модель, тип, марка объекта
+  FrReestr.NomNom      := Katos.BarKod ;      // Номенклатурный номер
+  FrReestr.KodPart     := Katos.Kod    ;      // Код партии
+  FrReestr.RegNomer    := Katos.RegNum ;      // Регистрационный номер транспортного средства
+  FrReestr.GrOsnSred   := GrOs.NameGr    ;      // Группа основных средств
+  FrReestr.VidOsnSred  := VidNormaS.NAME ;      // Вид основных средств
+  FrReestr.KodNorm     := VidNorma.KOD   ;      // Код нормы амортизации
+  FrReestr.NormaAmort  := DoubleToStr(VidNorma.Norma,SumFormat);      // Норма амортизации
+  FrReestr.IspOs       := IspOs.NameIs   ;      // Использование ОС
+  FrReestr.Podr        := KatPodr.Name   ;      // Подразделение
+  FrReestr.MOL         := KatMol.Name    ;      // Материально-ответственное лицо
+
+  if (NastrOs.Field4 = 0)
+  {
+    FrReestr.BalansSt  := SpKatos.Stoim*Katos.Kol;      // Балансовая стоимость
+    FrReestr.SumIzn    := SpKatos.SumIzn*Katos.Kol;     // Сумма износа
+    FrReestr.IznosMes  := DoubleToStr(SpKatos.SIznM*Katos.Kol,SumFormat);      // Износ за месяц
+    FrReestr.StoimPost := SpKatos.StoimPs*Katos.Kol;    // Стоимость при поступлении
+    FrReestr.IznPost   := DoubleToStr(SpKatos.IznosPs*Katos.Kol,SumFormat);    // Износ при поступлении
+    FrReestr.FiksSum   := SpKatos.SumFld*Katos.Kol;     // Фиксированная сумма амортизации
+    FrReestr.OstStoim  := (SpKatOS.Stoim - SpKatOS.SumIzn - SpKatOS.SIznM)*Katos.Kol;
+  }
+  else
+  {
+    FrReestr.BalansSt  := SpKatos.Stoim;      // Балансовая стоимость
+    FrReestr.SumIzn    := SpKatos.SumIzn;     // Сумма износа
+    FrReestr.IznosMes  := DoubleToStr(SpKatos.SIznM,SumFormat);      // Износ за месяц
+    FrReestr.StoimPost := SpKatos.StoimPs;    // Стоимость при поступлении
+    FrReestr.IznPost   := DoubleToStr(SpKatos.IznosPs,SumFormat);    // Износ при поступлении
+    FrReestr.FiksSum   := SpKatos.SumFld;     // Фиксированная сумма амортизации
+    FrReestr.OstStoim  := SpKatOS.Stoim - SpKatOS.SumIzn - SpKatOS.SIznM;
+  }
+
+  FrReestr.SrokIsp := DoubleToStr(SpKatos.SrokIsp,SumFormat);      // Срок полезного использования
+
+  FrReestr.DataVup  := if(KatOs.GODV <> Date(0,0,0), DateToStr(KatOs.GODV,'DD/MM/YYYY'), ' ');       // Дата выпуска
+  FrReestr.DataVVod := if(Katos.DATEK <> Date(0,0,0), DateToStr(Katos.DATEK,'DD/MM/YYYY'), ' ');     // Дата ввода в эксплуатацию
+  FrReestr.DataPost := if(Katos.DatOk <> date(0,0,0), DateToStr(Katos.DatOk,'DD/MM/YYYY'), ' ');     // Дата поступления
+  FrReestr.DataVub  := if(Katos.DatV <> Date(0,0,0),  DateToStr(Katos.DatV,'DD/MM/YYYY'),  ' ');     // Дата выбытия
+  FrReestr.DataGar  := if(Katos.DatGar <> Date(0,0,0),  DateToStr(Katos.DatGar,'DD/MM/YYYY'), ' ');  // Дата гарантии
+  FrReestr.DataLikv := if(Katos.dtReserv1 <> Date(0,0,0),  DateToStr(Katos.dtReserv1,'DD/MM/YYYY'), ' '); // Дата ликвидации
+
+  FrReestr.Valut     := KlValK.Dollar  ;      // Валюта
+  FrReestr.MetodNach := OsAlg.Name     ;      // Метод начисления амортизации
+  FrReestr.TXO       := HozOper.Name1  ;      // Типовая хозяйственная операция по начислению амортизации
+  FrReestr.TipOb     := Sposob.NameSb  ;      // Тип объекта
+  FrReestr.kodGr     := KodOf.Kod_of   ;      // Код группировки по ОКОФ
+  FrReestr.NaimkodGr := KodOf.Name_of  ;      // Наименование кода группировки по ОКОФ
+  FrReestr.koef      := DoubleToStr(SpKatOs.Poprkoef,SumFormat);    // Поправочный коэффициент
+
+  insert current FrReestr;
+
+  // Ищем карточку ОС к которой привязан текущий резерв
+  if GetFirst FastFirstRow KatOsReserv where ((KatOs.cHigherOs == KatOsReserv.NRec)) = tsOk
+  {
+    FrReestrWithOS.HigherInvNum := pOsFun.GetKatOsInNum(KatOsReserv.NRec);
+    if (NastrOs.Field4 = 0)
+      FrReestrWithOS.HigherOstStoim := (SpKatOSReserv.Stoim - SpKatOSReserv.SumIzn - SpKatOSReserv.SIznM)*KatOsReserv.Kol;
+    else
+      FrReestrWithOS.HigherOstStoim := SpKatOSReserv.Stoim - SpKatOSReserv.SumIzn - SpKatOSReserv.SIznM;
+    FrReestrWithOS.HigherDatVub := if(KatOsReserv.DatV <> Date(0,0,0),  DateToStr(KatOsReserv.DatV,'DD/MM/YYYY'),  ' ');
+  }
+  FrReestrWithOS.InvNom := KatOs.InNum;
+  if (NastrOs.Field4 = 0)
+    FrReestrWithOS.OstStoim := (SpKatOS.Stoim - SpKatOS.SumIzn - SpKatOS.SIznM)*Katos.Kol;
+  else
+    FrReestrWithOS.OstStoim := SpKatOS.Stoim - SpKatOS.SumIzn - SpKatOS.SIznM;
+  FrReestrWithOS.DataLikv := if(Katos.dtReserv1 <> Date(0,0,0), DateToStr(Katos.dtReserv1,'DD/MM/YYYY'), ' ');
+  insert current FrReestrWithOS;
+} //DoPrintReestr
+
+// ---------------------------------------------------------------------------
+// Печать картотеки в ФастРепорт
+// ---------------------------------------------------------------------------
+procedure PrintReeKatosFr(_Reestr : word);
+{
+var vInnum          : string[31];
+var i               : word;
+var cNrecKatos      : comp;
+var bPrintIt        : boolean;
+var I_Pick          : longint;
+var  firstLevel     : word;
+
+  SumStoim  := 0;
+  SumSumizn := 0;
+  nRec := 0;
+
+  if (isTree)
+    TreePushPos (TreeHandle);
+  else
+    PushPos(#Katos);
+
+  if (_Reestr = 1)    // Печать из бровза
+  {
+      if (not isPickOs)
+      {
+        if (isTree)
+          TreeGetFirstEx(trDocument);
+        else
+          if GetFirst Katos = tsOk {};
+        wReestrPrintSort := 0;
+      }
+  }
+  else    // Печать из карточки
+    {
+      KillPick();
+      MarkSubOS(true);
+      isPickOs:=true;
+      wReestrPrintSort := 1;
+    }
+
+  if (wReestrPrintSort = 0)
+    StartNewVisual(vtIndicatorVisual, vfTimer + vfBreak + vfConfirm, 'Идет формирование отчета...', RecordsInTable(#KatOs) );
+  else
+    StartNewVisual(vtIndicatorVisual, vfTimer + vfBreak + vfConfirm, 'Идет формирование отчета...', wPickNum );
+
+
+  if (KatOs.TiDk = 16) or (KatOs.TiDk = 116)
+    Os_nm := 'НЕМАТЕРИАЛЬНЫХ АКТИВОВ';
+  else
+    if (KatOs.TiDk = 57) or (KatOs.TiDk = 157)
+      Os_nm := 'РЕЗЕРВОВ';
+    else
+      Os_nm := 'ОСНОВНЫХ СРЕДСТВ';
+
+  MetodU := NastrOs.Name;// Метод учета
+  Data := DateToStr(dGetTune('OS.OTCHPERIOD'),'Month YYYY г.');
+  InvNum := pOsFun.GetKatOsInNum(Katos.NRec);
+
+   //если сохраняем порядок сортировки - то всё работает по-старому
+   if (wReestrPrintSort = 0)
+   {
+     I_Pick := 0;
+
+     var isPrint: boolean;
+     _loop KatOs
+     {
+       if (KatOs.isLeaf = 1) or (not IsTree)
+       {
+         isPrint := true;
+         if (TipDock mod 100 <> cgOs_57_Rsrv)
+         {
+           if (isPickOs) and (not isValid(#Pick))
+             isPrint := false;
+         }
+         else
+           if (isPickOs)
+           {
+             isPrint := false;
+             _loop KatOsS where ((Katos.TiDk      == KatOsS.TiDk and
+                                       Katos.cHigherOs == KatOsS.cHigherOs))
+               if RecordExists PickS where ((KatOsS.NRec  == PickS.cRec and
+                                             cgPick_KatOs == PickS.wList)) = tsOk
+               {
+                 isPrint := true;
+                 Break;
+               }
+           }
+
+         if (isPrint)
+           {
+             DoPrintReestrFr(_Reestr);
+             I_Pick++;
+           }
+       }
+       else
+       {
+         TreePushPos (TreeHandle);
+         firstLevel := TreeLevel(trDocument);
+         do
+         {
+           isPrint := true;
+           if (isPickOs) and (not isValid(#Pick))
+             isPrint := false;
+
+           if (isPrint)
+           {
+             DoPrintReestrFr(_Reestr);
+             I_Pick++;
+           }
+           tsResult := TreeGetNextEx(trDocument)
+         }
+         while tsResult and (TreeLevel(trDocument) > firstLevel);
+         TreePopPos (TreeHandle);
+       }
+
+      if (isPickOs) and (I_Pick >= wPickNum) and (TipDock mod 100 <> cgOs_57_Rsrv)
+        Break;
+
+      if (not NextVisual)
+          Break;
+     } // _loop
+
+   }
+   else    //если печатаем по порядку пометки
+   {
+      _loop Pick where ((cgPick_KatOs == Pick.wList))  ordered by Pick.PickNum
+      {
+        if (TipDock mod 100 <> cgOs_57_Rsrv)
+        {
+          if (GetFirst Katos where ((Pick.cRec == Katos.nRec)) = tsOk)
+            DoPrintReestrFr(_Reestr);
+        }
+        else
+        {
+          if (GetFirst KatOsS where ((Pick.cRec == KatOsS.nRec)) = tsOk)
+            _loop KatOs where ((KatOsS.TiDk      == KatOs.TiDk and
+                                KatOsS.cHigherOs == KatOs.cHigherOs))
+            {
+              DoPrintReestrFr(_Reestr);
+              if RecordExists Picks where ((cgPick_KatOs == PickS.wList and KatOs.NRec == PickS.cRec)) = tsOk
+                update Picks where ((cgPick_KatOs == PickS.wList and KatOs.NRec == PickS.cRec)) set PickS.cRec := 0;
+            }
+        }
+
+        if (not NextVisual)
+          Break;
+      }//loop
+   }
+
+  if (_Reestr <> 1)
+    SetBounds(#Katos);
+
+  SumSt := SumStoim  ;      // ИТОГО Балансовая стоимость
+  SumIzn:= SumSumIzn ;      // ИТОГО Сумма износа
+
+  StopVisual('',0);
+
+  if (_Reestr = 1)
+  {
+    var ReestrGroup: string;
+    ReestrGroup := if(tipDock = cgOs_57_Rsrv,'Reestr_Reserv','Reestr_OS');
+    RunFReportByGroup(ReeKatOsFr, ReestrGroup);
+  }
+  else
+  {
+    RunFReportByGroup(ReeKatOsFr, 'Pril');
+    KillPick;
+    // ResetBounds(#Katos);
+  }
+
+  ResetBounds(#FrReestr);
+  delete all FrReestr;
+  setBounds(#FrReestr);
+  delete all FrReestrWithOS;
+
+  if (isTree)
+  {
+    TreePopPos (TreeHandle);
+    MyJumpToRecord;
+  }
+  else
+    PopPos(#Katos);
+
+  ReScanPanel(#KatOs);
+}  // PrintReeKatosFr
+
+
+//------------------------------------------------------------------------------
+procedure PrintReestrKatos(_Reestr: word);
+{
+  //если есть пометка, то выдавать запрос на выбор порядка сортировки
+  wReestrPrintSort := 0;
+  isPickOs := ( RecordExists Pick where ((cgPick_KatOs == Pick.wList)) = tsOk );
+
+  // SetFieldSelectable(#wReestrPrintSort, (isPickOs) and (_Reestr = 1));
+
+  RunWindowModal(NastrPrintIKReestr);
+  if ( not bContinueFormReestr )
+    Exit;
+
+  if (VidRep=0)
+    PrintReeKatosTxt(_Reestr);
+  else
+    PrintReeKatosFr(_Reestr);
+}
+
+//==============================================================================
+// ПЕчать отчета по карточкам не в отчетном периоде
+//==============================================================================
+
+create view loKatOtchPer
+var dOtchPer : date;
+    wTipD : word;
+from
+KatOs   (ReadOnly),
+X$Users (ReadOnly),
+KatOs KatOs2 (ReadOnly),
+X$Users X$Users2 (ReadOnly)
+where
+((
+  wTipD               ==  KatOs.TiDk       and
+  dOtchPer            >>  KatOs.OtchPer    and
+  KatOs.ATL_LASTUSER  ==  X$Users.ATL_NREC and
+  wTipD               ==  KatOs2.TiDk      and
+  dOtchPer            <<  KatOs2.OtchPer   and
+  KatOs2.ATL_LASTUSER ==  X$Users2.ATL_NREC
+));
+
+//------------------------------------------------------------------------------
+// Загрузить карточки не в периоде
+Function LoadOsNoPeriod : boolean;
+{
+  var stopped : Boolean;  stopped := false;
+  // var Nrec : longint;  NN:=0;     // счетчик итераций для инициализаии IndicatorVisual
+
+  result:= false;
+
+  ResetBounds(#FrNeOtch);
+  delete all FrNeOtch;
+  setBounds(#FrNeOtch);
+
+  StartNewVisual(vtNumericVisual, vfTimer + vfBreak + vfConfirm,  'Поиск карточек не в отчетном периоде', 1);
+
+  loKatOtchPer._loop KatOs
+    {
+      ClearBuffer(#FrNeOtch);
+      FrNeOtch.NRec    :=  loKatOtchPer.KatOs.NRec;
+      FrNeOtch.cMc     :=  loKatOtchPer.KatOs.cMc;
+      FrNeOtch.dtotchper := loKatOtchPer.KatOs.OtchPer;            // ОтчетныйПериод
+      FrNeOtch.invnom  := pOsFun.GetKatOsInNum(loKatOtchPer.KatOs.NRec); // ИнвентарныйНомер
+      FrNeOtch.naimen  := loKatOtchPer.KatOs.NameOs;              // Наименование
+      FrNeOtch.otchper := DateToStr(loKatOtchPer.KatOs.OtchPer,'MM/YYYY');// ОтчетныйПериод
+      FrNeOtch.polz_id := loKatOtchPer.X$Users.XU$LOGINNAME;      // ПользовательИД
+      FrNeOtch.polz_fio:= loKatOtchPer.X$Users.XU$FULLNAME;        // ПользовательФИО
+      FrNeOtch.data    := DateToStr(loKatOtchPer.KatOs.ATL_LASTDATE,'DD/MM/YYYY');        // ДатаЗаписи
+      insert current FrNeOtch;
+
+      if Not NextVisual
+      {
+        stopped := true;
+        break;
+      }
+    }
+
+ if not Stopped
+  loKatOtchPer._loop KatOs2
+    {
+      ClearBuffer(#FrNeOtch);
+      FrNeOtch.NRec    :=  loKatOtchPer.KatOs2.NRec;
+      FrNeOtch.cMc     :=  loKatOtchPer.KatOs2.cMc;
+      FrNeOtch.dtotchper := loKatOtchPer.KatOs2.OtchPer;            // ОтчетныйПериод
+      FrNeOtch.invnom  := pOsFun.GetKatOsInNum(loKatOtchPer.KatOs2.NRec); // ИнвентарныйНомер
+      FrNeOtch.naimen  := loKatOtchPer.KatOs2.NameOs;              // Наименование
+      FrNeOtch.otchper := DateToStr(loKatOtchPer.KatOs2.OtchPer,'MM/YYYY');// ОтчетныйПериод
+      FrNeOtch.polz_id := loKatOtchPer.X$Users2.XU$LOGINNAME;        // ПользовательИД
+      FrNeOtch.polz_fio:= loKatOtchPer.X$Users2.XU$FULLNAME;        // ПользовательФИО
+      FrNeOtch.data    := DateToStr(loKatOtchPer.KatOs2.ATL_LASTDATE,'DD/MM/YYYY');        // ДатаЗаписи
+      insert current FrNeOtch;
+
+      if Not NextVisual
+      {
+        stopped := true;
+        break;
+      }
+    }
+
+  StopVisual('',0);
+
+  result:= not stopped;
+} // function LoadOsNoPeriod
+
+//------------------------------------------------------------------------------
+// ПЕчать отчета по карточкам не в отчетном периоде В тессте
+procedure WriteKatosOtchPer (TipD : word);
+{
+  var stopped : Boolean;
+  var NN:longint;    NN:=0;   // счетчик итераций для инициализаии IndicatorVisual
+
+  loKatOtchPer.wTipD    := TipD;
+  loKatOtchPer.dOtchPer := dGetTune('OS.OtchPeriod');
+  loKatOtchPer.dOtchPer := Date( Last_Day(loKatOtchPer.dOtchPer), Month(loKatOtchPer.dOtchPer), Year(loKatOtchPer.dOtchPer));
+
+  Stopped := not LoadOsNoPeriod();
+
+  if Stopped
+    {
+      message('Формирование отчета прервано пользователем', OkButton);
+      exit;
+    }
+  IF (RecordsInTable(#FrNeOtch) = 0)
+  {
+    message('Нет карточек не в текущем отчетном периоде', OkButton);
+    frmKatOtchPer.AbortForm;
+    exit;
+  }
+
+  StartNewVisual(vtIndicatorVisual, vfTimer + vfBreak + vfConfirm,  'Формирование отчета по карточкам не в отчетном периоде', RecordsInTable(#FrNeOtch));
+  _loop FrNeOtch
+  {
+      frmKatOtchPer.write(FrNeOtch.NRec);
+      frmKatOtchPer.write(FrNeOtch.cMc);
+      frmKatOtchPer.write(FrNeOtch.invnom);      // ИнвентарныйНомер
+      frmKatOtchPer.write(FrNeOtch.naimen);      // Наименование
+      frmKatOtchPer.write(FrNeOtch.OtchPer);     // ОтчетныйПериод
+      frmKatOtchPer.write(FrNeOtch.polz_id);     // ПользовательИД
+      frmKatOtchPer.write(FrNeOtch.polz_fio);    // ПользовательФИО
+      frmKatOtchPer.write(FrNeOtch.data);        // ДатаЗаписи
+      if Not NextVisual
+      {
+        stopped := true;
+        break;
+      }
+  }
+  StopVisual('',0);
+
+  if ((not frmKatOtchPer.error) and (not stopped))
+    frmKatOtchPer.ShowFile('Отчет по карточкам не в отчетном периоде');
+  else
+    frmKatOtchPer.AbortForm;
+}
+
+//------------------------------------------------------------------------------
+// ПЕчать отчета по карточкам не в отчетном периоде В FastReport
+procedure WriteKatosOtchPerFr (TipD : word);
+{
+  var stopped : Boolean;
+
+  loKatOtchPer.wTipD := TipD;
+  loKatOtchPer.dOtchPer := dGetTune('OS.OtchPeriod');
+  loKatOtchPer.dOtchPer := Date( Last_Day(loKatOtchPer.dOtchPer), Month(loKatOtchPer.dOtchPer), Year(loKatOtchPer.dOtchPer));
+
+
+  Stopped := not LoadOsNoPeriod();
+
+  if Stopped
+  {
+    message('Формирование отчета прервано пользователем', OkButton);
+    exit;
+  }
+
+  IF (RecordsInTable(#FrNeOtch) = 0)
+  {
+    message('Нет карточек не в текущем отчетном периоде', OkButton);
+    exit;
+  }
+
+  RunFReportByGroup(ReeKatOsFr, 'NeOtch');
+
+  ResetBounds(#FrNeOtch);
+  delete all FrNeOtch;
+  setBounds(#FrNeOtch);
+}
+
+//----------------------------------------------------------------------------
+// Окно настройки печати реестра инвентарных карточек
+//----------------------------------------------------------------------------
+Window winKatosOtchPer 'Настройка печатной формы' (,hcOSPrnQuickVedParamPrint, sci1Esc), EscClose, doAccept;
+  Show at (1,1,40,7);
+
+Screen scKatosOtchPer;
+Fields
+  VidRep   ('Формат отчета'):
+             [List 0 'Бизнес-текст', 1 'FastReport'], Protect;
+
+Buttons
+  cmOk, Default,, 'Сформировать отчет';
+  cmCancel,,,     'Отмена операции';
+
+<<
+
+   Вид отчета:
+   .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+   <.Сформировать.>    <.Отмена.>
+
+>>
+end;//screen
+
+
+HandleEvent //Window NastrPrintIKReestr
+  cmInit:
+  {
+    bContinueFormReestr := false;
+    ReadMyDsk(VidRep,   'KatOss_VidRep', true);
+  }
+
+  cmOk:
+  {
+    bContinueFormReestr := true;
+    CloseWindow(winKatosOtchPer);
+  }
+
+  cmDone:
+    SaveMyDsk(VidRep, 'KatOss_VidRep');
+
+end;//HandleEvent
+end;//Window NastrPrintIKReestr
+
+//------------------------------------------------------------------------------
+procedure WriteKatosOtchPerMain (TipD : word);
+{
+  RunWindowModal(winKatosOtchPer);
+  if ( not bContinueFormReestr )
+    Exit;
+
+   if (VidRep=0)
+      WriteKatosOtchPer (TipD);
+    else
+      WriteKatosOtchPerFr (TipD);
+}

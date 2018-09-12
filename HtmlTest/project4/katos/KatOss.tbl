@@ -1,0 +1,249 @@
+
+// используется для перевода в архив
+//------------------------------------
+Table Struct MyStruct
+(
+  nRec   : comp,
+  Dat    : date,
+  Tip    : word
+)
+with index
+(
+  Index1 = nRec
+);
+//------------------------------------
+Table Struct tmpRepair
+(
+  nRec_MoveOsMod : comp,
+  NumKod         : double,
+  DatOb          : date
+)
+with index
+(
+  Index1 = NumKod,
+  Index2 = DatOb
+);
+
+//------------------------------------
+Table Struct tmpMySelTbl
+(
+  cKatOs : comp
+)
+with index
+(
+  Index1 = cKatOs
+);
+//------------------------------------
+
+Table Struct FrCrossTbl
+(
+  Nrec  : comp,
+  Metod : string
+)
+with index
+(
+  indFrCrossTbl02 = Nrec
+);
+//------------------------------------
+
+Table Struct FrKartOSTbl
+(
+  Nrec:comp,
+  KartOS : string
+)
+with index
+(
+  indFrKartOSTbl01 = Nrec
+);
+//------------------------------------
+
+Table Struct FrKartVal
+(
+  NrecCross : comp,
+  NrecKart  : comp,
+  Znach     : string
+)
+with index
+(
+  indFrKartVal = NrecCross + NrecKart
+);
+
+Table Struct FrKatOsGr
+(
+  KartOS : string,
+  Metod  : string,
+  Znach  : string
+);
+
+//------------------------------------
+//Временная таблица для печати реестра инв. карточек в FastReport
+
+Table Struct FrReestr
+(
+  Nrec       : comp,
+  cKatOs     : comp,
+  InvNom     : s40,
+  Naim       : s160,
+  Kol        : double,
+  EdIzm      : s80,
+  ZavNom     : s80,
+  ZavodIzg   : s160,
+  NomPasp    : s80,
+  Model      : s160,
+  NomNom     : s160,
+  KodPart    : s160,
+  RegNomer   : s160,
+  GrOsnSred  : s160,
+  VidOsnSred : s160,
+  KodNorm    : s160,
+  NormaAmort : s160,
+  IspOs      : s160,
+  Podr       : s160,
+  MOL        : s160,
+  BalansSt   : double,
+  SumIzn     : double,
+  IznosMes   : s160,
+  StoimPost  : double,
+  IznPost    : s160,
+  FiksSum    : double,
+  OstStoim   : double,
+  SrokIsp    : s40,
+  DataVup    : s20,
+  DataVVod   : s20,
+  DataPost   : s20,
+  DataVub    : s20,
+  DataGar    : s20,
+  DataLikv   : s20,
+  Valut      : s80,
+  MetodNach  : s80,
+  TXO        : s160,
+  TipOb      : s160,
+  kodGr      : string,
+  NaimkodGr  : string,
+  koef       : s80
+)
+with index
+(
+  indFr = Nrec
+);
+
+Table Struct FrReestrWithOS
+(
+  HigherInvNum   : s40,
+  HigherOstStoim : double,
+  HigherDatVub   : s20,
+  InvNom         : s40,
+  OstStoim       : double,
+  DataLikv       : s20
+)
+with index
+(
+  FrReestrWithOS1 = HigherInvNum
+);
+
+Table Struct FrNeOtch
+(
+  NRec     : comp,
+  cMc      : comp,
+  invnom   : s40,
+  naimen   : s160,
+  polz_id  : s20,
+  polz_fio : s40,
+  dtOtchper  : date,
+  otchper  : s20,
+  data     : s20
+)
+with index
+(
+  indFr = dtOtchper + invnom
+);
+
+Table Struct FrSostObj
+(
+  NRec            : tNRec    "Номер записи",
+  cSpKatos        : comp,
+  KatOs_Level     : word,
+  KatOs_InNum     : s40,
+  KatOs_Name      : s160,
+  KatOs_BarKod    : s80,
+  KatOs_ZavNom    : s80,
+  KatOs_IsLeaf    : word,
+  KatOs_OsMcExists: word,
+  SpKatOs_Stoim   : double,
+  SpKatOs_SumIzn  : double,
+  SpKatOs_SIznM   : double,
+  OSKatSopr_Sum   : double,
+  OSKatOrg_Name   : s160,
+  OsKatSoprNumDate: s40
+)
+with index
+(
+  indFr0  = nRec(Unique, Surrogate),
+  indFr1  = cSpKatos
+);
+
+Table Struct FrMC
+(
+  NRec           : tNRec    "Номер записи",
+  cSpKatos       : comp,
+  cSpOsMc        : comp,
+  NeVub          : word,
+  KatMc_Name     : string,
+  OsMc_TiDk      : word,
+  OsMc_BarKod    : s80,
+  OsMc_ZavNom    : s80,
+  OsMc_IsLeaf    : word,
+  OsMc_DatEk     : s40,
+  OsMc_DatV      : s40,
+  OsMc_Kol       : double,
+  SpOsMc_Stoim   : double,
+  SpOsMc_SumIzn  : double,
+  SpOsMc_SIznM   : double,
+  KatSopr_Sum    : double,
+  KatOrg_Name    : s160,
+  NumDate        : s40
+)
+with index
+(
+  indFr0  = nRec(Unique, Surrogate),
+  indFr1 = cSpKatos,
+  indFr2 = cSpOsMc
+);
+
+Table Struct FrUsl
+(
+  NRec           : tNRec    "Номер записи",
+  cSpKatos       : comp,
+  cSpOsMc        : comp,
+  NeVub          : word,
+  Name           : string,
+  StoimPokup     : double,
+  SumUslOnCurrObj: double,
+  Org_NameUsl    : string,
+  NumDateUsl     : string,
+  KatSoprName    : string
+)
+with index
+(
+  indFr0 = nRec(Unique, Surrogate),
+  indFr1 = cSpKatos,
+  indFr2 = cSpOsMc
+);
+
+// Для печати фильтров по ОС
+Table Struct mtFltOs
+(
+  Npp   : word,
+  Name  : string
+)
+with index
+(
+  Index0 = Npp
+);
+
+table struct mtAddr
+(
+  cAddr    : comp  // ссылка на отобранную запись
+)
+with index
+( ind00  = cAddr);

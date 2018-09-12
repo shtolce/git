@@ -1,0 +1,1418 @@
+#include ObOnAnlt.vpp    // Выборка проводок по значению аналитики
+
+//------------------------------------------------------------------------------
+// Перечитать KatOs - вызывается из встроенного интерфейса операций OS_Operations
+Procedure RescanKatOs ();
+{
+   RereadRecord(#KatOs);
+   RereadRecord(#SpKatOs);
+   RescanPanel(#KatOs);
+   RescanPanel(#SpKatOs);
+}
+
+//------------------------------------------------------------------------------
+Procedure SetBoundsByLinkTbl(boIsSet : boolean);
+{
+  if Not FiltersActive(False)
+    if boIsSet
+      #BoundsByLinkTBL(Set)
+    else
+      #BoundsByLinkTBL(ReSet)
+}
+
+
+//------------------------------------------------------------------------------
+Create view loPickKatOS
+var cKatos : comp;
+From
+      Pick
+    , Pick PickOs
+    , KatOS
+    , tmpMySelTbl
+where ((
+      cgPick_KatOs == Pick.wList
+  and cgPick_KatOs == PickOs.wList
+  and       cKatOs == PickOs.cRec
+      ));
+
+//------------------------------------------------------------------------------
+// пометить текущее Katos
+Procedure MarkOS(pbMark : boolean;  pcKatOs : comp );
+{
+  loPickKatOS.cKatOs := pcKatOs;
+  if Not pbMark
+  {
+    if ( loPickKatOS.GetFirst PickOs = tsOk )
+      {
+        loPickKatOS.Delete current  PickOs;
+        wPickNum--;
+        wPickNumSort--;
+      }
+      Exit;
+  }
+
+        // это нужно для случая, когда мы сначала помечаем лист в папке (не помечая папку),
+        // а потом помечаем и саму папку.... т.е. при этом все её листы тоже /помечаются автоматом, но ТОЛЬКО те, которые не были помечены ранее,
+        // т.о. у помеченных ранее без папки нужно порядок пересчитать, чтобы они отдельно без папки не печатались....
+   if ( loPickKatOS.GetFirst PickOs = tsOk )          // Если уже помечен, то ничиго не делаем
+     if (KatOS.cHigherOs > 0)
+      {
+        loPickKatOS.Delete current  PickOs;
+        wPickNum--;
+        wPickNumSort--;
+      }
+     else
+       Exit;
+
+    wPickNum++;
+    wPickNumSort++;
+
+    if ( (loPickKatOS.Insert Pick
+                  set Pick.wList   := cgPick_KatOs,
+                      Pick.PickNum := wPickNumSort,
+                      Pick.PickKol := 0,
+                      Pick.cRec    := pcKatOs) = tsOk ) {}
+} // MarkOS
+
+//------------------------------------------------------------------------------
+// пометить Katos, включая нижестоящие. // Не правильно рабротает с фильтрами
+procedure MarkSubOsAlter(Mark: boolean);
+{
+  MarkOS(Mark, KatOs.nRec);
+  if (KatOs.IsLeaf = 0)  // узел
+    {
+        if (Mark)  // Снимем пометку если она есть с подчиненных, чтобы нумерация пометки ишла сверху вниз
+          _loop KatOsSel
+            MarkOS(false, KatOsSel.nRec);
+       _loop  KatOsSel
+          MarkOS(Mark, KatOsSel.nRec);
+    }
+} // MarkSubOs
+
+//------------------------------------------------------------------------------
+// пометить Katos, включая нижестоящие
+procedure MarkSubOs(Mark: boolean);
+{
+  if (KatOs.IsLeaf = 1)
+      MarkOS(Mark, KatOs.nRec);
+  else
+    {
+      var  firstLevel: word;
+      firstLevel := TreeLevel(trDocument);
+      do
+      {
+        MarkOS(Mark, KatOs.nRec);
+        tsResult := TreeGetNextEx(trDocument)
+      }
+      while tsResult and (TreeLevel(trDocument) > firstLevel);
+    }
+
+} // MarkSubOsTree
+
+//------------------------------------------------------------------------------
+// пометить KatOs находясь в цикле
+procedure MarkOsInCycle(Mark: boolean);
+{
+   if (KatOs.IsLeaf = 1)
+     MarkOS(Mark, KatOs.nRec);
+   else
+   {
+     TreePushPos(trDocument);
+     MarkSubOs(Mark);
+     TreePopPos(trDocument);
+   }
+}
+
+//------------------------------------------------------------------------------
+Procedure KillPick;
+{
+  Delete  PickS where ((cgPick_KatOs == PickS.wList));
+  wPickNum := wPickNumSort := 0;
+  SetTitles;
+}
+
+
+//------------------------------------------------------------------------------
+//эту функцию надо вызывать для восстановления позиций на текущем методе учёта
+//после того, как вызвали какой-нибудь другой интерфейс, в котором возможно
+//поменяли текущий метод учёта
+Procedure RefreshCurrMet(In_TipDock : word);
+{
+  phUNastrOsPos := pOsFun.GetUserNastrOsPos(In_TipDock);
+  if (GetFirst NastrOs where ((phUNastrOsPos == NastrOs.nRec)) <> tsOk) {};
+  if (GetFirst NastrOsO where ((phUNastrOsPos == NastrOsO.nRec)) <> tsOk) {};
+  iMcInOs.SetNastrOs(NastrOs.NRec);
+  iOS_Oper.SetNastrOs(NastrOs.NRec);
+} //RefreshCurrMet
+
+//------------------------------------------------------------------------------
+procedure GetClassifier;
+{
+  if (not UpdateTable)
+    Exit;
+
+  if Curtable =  #KatOs
+  {
+    var boCanEdit : boolean=false;
+
+    if IsProtected(#KatOs)
+      boCanEdit := False
+    else
+      boCanEdit := pOsFun.CanEditOs(KatOs.NRec, true);
+
+    if (not boCanEdit)
+      SetProtectedKatOS;
+    iClass.Pick(boCanEdit, word(CurTableCode), KatOs.NRec);
+  }
+}
+
+//------------------------------------------------------------------------------
+procedure GetAttribute;
+{
+  if (not UpdateTable)
+    Exit;
+
+  if Curtable =  #KatOs
+  {
+    var boCanEdit : boolean=false;
+
+    if IsProtected(#KatOs)
+      boCanEdit := False
+    else
+      boCanEdit := pOsFun.CanEditOs(KatOs.NRec, true);
+
+    if (not boCanEdit)
+      SetProtectedKatOS;
+    iAttr.Pick(boCanEdit, word(CurTableCode), KatOs.NRec);
+  }
+}
+
+//------------------------------------------------------------------------------
+function MakeNewIn : boolean;
+{
+  MakeNewIn := false;
+  if (isNew)
+    if (not isModified)
+       Exit;
+  MakeNewIn := true;
+}
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+Procedure DropColumnClicked;
+{
+  if isTree
+    SetOrder(titrOrderInnum);
+  else
+    SetOrder(tibrOrderInnum);
+
+  SetColumnSorting(CurFormatInArea(if (isTree,trDocument,pDocument)),#KatOs.Innum,0);
+  SetColumnSorting(CurFormatInArea(if (isTree,trDocument,pDocument)),#KatOs.NameOS,0);
+  SetColumnSorting(CurFormatInArea(if (isTree,trDocument,pDocument)),#KatOs.DatEk,0);
+  SetTableBackOrderIn(#KatOs,false);
+}
+
+//------------------------------------------------------------------------------
+// для иерархий
+Procedure MyJumpToRecord;
+{
+  if (isTree)
+    {
+      Node := Katos.cHigherOs;
+      TreeJumpToRecord(trDocument, Katos.NRec);
+    }
+} // procedure MyJumpToRecord
+
+
+//-----------------------------------------------------------------------------
+//  Получить первую запись в KatOs  (Sanny)
+//-----------------------------------------------------------------------------
+Function MyGetFirstKatOs : boolean;
+{
+   if ( isTree )
+     MyGetFirstKatOs := TreeGetFirstEx(TreeHandle);
+   else
+     MyGetFirstKatOs := (GetFirst KatOs = tsOk);
+}
+
+//-----------------------------------------------------------------------------
+Function MyGetLastKatOs : boolean;
+{
+    if ( isTree )
+      Result := TreeGetLastEx(TreeHandle);
+    else
+      Result := (GetLast KatOs = tsOk);
+}
+
+//-----------------------------------------------------------------------------
+//  Получить следующую запись в KatOs  (Sanny)
+//-----------------------------------------------------------------------------
+Function MyGetNextKatOs : boolean;
+{
+        if ( isTree )
+          MyGetNextKatOs := TreeGetNextEx(TreeHandle);
+        else
+          MyGetNextKatOs := (GetNext KatOs = tsOk);
+}
+
+//------------------------------------------------------------------------------
+Function MyGetPrevKatOs : boolean;
+{
+        if ( isTree )
+          MyGetPrevKatOs := TreeGetPrevEx(TreeHandle);
+        else
+          MyGetPrevKatOs := (GetPrev KatOs = tsOk);
+
+}
+
+//------------------------------------------------------------------------------
+// Перевод в архив
+Procedure InsArchiv(op : byte);
+var
+  cPickKatOS, cRec : comp;
+  Res, Result2, Ti, TiDkCur, wDelForm11 : word;
+{
+  if (loPickKatOS.RecordExists Pick  where ((cgPick_KatOs == Pick.wList)) <> tsOk)
+    Exit;
+
+  cRec:= KatOs.nRec;
+  Res := cmYes;
+  wDelForm11 := cmNo;
+  TiDkCur := KatOs.TIDK;
+
+  if (op = 0) AND (TipDock <> cgOs_57_Rsrv)
+    wDelForm11 := Message('Исключить выбранные инвентарные' + ''#13'карточки из настройки формы 11?', Confirmation + YesNo);
+
+  var i:  word;
+  for (i:=0; i<=1; i++) // сразу переводим  родителей
+  {
+      loPickKatOS._LOOP Pick
+      {
+        cPickKatOS := loPickKatOS.Pick.cRec;
+
+        if (GetFirst KatOs where ((cPickKatOS == KatOs.Nrec)) <> tsOk)
+          continue;
+        if (KatOs.isLeaf <> i)
+          continue;
+
+        if (op = 0) and (KatOs.TIDK > 100)
+          continue;
+
+        if (op <> 0) and (KatOs.TIDK < 100)
+          continue;
+
+
+        if (op = 0)
+        {
+            if KatOs.DATV = Zerodate
+            {
+              if ((Res <> cmOk) and (Res <> cmQuit))
+                Res := RunInterface('DlgMessage','Инвентарный объект ' + Trim(KatOs.INNUM)+' '+Trim(KatOs.NameOs)+
+                          ' еще не выбыл.'#13 + 'Переводить в архив ?', '');
+              case Res of
+                cmNo, cmQuit : continue;
+                cmCancel     : break;
+              end;
+            }
+
+            if (KatOs.cHigherOs <> 0) and  (KatOs.TIDK mod 100 <> cgOs_57_Rsrv)
+            {
+              Ti := if(op=0, KatOs.TIDK + 100, KatOs.TIDK - 100);
+              if GetFirst KatOsS where ((KatOs.cHigherOs == KatOsS.nRec)) = tsOk
+               if (Ti <> KatOsS.TIDK)
+                if ((Result2 <> cmOk) and (Result2 <> cmQuit))
+                 Result2 := RunInterface('DlgMessage','Вышестоящий инвентарный объект '+ Trim(KatOsS.INNUM)+' '+Trim(KatOsS.NameOs)+
+                          ' еще не выбыл.'#13 + 'Переводить выбранную ИК в архив ?', '');
+              case Result2 of
+                cmNo, cmQuit : continue;
+                cmCancel     : break;
+              end;
+            }
+        }
+
+          if op = 0
+             KatOs.TIDK := KatOs.TIDK + 100;
+          else
+             KatOs.TIDK := KatOs.TIDK - 100;
+
+          if ( pOsFun.CanEdit(KatOs.NRec,false) )
+           if (Update current KatOs = tsOk) and (wDelForm11 = cmYes)
+             iForm11.DelAllNastrForm11(KatOs.nRec);
+
+          epMenuRunPGK(coKatOs, KatOs.NRec, 2, 1);
+
+      }
+  }
+
+  if (Res <> cmCancel)
+    KillPick;
+
+  if GetFirst KatOsS where ((TiDkCur == KatOsS.TiDk)) <> tsOk
+  {
+      message('Перевод завершен успешно.'+  ''#13''+if(op = 0,'Больше нет записей в картотеке.', 'Больше нет записей в архиве.'),okButton);
+      CloseInterFace(cmCancel);
+  }
+  else
+    if (GetFirst KatOs where ((cRec == KatOs.Nrec)) = tsOk)
+      if ((op=0) and (KatOs.TiDk > 100)) or ((op=1) and (KatOs.TiDk < 100))
+         MyGetLastKatOs();
+
+  MyjumpToRecord;
+  ReReadRecord(#KatOs);
+  ReScanPanel(#KatOs);
+}
+
+//------------------------------------------------------------------------------
+// обновление заголовков окон интерфейса
+procedure SetTitles;
+{
+  var MainWinName : string;
+  var EditWinName : string;
+  var sSelModeTitle : string;
+
+  MainWinName := EditWinName :='';
+  // наименование главного окна
+  if (TipDock = cgOs_15_OS) or (TipDock = cgOs_16_NMA)
+     case GrupVbr of
+     //-------------
+       0   :  MainWinName := 'Инвентарная картотека';
+       1,2 :  MainWinName := 'Выбор инвентарной карточки';
+     end;
+  else
+    MainWinName :='Архив выбывших инвентарных карточек';
+  if (PrSpecOb)
+    MainWinName := 'Специализированное оборудование';
+  if (TipDock = cgOs_57_Rsrv)
+    MainWinName := 'Резерв ОС';
+  else if (TipDock = cgOs_57_Rsrv)
+    MainWinName := 'Архив выбывшего резерва ОС';
+  else  if (TipDock = cgOs_315_PrevOS)
+    MainWinName := 'Предварительные карточки ОС';
+
+  // наименование окна редактирования
+  if (Katos.cHigherOs <> 0) and (not isTree)
+    EditWinName := KatosLink.InNum + ' / ' + KatosLink.NameOs;
+  else   if (TipDock mod 100 = cgOs_57_Rsrv)
+    EditWinName := 'Резерв ОС';
+  else  if (TipDock = cgOs_315_PrevOS)
+    EditWinName := 'Предварительная карточка';
+  else
+    EditWinName := 'Инвентарная карточка';
+
+  MainWinName +=  ' (' + NastrOs.Name + '; ' + PlansSch.Name + ').';
+  if ( wPickNum <> 0)
+    MainWinName += ' (Выбрано: ' + string(wPickNum) + ').';
+  if (myFiltrR)
+    MainWinName += ' Установлен фильтр.';
+
+  sSelModeTitle := '';
+  if boInMemTitle
+    sSelModeTitle := ' (отобранные инвентарные карточки)';
+
+  SetWindowTitle(wnMainWindow, MainWinName + sSelModeTitle);
+  SetWindowTitle(liWiEditKatos, EditWinName + ' ('+NastrOs.Name + '; ' + PlansSch.Name + ')');
+  // проект 2.0054 наименования колонок
+  SetColumnTitleAndHelpLine;
+}
+
+//------------------------------------------------------------------------------
+procedure MarkTogetherInOperAndPartlyMove (In_cKatOs : comp);
+{
+  var tmp_cKatOs : comp;   // переменная нужна т.к. при рекурсии Атлантис глючт
+  tmp_cKatOs := In_cKatOs;
+  cMyKatOs   := tmp_cKatOs;
+
+  var tempSpMoveOs_cKatOs : comp; // переменная нужна т.к. при рекурсии Атлантис глючт
+
+  cMySysOper := cgOs_1_Post;
+
+  PushPos(tnSpMoveOs);
+  PushPos(tnSpMoveOsS);
+
+  if (GetFirst tmpMySelTbl where ((cMyKatOs == tmpMySelTbl.cKatOs)) <> tsOk)
+    {
+      tmpMySelTbl.cKatOs := cMyKatOs;
+      insert current tmpMySelTbl;
+    }
+
+  // Сначала бегаем по той операции, которую передаём в функцию (это будет поступление или выбытие)
+  _loop SpMoveOs
+    if (MoveOs.CanPereprov = 0 and pCheckOper.OperProvUcht(MoveOs.NRec, NastrOs.nRec)) // Если проведена
+      // бегаем по остальным ОС-ам из данного поступления
+      _loop SpMoveOsS
+        // если это не сам наш ОС
+        if (SpMoveOsS.cKatOs <> SpMoveOs.cKatOs)
+          if (GetFirst tmpMySelTbl where ((SpMoveOsS.cKatOs == tmpMySelTbl.cKatOs)) <> tsOk)
+           {
+             tempSpMoveOs_cKatOs := SpMoveOsS.cKatOs;
+             MarkTogetherInOperAndPartlyMove(tempSpMoveOs_cKatOs);
+             cMyKatOs := tmp_cKatOs;
+             cMySysOper := cgOs_1_Post;
+           }
+
+  // Теперь бегаем по частичным внутренним перемещениям, проверяем отделялась ли от этой карточки какая
+  cMyKatOs := tmp_cKatOs;
+  cMySysOper := cgOs_2_VnuPer;
+  _loop SpMoveOs
+    if (SpMoveOs.cKatOsNew <> 0)
+      if (MoveOs.CanPereprov = 0 and pCheckOper.OperProvUcht(MoveOs.NRec, NastrOs.NRec)) // Если проведена
+        {
+          tempSpMoveOs_cKatOs := SpMoveOs.cKatOsNew;
+
+          if (GetFirst tmpMySelTbl where ((tempSpMoveOs_cKatOs == tmpMySelTbl.cKatOs)) <> tsOk)
+            {
+              MarkTogetherInOperAndPartlyMove(tempSpMoveOs_cKatOs);
+              cMyKatOs := tmp_cKatOs;
+              cMySysOper := cgOs_2_VnuPer;
+            }
+        }
+
+  // Теперь бегаем по частичным внутренним перемещениям, проверяем не является ли эта карточка созданной, при частичного перемещении
+  cMyKatOs := tmp_cKatOs;
+  cMySysOper := cgOs_2_VnuPer;
+  _loop SpMoveOsPartialMove
+    if (MoveOsPartialMove.CanPereprov = 0 and pCheckOper.OperProvUcht(MoveOsPartialMove.NRec, NastrOs.NRec)) // Если проведена
+      {
+        tempSpMoveOs_cKatOs := SpMoveOsPartialMove.cKatOs;
+
+        if (GetFirst tmpMySelTbl where ((tempSpMoveOs_cKatOs == tmpMySelTbl.cKatOs)) <> tsOk)
+          {
+            MarkTogetherInOperAndPartlyMove(tempSpMoveOs_cKatOs);
+            cMyKatOs := tmp_cKatOs;
+            cMySysOper := cgOs_2_VnuPer;
+          }
+      }
+
+
+  // Теперь бегаем по частичным выбытиям, проверяем отделялась ли от этой карточки какая
+  cMyKatOs := tmp_cKatOs;
+  cMySysOper := cgOs_4_Vybyt;
+  _loop SpMoveOs
+    if (SpMoveOs.cKatOsNew <> 0)
+      if (MoveOs.CanPereprov = 0 and pCheckOper.OperProvUcht(MoveOs.NRec, NastrOs.NRec)) // Если проведена
+        {
+          tempSpMoveOs_cKatOs := SpMoveOs.cKatOsNew;
+
+          if (GetFirst tmpMySelTbl where ((tempSpMoveOs_cKatOs == tmpMySelTbl.cKatOs)) <> tsOk)
+            {
+              MarkTogetherInOperAndPartlyMove(tempSpMoveOs_cKatOs);
+              cMyKatOs := tmp_cKatOs;
+              cMySysOper := cgOs_4_Vybyt;
+            }
+        }
+
+  // Теперь бегаем по частичным выбытиям, проверяем не является ли эта карточка созданной, при частичного выбытии
+  cMyKatOs := tmp_cKatOs;
+  cMySysOper := cgOs_4_Vybyt;
+  _loop SpMoveOsPartialMove
+    if (MoveOsPartialMove.CanPereprov = 0 and pCheckOper.OperProvUcht(MoveOsPartialMove.NRec, NastrOs.NRec)) // Если проведена
+      {
+        tempSpMoveOs_cKatOs := SpMoveOsPartialMove.cKatOs;
+
+        if (GetFirst tmpMySelTbl where ((tempSpMoveOs_cKatOs == tmpMySelTbl.cKatOs)) <> tsOk)
+          {
+            MarkTogetherInOperAndPartlyMove(tempSpMoveOs_cKatOs);
+            cMyKatOs := tmp_cKatOs;
+            cMySysOper := cgOs_4_Vybyt;
+          }
+      }
+
+  PopPos(tnSpMoveOsS);
+  PopPos(tnSpMoveOs);
+} // MarkTogetherInOperAndPartlyMove
+
+//-------------------------------------------------------------------------------------------------
+// [EVENT] Поступило оповещение о смене плана счетов
+procedure onChangePlansSch(_cPlansSch: comp);
+{
+  set myPlansNo := _cPlansSch;
+  SetTitles;
+  bOborotSelSuccess := false; // Еще не было успешного отбора проводок по текущему плану счетов.
+}
+
+//-------------------------------------------------------------------------------------------------
+function GetSelCount ( pickNum : word) : longint;
+{
+  var stopped : boolean;   stopped:=false;
+  result:=0;
+  StartNewVisual(vtNumericVisual, vfTimer + vfBreak + vfConfirm + vfScreenBottom, 'Подсчет количества итераций', 1);
+
+  _loop Pick where (( pickNum == Pick.wList))
+    if Not NextVisual
+      {
+        stopped := true;
+        break
+      }
+
+  result := VisualCount;    // получаем количество итераций до закрытия визуализации
+  StopVisual('',0);
+
+  if Stopped
+    message('Процесс был прерван пользователем', OkButton);
+}
+
+//-------------------------------------------------------------------------------------------------
+Procedure StatusContext;
+{
+  if (tipDock <> cgOs_115_OS) and (tipDock <> cgOs_116_NMA)
+  {
+    case GrupVbr of
+          0, 6 :  // просмротр, спец.оборудование
+              {
+                if (isTree)
+                {
+                  if pOsFun.CheckEditKatOS(0)
+                   // SetHelpAndStatusContext(TrDocument, -1, sci178EnEscTreeIns, hcOSBInvKart)
+                    SetHelpAndStatusContext(TrDocument, -1, sci1478EnEscTreeI, hcOSBInvKart)
+                  else
+                    SetHelpAndStatusContext(TrDocument, -1, sci1EnInsTree,     hcOSBInvKart)
+                }
+                else
+                {
+                  if pOsFun.CheckEditKatOS(0)
+                    // SetHelpAndStatusContext(pDocument,-1, sci178EnEscInsPM,   hcOSBInvKart)
+                    SetHelpAndStatusContext(pDocument,-1, sci1478EnIns,   hcOSBInvKart)
+                  else
+                    SetHelpAndStatusContext(pDocument,-1, sci1EnEscInsPM, hcOSBInvKart)
+                }
+              }
+          1 :  // одиночный выбор
+              {
+                ClearFieldState(#Vbr, sfVisible);
+                if (isTree)
+                  SetHelpAndStatusContext(trDocument,-1,sci14EnEscTree,hcOSBInvKart);
+                else
+                  SetHelpAndStatusContext(pDocument,-1,sci14Esc,hcOSBInvKart);
+              }
+          2 :  // групповой выбор
+              {
+                if (isTree)
+                  SetHelpAndStatusContext(TrDocument,-1,sci14EnInsTree,hcOSBInvKart);
+                else
+                  SetHelpAndStatusContext(pDocument,-1,sci14InsPM,hcOSBInvKart);
+              }
+    end;
+  }
+  else   // архив
+  {
+    if (isTree)
+    {
+      if pOsFun.CheckEditKatOS(0)
+        // SetHelpAndStatusContext(trDocument,-1,sci1EnInsTree, hcOSSArcCard);
+        SetHelpAndStatusContext(trDocument,-1,sci18EnInsTree,hcOSSArcCard);     // 102.108843
+      else
+        SetHelpAndStatusContext(trDocument,-1,sci1EnInsTree, hcOSSArcCard);
+    }
+    else
+    {
+      if pOsFun.CheckEditKatOS(0)
+        // SetHelpAndStatusContext(pDocument,-1,sci1EnIns, hcOSSArcCard);
+        SetHelpAndStatusContext(pDocument,-1,sci18EnIns,hcOSSArcCard);
+      else
+        SetHelpAndStatusContext(pDocument,-1,sci1EnIns, hcOSSArcCard);
+    }
+  }
+
+  DropColumnClicked;
+}
+
+//-------------------------------------------------------------------------------------------------
+// Установить наименования колонок/полей и строк подсказки
+Procedure SetColumnTitleAndHelpLine;
+{
+  SetColumnTitle(trDocument, #trColumnSumIzn, sNameColumnSumIzn);
+  SetColumnTitle(trDocument, #trColumnSIznM,  sNameColumnSIznM);
+  SetColumnTitle(pDocument,  #brColumnSumIzn, sNameColumnSumIzn);
+  SetColumnTitle(pDocument,  #brColumnSIznM,  sNameColumnSIznM);
+  if (TipDock mod 100 = cgOs_57_Rsrv)  // Резерв
+  {
+    SetColumnTitle(pDocument, #KatosLink.InNum, '№ ОС' );
+    SetColumnTitle(pDocument, #Katos.DatEk,     'Дата'  + char(13) + 'создания');
+    SetColumnTitle(pDocument, #brColumnStoim,   'Сумма' + char(13) + 'в стоимости ОС');
+  }
+
+
+  SetInternalHelpLine(trDocument, #trColumnSumIzn, sNameHelpLineSumIzn);
+  SetInternalHelpLine(trDocument, #trColumnSIznM,  sNameHelpLineSIznM);
+  SetInternalHelpLine(pDocument, #brColumnSumIzn,  sNameHelpLineSumIzn);
+  SetInternalHelpLine(pDocument, #brColumnSIznM,   sNameHelpLineSIznM);
+
+  SetInternalHelpLine(KatosScr, #SpKatOs.SumIzn, sNameHelpLineSumIzn);
+  SetInternalHelpLine(KatosScr, #SpKatOs.SIznM,  sNameHelpLineSIznM);
+//  SetInternalHelpLine(KatosScrN, #SpKatOs.SumIzn, sNameHelpLineSumIzn);
+//  SetInternalHelpLine(KatosScrN, #SpKatOs.SIznM,  sNameHelpLineSIznM);
+}
+
+//------------------------------------------------------------------------------
+Procedure SetFormatScrKatOsEdit(_isCommonCost : boolean);
+{
+  case TipDock of
+    15, 16, 115, 116, cgOs_315_PrevOS :
+    {
+    #ifdef __TPR2__
+      if boIsNastrOS_MSFO // (NastrOs.UtchPer=1)   // Для МСФО
+      {
+        if (CurFormatInArea(KatOsScrMSFO) <> KatOsScrMSFO)
+          SetFormat(KatOsScrMSFO);
+      }
+      else
+    #end
+      if (_isCommonCost)
+      {
+        if (CurFormatInArea(KatOsScrCommonCost) <> KatOsScrCommonCost)
+          SetFormat(KatOsScrCommonCost);
+      }
+      else
+      {
+        if (CurFormatInArea(KatOsScr) <> KatOsScr)
+          SetFormat(KatOsScr);
+      }
+    }
+    cgOs_57_Rsrv, cgOs_157_Rsrv :
+      if (CurFormatInArea(KatOsScrRsrv) <> KatOsScrRsrv)
+        SetFormat(KatOsScrRsrv);
+  end;
+}
+
+
+//------------------------------------------------------------------------------
+// Установить Protect для текущей записи KatOS и связанные с ней
+Procedure SetProtectedKatOS;
+{
+  if isNew()
+    Exit;
+  if (not IsProtected(#KatOs))
+    {
+      ProtectRecord(#KatOs,true);
+
+      if (not IsProtected(#KatOs))
+        Message('Не удалось заблокировать текущую запись!',OkButton)
+    }
+
+  if (not IsProtected(#SpKatOs))
+    {
+      ProtectRecord(#SpKatOs,true);
+
+      if (not IsProtected(#SpKatOs))
+        Message('Не удалось заблокировать текущую запись!',OkButton)
+    }
+
+  if IsProtected(#KatOs)
+    SetFieldOption(#AllMemo.Mem, ofProtected);
+  else
+    ClearFieldOption(#AllMemo.Mem, ofProtected);
+};
+
+
+//-------------------------------------------------------------------------------
+create view loGOrd
+var
+  cKatSoprNRec : comp;
+  cMcNRec      : comp;
+where
+((
+    cKatSoprNRec == KatSopr.nRec    and
+    KatSopr.nRec == SpSopr.cSopr    and
+    cMcNRec      == SpSopr.cMcUsl   and
+    SpSopr.nRec  == SpOrder.cSpSopr
+));
+
+// Определение ссылки на спецификацию ордера на основе ссылки на накладную и на МЦ
+function GetInSpOrder( pcKatSoprNRec : comp; pcMcNRec : comp ) : comp;
+{
+  GetInSpOrder := 0;
+
+  loGOrd.cKatSoprNRec := pcKatSoprNRec;
+  loGOrd.cMcNRec      := pcMcNRec;
+
+  if ( loGOrd.GetFirst KatSopr = tsOk )
+    if ( loGOrd.GetFirst SpSopr = tsOk )
+      GetInSpOrder := loGOrd.SpOrder.NRec;
+}
+
+
+//-------------------------------------------------------------------------------
+Create view loDelPickedOS
+var
+  cRecKatOS
+ ,cRecNastrOS : comp;
+
+From
+  KatOS
+, ArcIznos
+, SpMoveOS
+, KatOS KatOS_S
+//, Oborot
+
+where
+((
+    cRecKatOS   == KatOS.NRec
+and cRecKatOS   == ArcIznos.cKatOS
+and cRecNastrOS == SpMoveOS.cNastrOS
+and cRecKatOS   == SpMoveOS.cKatOS
+));
+
+#declare CheckOborot(Num)
+{
+     if (loDelPickedOS.GetFirst Oborot where ((coKatOs == Oborot.TblOS[#num]
+                         and  loDelPickedOS.KatOS.NRec == Oborot.KauOs[#num] )) = tsOk)
+       {
+         strMsg := 'В таблице проводок есть аналитика по ИК.';
+         Exit;
+       }
+
+     if (loDelPickedOS.GetFirst Oborot where ((coKatOs == Oborot.TblKS[#num]
+                         and  loDelPickedOS.KatOS.NRec == Oborot.KauKs[#num] )) = tsOk)
+       {
+         strMsg := 'В таблице проводок есть аналитика по ИК.';
+         Exit;
+       }
+}
+#end
+
+
+//-------------------------------------------------------------------------------
+Function CanDeleteOs (var strMsg : string) : boolean;
+{
+   result := false;
+
+   strMsg := '';
+   if (loDelPickedOS.GetFirst ArcIznos = tsOk)
+     strMsg := 'есть записи в архиве';
+
+   loDelPickedOS._loop SpMoveOs
+     if pCheckOper.OperProv(loDelPickedOS.SpMoveOs.cMoveOs, 0)
+       {
+         strMsg += if (strMsg <> '', ', ', '') + 'по карточке была проведена операция ' + iOSStr.GetOperName(loDelPickedOS.SpMoveOs.cMoveOs);
+         Exit;
+       }
+
+    if ( not pOsFun.CanEdit( loDelPickedOS.KatOs.NRec, false ) )
+       {
+         strMsg := 'Настройка ограничивает Ваши права на редактирование ИК c чужим дескриптором.';
+         Exit;
+       }
+    if ( not pOsFun.CanEditOsArc(KatOs.NRec, true) )
+       {
+         strMsg := 'Настройка ограничивает Ваши права на редактирование ИК.';
+         Exit;
+       }
+
+   /*   пока не проверяем
+     #CheckOborot(1)
+     #CheckOborot(2)
+     #CheckOborot(3)
+     #CheckOborot(4)
+     #CheckOborot(5)
+     #CheckOborot(6)
+  */
+
+   if (strMsg = '')
+     result := true;
+} // function CanDeleteos
+
+//-------------------------------------------------------------------------------
+//  pwMode AND 1 = 1 // без запросов, сообщений и без удаления
+Procedure DeletePickedKatOS;
+var
+  sCanNotDel : string;
+  wTiDk
+, wCanNotDel
+, wModeDelOnlyParent
+, wModeDelComplex : word;
+  boCanDelFullComplexOS
+, boCanDelCurrent : boolean;
+  cRecKatOSHigher : comp;
+
+{
+      loDelPickedOS.cRecNastrOS := NastrOS.NRec;
+      wTiDk      := TipDock;
+      wCanNotDel := cmYes;
+      wModeDelOnlyParent := cmYes;
+      wModeDelComplex := cmCancel;
+
+      CopyPick (cgPick_KatOs, ConstPick);    // сохраним выбор
+      StartNewVisual(vtIndicatorVisual, vfTimer + vfBreak + vfConfirm, 'Осуществляется удаление выбранных инвентарных карточек...', wPickNum );
+      _loop Pick where ((cgPick_KatOs == Pick.wList))
+      {
+        if (Not NextVisual)
+          Break;
+
+        boCanDelCurrent := True;
+        sCanNotDel := '';
+        loDelPickedOS.cRecKatOS := Pick.cRec;
+
+        if (loDelPickedOS.GetFirst KatOS <> tsOk)
+          Continue;
+
+        if (IsProtected(#KatOs))
+        {
+          ProtectRecord(#KatOs,false);
+          ProtectRecord(#SpKatOs,false);
+        }
+
+        if (loDelPickedOS.KatOS.cHigherOs <> 0)   // Если и вышестоящий помечен для удаления, то лист не удаляем т.к. потом грохнем все вместе
+        {
+          if (RecordExists PickS  where ((cgPick_KatOs    == PickS.wList and
+                            loDelPickedOS.KatOS.cHigherOs == PickS.cRec )) = tsOk)
+            Continue;
+        }
+
+        if (not CanDeleteOs (sCanNotDel) )
+        {
+            boCanDelCurrent := False;
+
+            if (wCanNotDel <> cmOk)
+            {
+              wCanNotDel := RunInterface( 'DlgMessage'
+                                        , 'Удалить карточку ' + pOsFun.GetKatOsInNum(loDelPickedOS.cRecKatOS) + ' невозможно, т.к. '#13
+                                        + sCanNotDel  + ''#13'Продолжить ?'
+                                        , 'Подтверждение');
+
+              if ( (wCanNotDel <> cmYes) AND (wCanNotDel <> cmOk) )
+                break;
+            }
+        }
+
+
+        if boCanDelCurrent
+          {
+            if (loDelPickedOS.KatOS.isLeaf = 1)  // лист
+            {
+              pOsFun.DeleteKatOs(Pick.cRec, dkoKEEP_SLAVE, dkoRECALC_SUM);
+              delete PickS  where ((ConstPick == PickS.wList and
+                                    Pick.cRec == PickS.cRec ));
+            }
+            else  // Если дерево
+            {
+              boCanDelFullComplexOS := True;
+              sCanNotDel := '';
+              cRecKatOSHigher := loDelPickedOS.KatOS.NRec;
+              // Проверим листья на возможность удаления
+              loDelPickedOS._loop KatOS_S  where ((wTiDk           == KatOS_S.TiDk and
+                                                   cRecKatOSHigher == KatOS_S.cHigherOs))
+                {
+                  loDelPickedOS.cRecKatOS := loDelPickedOS.KatOS_S.NRec;
+
+                  boCanDelFullComplexOS := CanDeleteOs(sCanNotDel);
+                  if (not boCanDelFullComplexOS)
+                    Break;
+                }
+
+              if boCanDelFullComplexOS  // Если можно удалить дерево
+              {
+                  pOsFun.DeleteKatOs(Pick.cRec, dkoDEL_SLAVE, dkoRECALC_SUM);
+                  delete PickS  where ((ConstPick == PickS.wList and
+                                        Pick.cRec == PickS.cRec ))
+              }
+              else   // Если нельзя удалить дерево
+              {
+                  if (wModeDelOnlyParent <> cmOk) AND (wModeDelOnlyParent <> cmQuit)
+                    wModeDelOnlyParent := RunInterface('DlgMessage'
+                                                  , 'Обнаружены простые ИК входящих в состав ' + pOsFun.GetKatOsInNum(Pick.cRec) + ', у которых '#13
+                                                  +  sCanNotDel +
+                                                  + ''#13'Продолжить ?', 'Подтверждение');
+                  if ( (wModeDelOnlyParent <> cmYes) AND (wModeDelOnlyParent <> cmOk) )
+                    break;
+              }
+            } // else
+          }
+      }  // loop
+
+      CopyPick (ConstPick, cgPick_KatOs);    // сохраним выбор
+      StopVisual('',0);
+};
+
+
+!---------------------------------------------------------------------------------------------
+// Проверка необходимости блокировки отображения состава объектов по источникам финансирования
+procedure ChkAbleShowSostByIF;
+{
+  if (OS_StoimStruct)
+    {
+      if (KatOs.isLeaf = 1)
+          SetFormatEnabled(brSostByIF, True);
+      else
+        SetFormatEnabled(brSostByIF, False);
+    }
+  else
+    SetTabbedSheetVisible(brSostByIF, False);
+}
+
+//----------------------------------------------------------------------------
+// Редактирование состава стоимости по источникам финансирования
+Procedure OnShowSostByIF;
+{
+  iSostByIF.RescanSost(KatOs.nRec, 0, SpKatos.Stoim * FKatosKol);
+  var isEdit : boolean=false;
+  if ( (KatOs.isLeaf = 1) AND IsProtected(#KatOs) )
+    isEdit := false;
+  else  if (OS_NoEditIF_Arxiv) and isValid(#ArcIznos)
+    isEdit := false;
+  else
+    isEdit := true;
+
+  iSostByIF.DisableFields(word(not isEdit))
+}
+
+
+!-------------------------------------------------------------------------------
+// обработчик события "Групповая модификация внешней аналитики"
+procedure ReplicateKauReff(iReplKauReff : ObjEditKauReff);
+var
+  wDlgEditPos : word;
+{
+   wDlgEditPos := cmYes;
+   PushPos(#Pick);
+   StartNewVisual(vtRotateVisual, vfTimer + vfBreak + vfConfirm, 'Групповая модификация внешней аналитики', 1);
+
+   _loop Pick where (( cgPick_KatOs == Pick.wList ))
+    {
+      if not NextVisual
+        Break;
+
+      if Not pOsFun.CanEditOs(Pick.cRec, false)
+      {
+        if ((wDlgEditPos <> cmOk) and (wDlgEditPos <> cmQuit))
+          wDlgEditPos := RunInterface( 'DlgMessage'
+                                     , 'Настройка ограничивает Ваши права на редактирование'
+                                     + ' объекта с ИН ' + pOsFun.GetKatOsInNum(Pick.cRec)
+                                     + '. Модификация внешней аналитики для карточки невозможна.'#13
+                                     + 'Продолжить ?'
+                                     , '' );
+
+        case wDlgEditPos of
+          cmYes, cmOk : Continue;
+        else
+          Break;
+        end;
+      }
+
+      if not iReplKauReff.ReplicaOperation(coKatOs, Pick.cRec)
+        Break;
+    }
+
+   StopVisual('', 0);
+   PopPos(#Pick);
+};
+
+!--------------------------------------------------------------------------------
+// вызов интерфейса редактирования внешенй аналитики
+procedure ExecuteKauReff;
+var
+  boCanEdit : boolean=false;
+{
+  case KatOs.TiDk of
+  //----------------
+    115, 116, cgOs_157_Rsrv:
+      iKaureff.Exec(word(coKatOs), KatOs.nRec, false); //только просматривать
+
+  //----------------
+    15,  16, cgOs_57_Rsrv, cgOs_315_PrevOS:
+    {
+      if ( RecordExists Pick where (( cgPick_KatOs == Pick.wList )) = tsOk )
+      {  // редактирование с возможностью групповой модификации внешней аналитики
+        BindEvent(ReplicateKauReff, iKauReff.onReplicate);
+        iKauReff.SetShablonParam(1, wTip);
+        iKauReff.ExecReplica(coKatOs,KatOs.nRec, '');
+        UnBindEvent(ReplicateKauReff, iKauReff.onReplicate);
+      }
+      else
+      {
+        if IsProtected(#KatOs)
+          boCanEdit := False
+        else
+          boCanEdit := pOsFun.CanEditOs(KatOs.NRec, true);
+          // boCanEdit := iDropOut.IsModiDropOutKatOS( KatOS.NRec, True, True);
+
+        // просто редактирование без возможности групповой модификации внешней аналитики
+        iKauReff.SetShablonParam(2, wTip);
+        iKaureff.Exec(word(coKatOs), KatOs.nRec, boCanEdit);  //редактировать
+      }
+
+      RedrawPanel(tnKatOs);
+    }
+  //----------------
+  end;
+}
+
+
+!-------------------------------------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------------------------------------
+function GetKatOSBuff  : type$KatOs;
+{
+  Result := KatOs.Buffer;
+}
+!-------------------------------------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------------------------------------
+function GetSpKatOSBuff: type$SpKatOs;
+{
+  Result := SpKatOs.Buffer;
+}
+!-------------------------------------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------------------------------------
+procedure SetKatOSBuff(KatOsBuffer: type$KatOs);
+{
+  KatOs.Buffer := KatOsBuffer;
+}
+!-------------------------------------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------------------------------------
+procedure SetSpKatOSBuff(SpKatOsBuffer: type$SpKatOs);
+{
+  SpKatOs.Buffer := SpKatOsBuffer;
+}
+
+
+!-------------------------------------------------------------------------------------------------------------
+// Отобразить поле Состояние в бровзе
+function ModAmortStrExt() : string;
+{
+  Result := '';
+  if ( ( KatOs.ModAmort and 1   ) <> 0 ) result := result + 'М'; // Модификация
+  if ( ( KatOs.ModAmort and 2   ) <> 0 ) result := result + 'Н'; // Поступление
+  if ( ( KatOs.ModAmort and 4   ) <> 0 ) result := result + 'Д'; // Внутр. перемещение
+  if ( ( KatOs.ModAmort and 8   ) <> 0 ) result := result + 'И'; // Изм. стоимости
+  if ( ( KatOs.ModAmort and 16  ) <> 0 ) result := result + 'В'; // Выбытие
+  if ( ( KatOs.ModAmort and 32  ) <> 0 or (SpKatOs.SIZNM <> 0) ) result := result + 'А'; // Аморт
+  if ( ( KatOs.ModAmort and 64  ) <> 0 ) result := result + 'П'; // Переоценка
+  if ( ( KatOs.ModAmort and 128 ) <> 0 ) result := result + 'О'; // Откат
+}  // ModAmortStrExt
+
+
+//----------------------------------------------------------------------------
+function CheckValidRecord : boolean;
+{
+  CheckValidRecord := true;
+  if ( (not isValidNew(tnKatOs)) OR (not isValidNew(tnSpKatOs)) )
+  {
+    Message('Запись не удовлетворяет наложенным ограничениям.' + ''#13'Для групповой замены снимите фильтры.');
+    if (isTree)
+      if (GetFirst Katos = tsOk)
+        MyJumpToRecord;
+    ReReadRecord;
+    CheckValidRecord := false;
+  }
+}//CheckValidRecord
+
+//----------------------------------------------------------------------------
+// Отбор проводок для окна просмотра проводок по карточке
+procedure GetOborot;
+{
+  var isNotEp  : boolean = false;
+  var tmpStDate, tmpEndDate : date;
+  var wVisible : word = wGetTune('Doc.VisibleOborot');
+  tmpStDate  := dStOborot;
+  tmpEndDate := if( dEndOborot = ZeroDate, date(1,1,2100), dEndOborot);
+  SubBounds(tbbyOborotDescr);
+  SubBounds(tbbyOborotDesGr);
+
+  StartNewVisual(vtRotateVisual, vfTimer + vfConfirm, 'Отбор проводок', 1);
+
+  // Вызов точки расширения для выборки проводок с заданной аналитикой.
+  // Должен вернуть FALSE если обработка проводилась. TRUE - если не проводилась.
+  // Если есть обработчик, то дальше обработку не производим
+  case wTipOper of
+    15 :  isNotEp := epGetOborotOnAnalitOs( wTipOper, myPlansNo, cgKau_Os, KatOs.NRec, tmpStDate, tmpEndDate );
+    16 :  isNotEp := epGetOborotOnAnalitOs( wTipOper, myPlansNo, cgKau_NMA, KatOs.NRec, tmpStDate, tmpEndDate );
+    57 :  isNotEp := epGetOborotOnAnalitOs( wTipOper, myPlansNo, cgKau_OsReserv, KatOs.NRec, tmpStDate, tmpEndDate );
+  end;
+
+  if ( isNotEp )
+  {
+    if not bOborotSelSuccess
+    {
+      case wTipOper of
+        15 : bOborotSelSuccess := GetOborotOnAnalit( wTipOper, myPlansNo, cgKau_Os,  KatOs.NRec, tmpStDate, tmpEndDate );
+        16 : bOborotSelSuccess := GetOborotOnAnalit( wTipOper, myPlansNo, cgKau_NMA, KatOs.NRec, tmpStDate, tmpEndDate );
+        57 : bOborotSelSuccess := GetOborotOnAnalit( wTipOper, myPlansNo, cgKau_OsReserv, KatOs.NRec, tmpStDate, tmpEndDate );
+      end;  //case
+    }
+    else
+      bOborotSelSuccess := RegetOborotOnAnalit( wTipOper, KatOs.NRec, tmpStDate, tmpEndDate );
+  }
+
+  StopVisual('',0);
+
+  case wVisible of
+    0: // применять настройку "Доступ к документам"
+    {
+      case wGetTune('Doc.Visible') of
+        cgDocVisible_MySelf: // 'только со своим дескриптором'
+        {
+          if (not BoundActive(tbbyOborotDescr))
+            AddBounds(tbbyOborotDescr);
+        }
+        cgDocVisible_GrRead, // 'свои-изменение, по группе - чтение'
+        cgDocVisible_GrAll:  // 'все права в рамках группы'
+        {
+          if (not BoundActive(tbbyOborotDesGr))
+            AddBounds(tbbyOborotDesGr);
+        }
+      end;
+    }
+    2: // ограничение по дескриптору
+    {
+      if (not BoundActive(tbbyOborotDescr))
+        AddBounds(tbbyOborotDescr);
+    }
+    3: // все права в рамках группы
+    {
+      if (not BoundActive(tbbyOborotDesGr))
+        AddBounds(tbbyOborotDesGr);
+    }
+  end;
+
+  case SortOb of
+    0 : if GetLast  tOborotSel = tsOk {}
+    1 : if GetFirst tOborotSel = tsOk {}
+  end;  //case
+
+  RereadRecord(#tOborotSel);
+}
+
+
+//------------------------------------------------------------------------------
+// Смена метода учета
+Procedure ChangeNastrOS;
+{
+  if UpdateTable
+  {
+    if (isTree)
+      TreePushPos(trDocument);
+    else
+      PushPos(#KatOs);
+    var tmp_cOldNastrOs : comp;
+    tmp_cOldNastrOs := NastrOs.nRec;
+
+    NrecNastr := NastrOs.Nrec;
+    if (runinterface('NastrOs',wTip,5,NrecNastr,0) = cmDefault)
+    {
+      if GetFirst NASTROSO where ((NrecNastr == NASTROSO.Nrec)) = tsOk {}
+
+      if GetFirst SpKatOs where ((NrecNastr  == SpKatos.cNastrOs and
+                                  Katos.Nrec == SpKatos.cKatos)) = tsOk
+      {
+        if GetFirst NASTROS where  ((NrecNastr == NASTROS.Nrec)) = tsOk
+        {
+          pOsFun.SetUserMetUm(wTip, NastrOs.nRec);
+          ProcessCommand(cmPositionChanged);
+          ReReadrecord;
+        }
+      }
+      else
+      {
+        if (myFiltrR)
+        {
+          message('Нет карточек попадающих под ограничения.'+''#13'Переход невозможен.',CancelButton);
+          phUNastrOsPos := pOsFun.GetUserNastrOsPos(wTip);
+          if (GetFirst NastrOs where ((phUNastrOsPos == NastrOs.nRec)) <> tsOk) {};
+        }
+        else
+        {
+          PushPos(#NASTROS);
+          ReSetBounds(#SpKatOs);
+          if GetFirst NASTROS where ((NrecNastr == NASTROS.Nrec)) = tsOk
+          {
+            pOsFun.SetUserMetUm(wTip, NastrOs.nRec);
+            DropPos(#NASTROS);
+
+            //т.к. по методу, на который переключились, нет спецификации,
+            //то для её создания нужно стать синонимом NastrOsO на тот метод,
+            //с которого переключались, чтобы на основе его данных создать новые...
+            if (GetFirst NastrOsO where ((tmp_cOldNastrOs == NastrOsO.nRec)) = tsOk) {}
+
+            if GetFirst SpKatOsO where
+                        ((NastrOsO.Nrec == SpKatosO.cNastrOs and
+                          Katos.Nrec    == SpKatosO.cKatos)) = tsOk {}
+            InsSpKatos;
+
+            //а тут станем синонимом NastrOsO на метод, на который переключались...
+            //т.к. в дальнейшем эту штука понадобится нам... и сбивать позицию не надо..
+            if (GetFirst NastrOsO where ((NrecNastr == NastrOsO.nRec)) = tsOk) {}
+          }
+          else
+            PopPos(#NASTROS);
+          SetBounds(#SpkatOs);
+        }
+      }
+
+      if (MyPlansNo <> NastrOs.cPlansSch)
+        iPSManager.SetTunePlansSch(NastrOs.cPlansSch);
+      iPSManager.Run_Events(NastrOS.cPlansSch);
+      onChangePlansSch(NastrOs.cPlansSch);
+
+      if NullVipRef(iMcInOs)
+       {
+         BindEvent(ChangeNastrOs, iMcInOs.OnChangeNastrOs);
+         BindEvent(RescanKatOs,   iMcInOs.OnRescanKatOs);
+         case tipDock of
+           15, 16:  iMcInOs.InitWindowMcInOsShow(true);
+           else     iMcInOs.InitWindowMcInOsShow(false);
+         end;
+       }
+      iMcInOs.SetNastrOs(NastrOs.NRec);
+      if (CurTabInWindow(wnMainWindow) = scMcInOsShow) or (CurTabInWindow(wiEditKatos) = scMcInOs)
+        iMcInOs.SetKatOs(KatOs.NRec);
+
+      if NullVipRef(iOS_Oper)
+       {
+         BindEvent(ChangeNastrOs, iOS_Oper.OnChangeNastrOs);
+         BindEvent(RescanKatOs,   iOS_Oper.OnRescanKatOs);
+         iOS_Oper.InitOS_Oper(TipDock, 0);
+       }
+      iOS_Oper.SetNastrOs(NastrOs.NRec);
+      if  (CurTabInWindow(wiEditKatos) = brSpMoveOs)
+        iOS_Oper.ReScanOS_Oper(KatOS.NRec, word(0));
+
+      if (NullVipRef(pGetArc))
+        pGetArc.Init(wTip+100, NastrOs.nRec);
+      pGetArc.SetNastrOs(NastrOs.nRec);
+      if (CurTabInWindow(wnMainWindow) = brArcBr) or (CurTabInWindow(wiEditKatos) = brArcScr)
+        pGetArc.SetKatOs(KatOs.nRec, true);
+
+      pCompOs.SetNastrOs(NastrOs.nRec);
+      if (CurTabInWindow(wnMainWindow) = brCompOsBr) or (CurTabInWindow(wiEditKatos) = brCompOsScr)
+        pCompOs.SetCompOs(KatOs.nRec);
+
+
+      if ( CurFormatInArea(KatOsBut) = brKatOborot ) and bOborotSuccess
+        GetOborot;
+
+      boIsNastrOS_MSFO := pOsFun.IsNastrOS_MSFO(TipDock, NastrOs.nRec);
+
+      ReScanPanel(#KatOs);
+      ReScanPanel(#SpKatOs);
+
+      if (not pOsFun.CanEditMU(KatOs.nRec, NastrOs.nRec, true))  // Чтобы выдать сообщение
+        {  }
+      if ( not pOsFun.isValidDateMU(NastrOs.nRec, KatOs.OtchPer, true) )  // выдать сообщение, если дата не валидна
+        {  }
+    }
+
+    SetTitles;
+    if (isTree)
+      TreePopPos(trDocument);
+    else
+      PopPos(#KatOs);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Изменить закладку
+Procedure ChangeTabbedSheet ();
+{
+   case Target  of
+     brSpMoveOs  :   // операции
+     {
+       if NullVipRef(iOS_Oper)
+       {
+         BindEvent(ChangeNastrOs, iOS_Oper.OnChangeNastrOs);
+         BindEvent(RescanKatOs,   iOS_Oper.OnRescanKatOs);
+         iOS_Oper.InitOS_Oper(TipDock, 0);
+         iOS_Oper.SetNastrOs(NastrOs.NRec);
+       }
+       iOS_Oper.ReScanOS_Oper(KatOS.NRec, 0);
+     }
+     scNalDragBr, scNalDrag  :        // драгметаллы
+     {
+        var isEdit: boolean = false;
+        if (CurWindow <> wnMainWindow)
+          isEdit := not ( IsProtected(#KatOs) or (OS_NoEditDragM_Arxiv and isValid(#ArcIznos)) );
+        iNalDrag.SetNalDragParams(1, Katos.Nrec , isEdit);
+     }
+
+     ProbTrShow, ProbTrBr    :  iSpecOb.SetSpecObParams(KatOs.cSPOSOB, KatOs.Nrec, (Katos.cSPOSOB <> 0) and (not IsProtected(#KatOs)) );   // Спецоборудование
+
+     scMcInOsShow, scMcInOs  :     // Состав МЦ
+     {
+       if NullVipRef(iMcInOs)
+       {
+         BindEvent(ChangeNastrOs, iMcInOs.OnChangeNastrOs);
+         BindEvent(RescanKatOs,   iMcInOs.OnRescanKatOs);
+         case tipDock of
+           15, 16:  iMcInOs.InitWindowMcInOsShow(true);
+           else     iMcInOs.InitWindowMcInOsShow(false);
+         end;
+         iMcInOs.SetNastrOs(NastrOs.NRec);
+       }
+       iMcInOs.SetKatOs(KatOs.NRec);
+     }
+     scOsRaznShow, scOsRazn   :  // Разницы
+     {
+       if NullVipRef(iOsRaznW)
+         BindEvent(ChangeNastrOs, iOsRaznW.OnChangeNastrOs);
+       iOsRaznW.SetOsRaznParamsEdit(KatOs.TiDk, KatOs.nRec, KatOs.OtchPer, not IsProtected(#KatOs));
+     }
+     brSostByIF, brEditSostByIF  :     // Источники финансирования
+     {
+       if (NullVipRef(iSostByIF))
+         iSostByIF.InitSostParams(wTip);
+       OnShowSostByIF();
+     }
+     scLinkList  :  // Документы
+     {
+         var wModeView : word = 0;
+         if Not pOsFun.CanEditOs(KatOs.NRec, false)
+           wModeView := 1;
+         iLnkL.ShowLnkList(KatOS.NRec, KatOS.TiDk mod 100, wModeView);
+     }
+     brKatOborot   :        // Проводки
+     {
+        if ( (not bOborotSelSuccess)  AND bOborotSuccess )
+          GetOborot();
+     }
+     scChangeHist   :  intChangeHist.SetChangeHistParam(KatOS.nRec, NastrOs.nRec, 1);  // История изменений
+     brArcBr, brArcScr  :     // Архив
+     {
+       if (NullVipRef(pGetArc))
+         pGetArc.Init(wTip+100, NastrOs.nRec);
+       pGetArc.SetKatOs(KatOs.nRec);
+     }
+     brReservOsShow, brReservOs  :  pRsrv.SetReserv(Katos.Nrec);     // Резерв
+     brCompOsBr, brCompOsScr     :  pCompOs.SetCompOs(Katos.Nrec);   // Компоненты
+
+     scRasKoef      :  iRasKoef.SetRasKoefParams(cPerOsNRec, NastrOs.Nrec, KatOs.Nrec);   // Преоценка
+   end; // case
+}
+#ifdef __TPR2__
+Function GetRoleName(aiNum : integer) : string;
+{
+    GetRoleName := oTune.GetRoleName(aiNum);
+}
+//------------------------------------------------------------------------------
+// Значение заданной аналитики приемника/источника
+//------------------------------------------------------------------------------
+Function GetValue(pNum : integer) : string;
+{
+    Result := #ShowKau(if(pNum = 1, SaldTuneSop.wObj, SaldTuneSop.wKau[pNum - 1]), if(pNum = 1, SpecMTRSop.cObj, SpecMTRSop.cKau[pNum - 1]));
+}
+#end
+/*
+  cmChangeTabbedSheetFormat:
+  {
+      case Target  of
+        scNalDragBr    :  iNalDrag.SetNalDragParams(1, Katos.Nrec ,false);
+        ProbTrShow     :  iSpecOb.SetSpecObParams(KatOs.cSPOSOB, KatOs.Nrec, (Katos.cSPOSOB <> 0) and (not IsProtected(#KatOs)) );
+        scRasKoef      :  iRasKoef.SetRasKoefParams(cPerOsNRec, NastrOs.Nrec, KatOs.Nrec);
+        brReservOsShow :  pRsrv.SetReserv(Katos.Nrec);
+        scMcInOsShow :
+        {
+          iMcInOs.SetKatOs(KatOs.NRec);
+          iMcInOs.RereadMcInOsShow;
+        }
+        scOsRaznShow  :  iOsRaznW.SetOsRaznParamsEdit(KatOs.TiDk, KatOs.nRec, KatOs.OtchPer, false);
+        brSostByIF    :  OnShowSostByIF();
+        scChangeHist  :  intChangeHist.SetChangeHistParam(KatOS.nRec, NastrOs.nRec, 1);
+        brArcBr       :  pGetArc.SetKatOs(KatOs.nRec);
+        brArcScr      :  pGetArc.SetKatOs(KatOs.nRec);
+        brCompOsBr    :  pCompOs.SetCompOs(Katos.Nrec);
+        brCompOsScr   :  pCompOs.SetCompOs(Katos.Nrec);
+      end; // case
+  }
+*/

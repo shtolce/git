@@ -1,0 +1,3790 @@
+/*
+ ╔═══════════════════════════════════════════════════════════════════════════╗
+ ║ Система       : Бухгалтерский контур                                      ║
+ ║ Назначение    : Установка ограничений на просмотр ОС (KatOs)              ║
+ ╚═══════════════════════════════════════════════════════════════════════════╝
+*/
+
+
+#include OSFilNRS.vpp
+#ifdef __KatosFilters__
+#include KatOss_SelectDoc.vpp // Отбор ИК (пометка)
+#endif
+
+//---------------------------------------------------------------------
+// Проверка является ли  cTerrParent родителем для cTerrList
+Function CheckTerrParent(cTerrParent, cTerrList: Comp) : Boolean;
+Var
+  cgr : Comp;
+{
+  Result := True;
+
+  if (cTerrParent = cTerrList)
+    Exit;
+  if (cTerrParent=0) or (cTerrList=0)
+  { Result := False; Exit; }
+
+  cgr := cTerrList;
+  while ( GetFirst sTerr where ((cgr == sTerr.nRec)) = tsOk )
+  {
+    if (cTerrParent = cgr)
+      Exit;
+    cgr := sTerr.cParent;
+  }
+
+  Result := False;
+} // function CheckTerrParent
+
+#ifdef __KatosFilters__
+// Группу User менять нельзя
+Function isProtectDesGrForCurUser : Boolean;  // True - менять нельзя
+{
+  Result := False;
+
+  if   (CurVisible = cgDocVisible_GrRead
+     or CurVisible = cgDocVisible_GrAll )
+    Result := True;
+}
+
+// -----------------------------------------------------------------------------
+// User менять нельзя    ClusterDisabledField(#FieldForDesGr,);
+Function isProtectDescr : Boolean;
+{
+  isProtectDescr := (CurVisible = 1);
+}
+  #ifdef __TPR2__
+Procedure DelFilVnKau(coTable: word; wFilVnKau: word; cFilVnKau: comp);
+{
+
+  if cFilVnKau <> 0
+  {
+    if getfirst tmp_KauReff2
+      where ((
+          coTable          ==  tmp_KauReff2.coTable and
+          wFilVnKau        ==  tmp_KauReff2.wKau and
+          cFilVnKau        ==  tmp_KauReff2.cKau
+            )) = tsOk
+         if delete tmp_KauReffD where ((
+                    coTable          ==  tmp_KauReffD.coTable and
+                    wFilVnKau        ==  tmp_KauReffD.wKau and
+                    cFilVnKau        ==  tmp_KauReffD.cKau
+                                    )) <> tsOk {}
+  }
+  else
+  {
+      if wFilVnKau <> 0
+      {
+      if getfirst tmp_KauReff2
+      where ((
+          coTable          ==  tmp_KauReff2.coTable and
+          wFilVnKau        ==  tmp_KauReff2.wKau
+            )) = tsOk
+         if delete tmp_KauReffD where ((
+                    coTable          ==  tmp_KauReffD.coTable and
+                    wFilVnKau        ==  tmp_KauReffD.wKau
+                                    )) <> tsOk {}
+      }
+      else
+        if delete tmp_KauReffD where ((coTable == tmp_KauReffD.coTable)) <> tsOk {}
+  }
+}
+
+Procedure InsFilVnKau(wFilVnKau: word; cFilVnKau: comp);
+{
+    DelFilVnKau(word(coKatOs), wFilVnKau, cFilVnKau);
+
+    insert into tmp_KauReffI(coTable, cRec, wKau, cKau)
+    select word(coKatOs), cRec, wKau, cKau
+    from KauReff
+    where ((
+    word(coKatOs)     ==  KauReff.coTable        and
+    wFilVnKau        ==  KauReff.wKau           and
+    cFilVnKau        ==  KauReff.cKau
+    ));
+
+}
+
+Procedure InsFilCUKau(cSaldTune: comp; cFilVnKau: comp; pNum: integer; wFilCUKau: word);
+{
+    DelFilVnKau(word(coSpSopr), wFilCUKau, cFilVnKau);
+    case pNum of
+    1: {
+    insert into tmp_KauReffI(coTable, cRec, wKau, cKau)
+    select word(coSpSopr), SpecMtr.cSpec, wFilCUKau, cFilVnKau
+    from SpecMtr
+    where ((
+      cSaldTune        == SpecMTR.cSaldTune
+      and  coSpSopr    == SpecMTR.coTable
+      and cFilVnKau    == SpecMTR.cObj
+    ));
+      }
+    2: {
+    insert into tmp_KauReffI(coTable, cRec, wKau, cKau)
+    select word(coSpSopr), SpecMtr.cSpec, wFilCUKau, cFilVnKau
+    from SpecMtr
+    where ((
+      cSaldTune        == SpecMTR.cSaldTune
+      and  coSpSopr    == SpecMTR.coTable
+      and cFilVnKau    == SpecMTR.cKau[1] (noindex)
+    ));
+      }
+    3: {
+    insert into tmp_KauReffI(coTable, cRec, wKau, cKau)
+    select word(coSpSopr), SpecMtr.cSpec, wFilCUKau, cFilVnKau
+    from SpecMtr
+    where ((
+      cSaldTune        == SpecMTR.cSaldTune
+      and  coSpSopr    == SpecMTR.coTable
+      and cFilVnKau    == SpecMTR.cKau[2] (noindex)
+    ));
+      }
+    4: {
+    insert into tmp_KauReffI(coTable, cRec, wKau, cKau)
+    select word(coSpSopr), SpecMtr.cSpec, wFilCUKau, cFilVnKau
+    from SpecMtr
+    where ((
+      cSaldTune        == SpecMTR.cSaldTune
+      and  coSpSopr    == SpecMTR.coTable
+      and cFilVnKau    == SpecMTR.cKau[3] (noindex)
+    ));
+      }
+    5: {
+    insert into tmp_KauReffI(coTable, cRec, wKau, cKau)
+    select word(coSpSopr), SpecMtr.cSpec, wFilCUKau, cFilVnKau
+    from SpecMtr
+    where ((
+      cSaldTune        == SpecMTR.cSaldTune
+      and  coSpSopr    == SpecMTR.coTable
+      and cFilVnKau    == SpecMTR.cKau[4] (noindex)
+    ));
+      }
+    6: {
+    insert into tmp_KauReffI(coTable, cRec, wKau, cKau)
+    select word(coSpSopr), SpecMtr.cSpec, wFilCUKau, cFilVnKau
+    from SpecMtr
+    where ((
+      cSaldTune        == SpecMTR.cSaldTune
+      and  coSpSopr    == SpecMTR.coTable
+      and cFilVnKau    == SpecMTR.cKau[5]  (noindex)
+    ));
+      }
+    7: {
+    insert into tmp_KauReffI(coTable, cRec, wKau, cKau)
+    select word(coSpSopr), SpecMtr.cSpec, wFilCUKau, cFilVnKau
+    from SpecMtr
+    where ((
+      cSaldTune        == SpecMTR.cSaldTune
+      and  coSpSopr    == SpecMTR.coTable
+      and cFilVnKau    == SpecMTR.cKau[6] (noindex)
+    ));
+      }
+    8: {
+    insert into tmp_KauReffI(coTable, cRec, wKau, cKau)
+    select word(coSpSopr), SpecMtr.cSpec, wFilCUKau, cFilVnKau
+    from SpecMtr
+    where ((
+      cSaldTune        == SpecMTR.cSaldTune
+      and  coSpSopr    == SpecMTR.coTable
+      and cFilVnKau    == SpecMTR.cKau[7] (noindex)
+    ));
+      }
+    9: {
+    insert into tmp_KauReffI(coTable, cRec, wKau, cKau)
+    select word(coSpSopr), SpecMtr.cSpec, wFilCUKau, cFilVnKau
+    from SpecMtr
+    where ((
+      cSaldTune        == SpecMTR.cSaldTune
+      and  coSpSopr    == SpecMTR.coTable
+      and cFilVnKau    == SpecMTR.cKau[8] (noindex)
+    ));
+      }
+    10: {
+    insert into tmp_KauReffI(coTable, cRec, wKau, cKau)
+    select word(coSpSopr), SpecMtr.cSpec, wFilCUKau, cFilVnKau
+    from SpecMtr
+    where ((
+      cSaldTune        == SpecMTR.cSaldTune
+      and  coSpSopr    == SpecMTR.coTable
+      and cFilVnKau    == SpecMTR.cKau[9] (noindex)
+    ));
+      }
+   end;
+
+}
+
+function PickKau(wFilCUKau: word; coTable: word; vcSaldTune: comp; Num: integer): string;
+{
+  var nMarkers : string[30];
+  var MarKers  : TPtr;
+  var ii       : longint;
+  var cFilvsKau: comp;
+  if iGetKau.GetCodeKau(cgiPickMult or cgiPick, wFilCUKau, cFilvsKau) <> 0
+  {
+    nMarkers := iGetKau.GetMarkerName(wFilCUKau);
+    Markers  := InitMarker(nMarkers, 8, 200, 100, FALSE);
+
+    for( ii := 0;  ii < GetMarkerCount(Markers); ii := ii + 1)
+    {
+      if (NOT GetMarker(Markers, ii, cFilvsKau))
+        Break;
+#ifdef __KatosFilters__
+      if coTable = word(coSpSopr)
+        InsFilCUKau(vcSaldTune, cFilvsKau, Num, wFilCUKau)
+      else
+        InsFilVnKau(wFilCUKau, cFilvsKau);
+#end
+    } // FOR
+
+    if GetMarkerCount(Markers) > 1
+      set Result := 'множественный выбор'
+    else
+      set Result := #ShowKau(wFilCUKau,cFilvsKau);
+    DoneMarker(Markers, nMarkers);
+  }
+}
+  #end
+Procedure FilFieldState(wSaldTune: word);
+{
+ var i: integer;
+ var vwKauKol: word;
+
+#ifdef __TPR2__
+ if wSaldTune > 0
+ {
+   oTune.GetTune(wSaldTune);
+   vwKauKol := oTune.KauQnt;
+ }
+ else
+   vwKauKol := 0;
+
+ for(i := 1; i <= 10; i++)
+ {
+   case i of
+   1:
+     {
+       set FilvsRole1 := oTune.GetRoleName(i);
+       if i > vwKauKol
+       {
+         ClearFieldState(#FilvsRole1, sfVisible);
+         ClearFieldState(#FilvsKau1, sfVisible);
+       }
+       else
+       {
+         SetFieldState(#FilvsRole1, sfVisible);
+         SetFieldState(#FilvsKau1, sfVisible);
+       }
+     }
+   2: {
+        set FilvsRole2 := oTune.GetRoleName(i);
+        if i > vwKauKol
+        {
+          ClearFieldState(#FilvsRole2, sfVisible);
+          ClearFieldState(#FilvsKau2, sfVisible);
+        }
+        else
+        {
+          SetFieldState(#FilvsRole2, sfVisible);
+          SetFieldState(#FilvsKau2, sfVisible);
+        }
+      }
+    3: {
+         set FilvsRole3 := oTune.GetRoleName(i);
+         if i > vwKauKol
+         {
+           ClearFieldState(#FilvsRole3, sfVisible);
+           ClearFieldState(#FilvsKau3, sfVisible);
+         }
+         else
+         {
+           SetFieldState(#FilvsRole3, sfVisible);
+           SetFieldState(#FilvsKau3, sfVisible);
+         }
+       }
+    4: {
+         set FilvsRole4 := oTune.GetRoleName(i);
+         if i > vwKauKol
+         {
+           ClearFieldState(#FilvsRole4, sfVisible);
+           ClearFieldState(#FilvsKau4, sfVisible);
+         }
+         else
+         {
+           SetFieldState(#FilvsRole4, sfVisible);
+           SetFieldState(#FilvsKau4, sfVisible);
+         }
+       }
+    5: {
+         set FilvsRole5 := oTune.GetRoleName(i);
+         if i > vwKauKol
+         {
+           ClearFieldState(#FilvsRole5, sfVisible);
+           ClearFieldState(#FilvsKau5, sfVisible);
+         }
+         else
+         {
+            SetFieldState(#FilvsRole5, sfVisible);
+            SetFieldState(#FilvsKau5, sfVisible);
+         }
+       }
+    6: {
+         set FilvsRole6 := oTune.GetRoleName(i);
+         if i > vwKauKol
+         {
+           ClearFieldState(#FilvsRole6, sfVisible);
+           ClearFieldState(#FilvsKau6, sfVisible);
+         }
+         else
+         {
+           SetFieldState(#FilvsRole6, sfVisible);
+           SetFieldState(#FilvsKau6, sfVisible);
+         }
+       }
+    7: {
+         set FilvsRole7 := oTune.GetRoleName(i);
+         if i > vwKauKol
+         {
+           ClearFieldState(#FilvsRole7, sfVisible);
+           ClearFieldState(#FilvsKau7, sfVisible);
+         }
+         else
+         {
+           SetFieldState(#FilvsRole7, sfVisible);
+           SetFieldState(#FilvsKau7, sfVisible);
+         }
+       }
+    8: {
+         set FilvsRole8 := oTune.GetRoleName(i);
+         if i > vwKauKol
+         {
+           ClearFieldState(#FilvsRole8, sfVisible);
+           ClearFieldState(#FilvsKau8, sfVisible);
+         }
+         else
+         {
+           SetFieldState(#FilvsRole8, sfVisible);
+           SetFieldState(#FilvsKau8, sfVisible);
+         }
+       }
+    9: {
+         set FilvsRole9 := oTune.GetRoleName(i);
+         if i > vwKauKol
+         {
+           ClearFieldState(#FilvsRole9, sfVisible);
+           ClearFieldState(#FilvsKau9, sfVisible);
+         }
+         else
+         {
+           SetFieldState(#FilvsRole9, sfVisible);
+           SetFieldState(#FilvsKau9, sfVisible);
+         }
+       }
+    10:{
+         set FilvsRole10 := oTune.GetRoleName(i);
+         if i > vwKauKol
+         {
+           ClearFieldState(#FilvsRole10, sfVisible);
+           ClearFieldState(#FilvsKau10, sfVisible);
+         }
+         else
+         {
+            SetFieldState(#FilvsRole10, sfVisible);
+            SetFieldState(#FilvsKau10, sfVisible);
+         }
+       }
+  end;
+ }
+#end
+
+}
+
+#end
+
+//---------------------------------------------------------------------
+Procedure Sub_Bounds;
+{
+  SubBounds(tbbyKatosInNum);
+  SubBounds(tbbyKatosStoim1);
+  SubBounds(tbbyKatosStoim2);
+  SubBounds(tbbyKatosStoim3);
+  SubBounds(tbbyKatosStoim4);
+  SubBounds(tbbyKatosStoim5);
+
+  SubBounds(tbbyKatosSumIzn1);
+  SubBounds(tbbyKatosSumIzn2);
+  SubBounds(tbbyKatosSumIzn3);
+  SubBounds(tbbyKatosSumIzn4);
+  SubBounds(tbbyKatosSumIzn5);
+
+  SubBounds(tbbyKatosSIznM1);
+  SubBounds(tbbyKatosSIznM2);
+  SubBounds(tbbyKatosSIznM3);
+  SubBounds(tbbyKatosSIznM4);
+  SubBounds(tbbyKatosSIznM5);
+
+  PopAllConditionForLeave(tnKatOs);
+  PopAllConditionForLeave(tnSpKatOs);
+
+  SubBounds(tbbyKatosPoprkoef1);
+  SubBounds(tbbyKatosPoprkoef2);
+  SubBounds(tbbyKatosPoprkoef3);
+  SubBounds(tbbyKatosPoprkoef4);
+  SubBounds(tbbyKatosPoprkoef5);
+
+  SubBounds(tbbyKatosIspPs1);
+  SubBounds(tbbyKatosIspPs2);
+  SubBounds(tbbyKatosIspPs3);
+  SubBounds(tbbyKatosIspPs4);
+  SubBounds(tbbyKatosIspPs5);
+  SubBounds(tbbyKatosIspCur1);
+  SubBounds(tbbyKatosIspCur2);
+  SubBounds(tbbyKatosIspCur3);
+  SubBounds(tbbyKatosIspCur4);
+  SubBounds(tbbyKatosIspCur5);
+  SubBounds(tbbyKatosSrokIsp1);
+  SubBounds(tbbyKatosSrokIsp2);
+  SubBounds(tbbyKatosSrokIsp3);
+  SubBounds(tbbyKatosSrokIsp4);
+  SubBounds(tbbyKatosSrokIsp5);
+
+  SubBounds(tbbyKatosPdrz);
+  SubBounds(tbbyKatosMol);
+  SubBounds(tbbyKatosKodVid);
+  SubBounds(tbbyKatosKodGr);
+  SubBounds(tbbyKatosKodOf);
+  SubBounds(tbbyKatosHozOper);
+  SubBounds(tbbyKatosMetod);
+
+  SubBounds(tbbyKatosSposob);
+  SubBounds(tbbyKatosNorma);
+  SubBounds(tbbyKatosPrIsp);
+  SubBounds(tbbyKatOsPrSb);
+  SubBounds(tbbySpKatOsGrAm);
+  SubBounds(tbbySpKatOs);
+
+  SubBounds(tbbyKatosDatEk1);
+  SubBounds(tbbyKatosDatEk2);
+  SubBounds(tbbyKatosGODV1);
+  SubBounds(tbbyKatosGODV2);
+  SubBounds(tbbyKatosDatOk1);
+  SubBounds(tbbyKatosDatOk2);
+  SubBounds(tbbyKatosDatV1);
+  SubBounds(tbbyKatosDatV2);
+
+  SubBounds(tbbyKatOsKol1);
+  SubBounds(tbbyKatOsKol2);
+  SubBounds(tbbyKatOsKol3);
+  SubBounds(tbbyKatOsKol4);
+  SubBounds(tbbyKatOsKol5);
+
+#ifdef __KatosFilters__
+  SubBounds(tbbyKatosOtchPer1);
+  SubBounds(tbbyKatosOtchPer2);
+  SubBounds(tbbyKatosOtchPer3);
+  SubBounds(tbbyKatosOtchPer4);
+  SubBounds(tbbyKatosOtchPer5);
+#ifdef __TPR2__
+  SubBounds(tbbyKatosPdrzTr);
+#end
+
+  if not isProtectDesGrForCurUser
+  {
+    SubBounds(tbVscGrBound);
+    CurDesGr := sGetTune('User.DesGr');
+  }
+
+  if not isProtectDescr
+  {
+    SubBounds(tbVscBound);
+    CurDescr := sGetTune('User.Descr');
+  }
+
+  if (CurVisibleCO <> dcOwnOnly)
+    SubBounds(tbbyKatosCO);    // по ЦО
+
+ #ifdef __TPR2__
+  SubBounds(tbbyKatOscNote);
+  SubBounds(tbbyKatOsCOFilial);
+  if AvailableInvCardType = 0
+  {
+    SubBounds(tbbyCompOSMain);
+    SubBounds(tbbyCompOSSub);
+  }
+ #end
+#end
+
+  SubBounds(tbbyKatosKlass);
+  SubBounds(tbbyKatosKlass1);
+  SubBounds(tbbyKatosKlass2);
+  SubBounds(tbbyKatosKlass3);
+  SubBounds(tbbyKatosKlass4);
+  SubBounds(tbbyKatosKlass5);
+  SubBounds(tbbyKatosKlass6);
+  SubBounds(tbByKatOsVnKau1);
+  SubBounds(tbByKatOsVnKau2);
+  SubBounds(tbByKatOsVnKau3);
+  SubBounds(tbByKatOsVnKau4);
+  SubBounds(tbByKatOsVnKau5);
+  SubBounds(tbByKatOsVnKau6);
+
+  SubBounds(tbbyStroyNewKatOs);
+  SubBounds(tbKatOsBySpVv    );
+  SubBounds(tbSpVvByStroyMod );
+  SubBounds(tbSpVvByStroyAny );
+
+  SubBounds(tbbyAddr);
+
+#ifdef __ArcIznosFilters__
+  AddSubBounds();  // установка фильтра
+  // SetTitle(MakeMyTitle);
+  if (GetLast ArcIznos where ((cNRecA == ArcIznos.Nrec)) <> tsOk)
+    if (GetLast ArcIznos = tsOk) {}
+  if (isTree)
+    MyJumpToRecordArc;
+  ReReadRecord(#ARCIZNOS);
+#else
+  if KatOs.TiDk = 15
+  {
+    cfsSetProp('c_TRDOCUMENT_KATOS.REGNUM_Регистрац._номер',    cfpVisible, False);
+    cfsSetProp('c_TRDOCUMENT_PROBTRCURR.MES[13]_Текущий_месяц', cfpVisible, False);
+
+    cfsSetProp('c_PDOCUMENT_KATOS.REGNUM_Регистрац._номер',     cfpVisible, False);
+    cfsSetProp('c_PDOCUMENT_PROBTRCURR.MES[13]_Текущий_месяц',  cfpVisible, False);
+
+   // SetFieldState(#OstSrokPolIsp,        sfVisible);
+  }
+#end
+
+  myFiltrR := False;
+  SetTitles();
+}
+
+//------------------------------------------------------------------------------
+Window wiFiltrKatOs 'Установка ограничений' EscClose, Gray;
+  Show At (,,80,28);
+
+TabbedSheet TOP tshFiltrOs
+  Show At (,,,24);
+
+Screen scFiltrArcDat 'Архив' ('Архив',hcOsVFiltr,sci13Esc);
+  Table NastrOs
+Fields
+#ifdef __ArcIznosFilters__
+  wFiltDate     ('Устанавливать ограничения по дате архива') : NoProtect;
+  bMDateTop     ('Выберите месяц') :
+                 [LIST 1 'Январь','Февраль','Март','Апрель','Май','Июнь',
+                         'Июль', 'Август','Сентябрь','Октябрь','Ноябрь','Декабрь'], Protect, NoStatic;
+  wYDateTop     ('Выберите год',,sci1Esc) : [4], NoProtect, NoStatic;
+  bMDateEnd     ('Выберите месяц') :
+                 [LIST 1 'Январь','Февраль','Март','Апрель','Май','Июнь',
+                         'Июль', 'Август','Сентябрь','Октябрь','Ноябрь','Декабрь'], Protect, NoStatic;
+  wYDateEnd     ('Выберите год',,sci1Esc) : [4], NoProtect, NoStatic;
+  wFiltNRec     ('Устанавливать ограничения по объекту учета') : NoProtect;
+  TipBoundsNrec ('Вид ограничения по сложному объекту')        : NoProtect;
+#end
+<<
+#ifdef __ArcIznosFilters__
+
+  [.] Ограничения по дате`
+
+      с .@@@@@@@@@@ .@@@@ г. по .@@@@@@@@@@ .@@@@ г.
+
+  [.] Ограничения по объекту учета`
+
+      (.) только по текущему инвентарному объекту  `
+      (.) с учетом всех составляющих текущий объект`
+#end
+>>
+end;
+
+Screen scFiltrKatOs 'Картотека' ('Картотека',hcOsVFiltr,sci13Esc);
+  Table NastrOs
+Fields
+  FilKat    ('Установка/снятие текущего фильтра')         : NoProtect;
+  FilInNum  ('Инвентарный номер',,sci1Esc)                : NoProtect;
+  FilName   ('Наименование',,sci1Esc)                     : NoProtect;
+  FilZvIz   ('Наименование завода изготовителя',,sci1Esc) : NoProtect;
+  FilModTip ('Модель, тип, марка',,sci1Esc)               : NoProtect;
+  [fFilGrKatOs]   #ShowKau(cgKau_GrOs, cFilGr)
+            ('Группа')                                    : Protect, QuickChoice, NoStatic;
+  [fFilVidKatOs]  #ShowKau(cgKau_VidNor1, cFilVid)
+            ('Вид')                                       : Protect, QuickChoice;
+  FilNorm   ('Норма амортизации')                         : Protect, QuickChoice;
+  FilOKOF   ('Группировка ОКОФ')                          : Protect, QuickChoice;
+  [fFilAmGrKatOs] #ShowKau(cgKau_AmortGr, cFilAmGr)
+            ('Амортизационная группа')                    : Protect;
+  FilZavN   ('Заводской номер',,sci1Esc)                  : NoProtect;
+  FilPas    ('Установка/снятие текущего фильтра')         : NoProtect;
+  FilPasN   ('Номер паспорта',,sci1Esc)                   : NoProtect;
+  [fFilIspKatOs]  #ShowKau(cgKau_IspOs, cFilIsp)
+            ('Признак использования')                     : Protect, QuickChoice;
+  [fFilPodrKatOs] #ShowKau(cgKau_KatPodr, cNRecPodr)
+            ('Подразделение')                             : Protect;
+  #ifdef __KatosFilters__
+  wTipPodr  ('Тип подразделения')                         : [List 0 ' ', 1 'Обособл.'], Protect;
+  #end
+  [fFilMolKatOs]  #ShowKau(cgKau_KatMol, cNRecMol)
+            ('Материально-ответственное лицо')            : Protect, QuickChoice;
+  FilMetod  ('Алгоритм начисления амортизации')           : Protect, QuickChoice;
+  FilHozOper('ТХО начисления амортизации')                : Protect;
+  FilTipOb  ('Тип объекта')                               : Protect, QuickChoice, NoStatic;
+  FilBArKod ('Номенклатурный номер ',,sci1Esc)            : NoProtect, NoStatic;
+  FilImNum  ('Имущественный номер ',,sci1Esc)             : NoProtect;
+  [fFilPrSbOs]    #ShowKau(cgKau_PrSbOs, cFilPrSb)
+            ('Признак собственности')                     : Protect, QuickChoice;
+  [fFilCO_Os]     #ShowKau(cgKau_FpCO, cFilCO)
+            ('Центр ответственности')                     : Protect;
+#ifdef __KatosFilters__
+  fGrDescr  ('Группа дескрипторов')                       : Protect, PickButton, NoStatic;
+  fDescr    ('Дескриптор')                                : Protect, PickButton, NoStatic;
+#end
+
+<<
+ [.] Инвентарный номер`     .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Наименование`          .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Завод-изготовитель`    .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Модель, тип, марка`    .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Группа`                .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Вид`                   .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Норма амортизации`     .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Код ОКОФ`              .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Амортизационная группа`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Заводской №`           .@@@@@@@@@@@@@@@@ [.] № паспорта`.@@@@@@@@@@@@@@
+ [.] Признак использования` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ #ifdef __KatosFilters__
+ [.] Подразделение`         .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ .@@@@@@@@@@@
+ #else
+ [.] Подразделение`         .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ #end
+ [.] МОЛ`                   .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Алгоритм нач. амортиз.`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] ТХО нач. амортизации`  .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Тип объекта`           .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Номенклатурный №`      .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Имущественный №`       .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Признак собственности` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Центр ответственности` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#ifdef __KatosFilters__
+ [.] Рабочая группа`        .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Пользователь`          .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#end
+>>
+end;
+
+Screen scFiltrKatOs2 'Картотека доп.' ('Картотека доп.',hcOsVFiltr,sci13Esc);
+  Table NastrOs
+  BEVEL Bvl1 {,1 ,,,bsRaised,bsHorizontal};
+  BEVEL Bvl1 {,6 ,,,bsRaised,bsHorizontal};
+  BEVEL Bvl1 {,13,,,bsRaised,bsHorizontal};
+  BEVEL Bvl1 {,18,,,bsRaised,bsHorizontal};
+Fields
+#ifdef __KatosFilters__
+  FlFilOtchPer     ('Устанавливать ограничения по отчетному периоду') : NoProtect;
+  cFilZnakOtchPer  ('Отчетный период') :[LIST 1 '=', '>', '<', '>=', '<=' ], Protect;
+  FilOtchPer       ('Отчетный период',,sci1Esc) : ['Month YYYY г.'], NoProtect;
+#end
+  FilDD     ('Установка/снятие текущего фильтра') : NoProtect;
+  FilDv1    ('Дата выпуска')                      : NoProtect,
+  {Font = {BackColor = if ( ((longint(FilDv2) > 0) AND (FilDv1 > FilDv2)), ColorError, 0 ) }};
+  FilDv2    ('Дата выпуска')                      : NoProtect,
+  {Font = {BackColor = if ( ((longint(FilDv2) > 0) AND (FilDv1 > FilDv2)), ColorError, 0 ) }};
+  FilDvd1   ('Дата ввода')                        : NoProtect,
+  {Font = {BackColor = if ( ((longint(FilDvd2) > 0) AND (FilDvd1 > FilDvd2)), ColorError, 0 ) }};
+  FilDvd2   ('Дата ввода')                        : NoProtect,
+  {Font = {BackColor = if ( ((longint(FilDvd2) > 0) AND (FilDvd1 > FilDvd2)), ColorError, 0 ) }};
+  FilDp1    ('Дата поступления')                  : NoProtect,
+  {Font = {BackColor = if ( ((longint(FilDp2) > 0) AND (FilDp1 > FilDp2)), ColorError, 0 ) }};
+  FilDp2    ('Дата поступления')                  : NoProtect,
+  {Font = {BackColor = if ( ((longint(FilDp2) > 0) AND (FilDp1 > FilDp2)), ColorError, 0 ) }};
+  FilDb1    ('Дата выбытия')                      : NoProtect,
+  {Font = {BackColor = if ( ((longint(FilDb2) > 0) AND (FilDb1 > FilDb2)), ColorError, 0 ) }};
+  FilDb2    ('Дата выбытия')                      : NoProtect,
+  {Font = {BackColor = if ( ((longint(FilDb2) > 0) AND (FilDb1 > FilDb2)), ColorError, 0 ) }};
+#ifdef __KatosFilters__
+  wStoimZaEd     ('Установка/снятие текущего фильтра',,) : NoProtect;
+#end
+  cFilZnakStoim  ('Cтоимость')                     : [LIST 0 ' ', '=', '>', '<', '>=', '<=' ], Protect;
+  FilStoim       ('Стоимость',,sci1Esc)            : [15.2], NoProtect, CalcButton;
+  sNameFieldSumIzn                                 : Skip;
+  cFilZnakSumIzn ('Сумма амортизации')             : [LIST 0 ' ', '=', '>', '<', '>=', '<=' ], Protect;
+  FilSumIzn      ('Сумма амортизации',,sci1Esc)    : [15.2], NoProtect, CalcButton;
+  sFullNameFieldSIznM                              : Skip;
+  cFilZnakSIznM  ('Износ за период')               : [LIST 0 ' ', '=', '>', '<', '>=', '<=', '<>' ], Protect;
+  FilSIznM       ('Износ за период',,sci1Esc)      : [15.2], NoProtect, CalcButton;
+  cFilZnak       ('Остаточная стоимость')          : [LIST 0 ' ', '=', '>', '<', '>=', '<=' ], Protect;
+  FilSum         ('Остаточная стоимость',,sci1Esc) : [15.2], NoProtect, CalcButton;
+
+  cFilZnakPoprkoef('Поправочный коэффициент')          :[LIST 0 ' ', '=', '>', '<', '>=', '<=' ], Protect;
+  FilPoprkoef     ('Поправочный коэффициент',,sci1Esc) :[4.2], NoProtect;
+
+
+  cFilZnakIspPs  ('Срок использования до поступления')                : [LIST 0 ' ', '=', '>', '<', '>=', '<=' ], Protect;
+  FilIspPs       ('Срок использования до поступления',,sci1Esc)       : [4.2], NoProtect;
+  cFilZnakIspCur ('Срок использования после поступления')             : [LIST 0 ' ', '=', '>', '<', '>=', '<=' ], Protect;
+  FilIspCur      ('Срок использования после поступления',,sci1Esc)    : [4.2], NoProtect;
+  cFilZnakSrokIsp('Срок полезного использования')                     : [LIST 0 ' ', '=', '>', '<', '>=', '<=' ], Protect;
+  FilSrokIsp     ('Срок полезного использования',,sci1Esc)            : [4.2], NoProtect;
+  cFilZnakOstSrok('Оставшийся срок полезного использования')          : [LIST 0 ' ', '=', '>', '<', '>=', '<=' ], Protect;
+  FilOstSrok     ('Оставшийся срок полезного использования',,sci1Esc) : [4.2], NoProtect;
+
+  cFilKol        ('Количество однотипных объектов в ИК')              : [LIST 0 ' ', '=', '>', '<', '>=', '<=' ], Protect;
+  FilKol         ('Количество однотипных объектов в ИК',,sci1Esc)     : [4.2], NoProtect;
+
+  cFilDrg   ('Наличие драгметаллов') : [LIST 0 ' ', 'Есть', 'Нет'], Protect;
+#ifdef __KatosFilters__
+  #ifdef __TPR2__
+  FilKatExt ('Установка/снятие текущего фильтра') : NoProtect;
+  FilNote   ('Выберите статус карточки')          : Protect, PickButton;
+  [fFilCOFilial_Os] #ShowKau(cgKau_COFilial, cFilCOFilial)
+            ('Центр ответственности - филиал')    : Protect;
+  cFilInvCard ('Инвентарные карточки') :
+              [LIST 0 'Основные', 'Ведомые'], Protect;
+  #end
+#end
+<<
+#ifdef __KatosFilters__
+ [.] Отчетный период `                   .@@@  .@@@@@@@@@@@@@
+#else
+
+#end
+
+ [.] Дата выпуска`                       .@@@@@@@@@@ `по` .@@@@@@@@@@
+ [.] Дата ввода`                         .@@@@@@@@@@ `по` .@@@@@@@@@@
+ [.] Дата поступления`                   .@@@@@@@@@@ `по` .@@@@@@@@@@
+ [.] Дата выбытия`                       .@@@@@@@@@@ `по` .@@@@@@@@@@
+
+#ifdef __KatosFilters__
+ [.] Фильтровать по стоимости за единицу`
+#else
+
+#end
+`Стоимость`                              .@@@  .@@@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.@@@  .@@@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.@@@  .@@@@@@@@@@@@@@@@@@@@@
+`Остаточная стоимость`                   .@@@  .@@@@@@@@@@@@@@@@@@@@@
+`Поправочный коэффициент`                .@@@  .@@@@@
+
+`Срок использования до поступления`      .@@@  .@@@@@
+`Срок использования после поступления`   .@@@  .@@@@@
+`Срок полезного использования`           .@@@  .@@@@@
+`Оставшийся срок полезного использования`.@@@  .@@@@@
+
+`Количество однотипных объектов в ИК`    .@@@  .@@@@@
+`Драгметаллы`        .@@@@@@@
+#ifdef __KatosFilters__
+ #ifdef __TPR2__
+ [.] Статус`         .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] ЦО - Филиал`    .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Инв. карточки`  .@@@@@@@@@@@@
+ #end
+#end
+>>
+end;
+
+#ifdef __KatosFilters__
+Screen scFindOsIzn 'Отбор ИК' ('Отбор',hcOsVFiltr,sci13Esc);
+  Table MyStruct; // NastrOs;
+  BEVEL BvlPick {,3,,,bsRaised,bsHorizontal};
+Fields
+  fwFindTitle     ('Условие отбора',,sci1Esc)                      : Protect;
+  [fsFindCondition] GetfsFindCondition() ('Выбор операций',,)      : Protect;
+  fdBeginDate     ('Начало периода поиска',,sci1Esc)               : NoProtect;
+  fdEndDate       ('Конец периода поиска',,sci1Esc)                : NoProtect;
+
+  wSelCheck       ('Установка/снятие условий отбора',,sci1Esc)     : NoProtect;
+  fsFindGrOs      ('Выбранные группы ОС',,)                        : Protect;
+  fsFindVid       ('Вид ОС',,)                                     : Protect;
+  fsFindNorm      ('Норма амортизации',,)                          : Protect;
+
+  fsFindIspOs     ('Выбранные признаки использования',,)           : Protect;
+
+  fsFindPodr      ('Выбранные подразделения',,)                    : Protect;
+  fsFindMol       ('Выбранные МОЛ',,)                              : Protect;
+
+  fsFindMetod     ('Выбранные Алгоритмы начисления амортизации',,) : Protect;
+  fsFindTxo       ('Выбранные ТХО начисления амортизации',,)       : Protect;
+
+  fwCheckAccord   ('Тип соответствия',,sci1Esc) :
+                    [List 'Вид - Норма', 'Амортизационная группа - ОКОФ', 'Подразделение - МОЛ'], Protect;
+  fsFindDM        ('Выбранные ДМ',,)                               : Protect;
+  fsAttachDoc     ('Выбранный тип прикрепленного документа',,)     : Protect;
+  fsArendator     ('Организация арендатор',,)                      : Protect;
+  fsArendodatel   ('Организация арендодатель',,)                   : Protect;
+  fwBindedKAU     ('Внешний КАУ',,sci1Esc) :
+                    [List 'Отсутствует', 'Задан'], Protect;
+  fsBindedKAUkod  ('Выбранный внешний КАУ',,)                      : Protect;
+  boNullOnly      ('Отбирать только по КАУ без значения',,sci1Esc) : NoProtect;
+
+  boInMemLoad     ('Результат выгружать в таблицу в памяти',,sci1Esc) : NoProtect;
+<<
+      `Отбор объектов`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                      .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+       За период      `c`.@@@@@@@@@@ `по`.@@@@@@@@@@
+
+  [.] Группа ОС`             .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] Вид`                   .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] Норма амортизации`     .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] Признак использования` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] Подразделение`         .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] МОЛ`                   .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] Алгоритм амортизации`  .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] ТХО амортизации`       .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] Проверка соответствия` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] ДМ`                    .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] Тип прикреп. документа`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] Арендатор`             .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  [.] Арендодатель`          .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#ifdef __TPR2__
+  [.] Целевой учет`
+#end
+  [.] Внешнее КАУ`           .@@@@@@@@@@@@@  .@@@@@@@@@@@@@@@@@@@@@
+                              [.] только без значения`
+
+  [.] Результат выгружать в таблицу в памяти`
+>>
+End;
+#endif
+
+Screen scrFiltrVnKlass 'Внешняя классификация' ('Внешняя классификация',hcOsVFiltr,sci13Esc);
+  Table NastrOs
+Fields
+  FilKlass  ('Внешняя классификация') : Protect;
+  FilKlass1 ('Внешняя классификация') : Protect;
+  FilKlass2 ('Внешняя классификация') : Protect;
+  FilKlass3 ('Внешняя классификация') : Protect;
+  FilKlass4 ('Внешняя классификация') : Protect;
+  FilKlass5 ('Внешняя классификация') : Protect;
+  FilKlass6 ('Внешняя классификация') : Protect;
+<<
+
+`Наименование классификатора`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+`Значение классификатора-(1)`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Значение классификатора-(2)`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Значение классификатора-(3)`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Значение классификатора-(4)`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Значение классификатора-(5)`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Значение классификатора-(6)`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+>>
+end;
+
+Screen scrFiltrVnKAU 'Внешние КАУ' ('Внешние КАУ',hcOsVFiltr,sci13Esc);
+  Table NastrOs
+Fields
+ [FilVnKau1]   GetAnalitikName(wFilVnKau1)     ('Группа КАУ') : Protect;
+ FilKauName1  ('Объект КАУ') : Protect;
+ [FilVnKau2]   GetAnalitikName(wFilVnKau2)     ('Группа КАУ') : Protect;
+ FilKauName2  ('Объект КАУ') : Protect;
+ [FilVnKau3]   GetAnalitikName(wFilVnKau3)     ('Группа КАУ') : Protect;
+ FilKauName3  ('Объект КАУ') : Protect;
+ [FilVnKau4]   GetAnalitikName(wFilVnKau4)     ('Группа КАУ') : Protect;
+ FilKauName4  ('Объект КАУ') : Protect;
+ [FilVnKau5]   GetAnalitikName(wFilVnKau5)     ('Группа КАУ') : Protect;
+ FilKauName5  ('Объект КАУ') : Protect;
+ [FilVnKau6]   GetAnalitikName(wFilVnKau6)     ('Группа КАУ') : Protect;
+ FilKauName6  ('Объект КАУ') : Protect;
+<<
+
+`Группа КАУ`                          `Объект КАУ`
+ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+>>
+end; // screen scrFiltrVnKAU
+
+Screen scrFiltrStroy 'Объект строительства' ('Объект строительства',hcOsVFiltr,sci13Esc);
+  Table NastrOs
+Fields
+  wFilVvSysOper ('Тип операции перевода объекта строительства в ОС',,sci13Esc) :
+   [LIST 0 'Поступление ОС',
+         1 'Изменение стоимости ОС',
+         2 'Любая'], Protect;
+  FilSelKs   ('Установка/снятие текущего фильтра') : NoProtect;
+  [FilStroy] #ShowKau(cgKau_ObjBuild, cFilSTroy) ('Объект строительства') : Protect, QuickChoice;
+  [FilAddr]  AF.GetFullAddressInd(cFilAddr)      ('Адрес объект')         : Protect;
+<<
+
+ `Операции перевода в ОС`  .@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Объект строительства` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ [.] Адрес объекта`        .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+>>
+end; // screen scrFiltrStroy
+#ifdef __KatosFilters__
+  #ifdef __TPR2__
+Screen scrFiltrCUch 'Целевой учет' ('Целевой учет',hcOsVFiltr,sci13Esc);
+  Table NastrOs
+Fields
+  FilvsNameTune ('Набор аналитик целевого учета'): Protect;
+  FilvsRole1    : Skip; FilvsKau1  ('Аналитика целевого учета 1-го уровня'): Protect;
+  FilvsRole2    : Skip; FilvsKau2  ('Аналитика целевого учета 2-го уровня'): Protect;
+  FilvsRole3    : Skip; FilvsKau3  ('Аналитика целевого учета 3-го уровня'): Protect;
+  FilvsRole4    : Skip; FilvsKau4  ('Аналитика целевого учета 4-го уровня'): Protect;
+  FilvsRole5    : Skip; FilvsKau5  ('Аналитика целевого учета 5-го уровня'): Protect;
+  FilvsRole6    : Skip; FilvsKau6  ('Аналитика целевого учета 6-го уровня'): Protect;
+  FilvsRole7    : Skip; FilvsKau7  ('Аналитика целевого учета 7-го уровня'): Protect;
+  FilvsRole8    : Skip; FilvsKau8  ('Аналитика целевого учета 8-го уровня'): Protect;
+  FilvsRole9    : Skip; FilvsKau9  ('Аналитика целевого учета 9-го уровня'): Protect;
+  FilvsRole10   : Skip; FilvsKau10 ('Аналитика целевого учета 10-го уровня'): Protect;
+<<
+
+                         Набор аналитик целевого учета
+  .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+  .@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  .@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  .@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  .@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  .@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  .@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  .@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  .@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  .@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  .@@@@@@@@@@@@@@@@@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+>>
+end; // screen scrFiltrVnKAU
+  #end
+#end
+end; //TabbedSheet TOP tshFiltrOs
+
+#ifdef __KatosFilters__
+Screen LowerButtonScreen ('',hcOsVFiltr,sci13Esc);
+  Show At (,25,,) FIXED_Y;
+  Table NastrOs
+Buttons
+  cmOk,Default,,'Установить ограничения',,sci1Esc;
+  cmValue4,,,   'Выполнить отбор',,sci1Esc;
+  cmValue2,,,   'Снять установленные ограничения',,sci1Esc;
+  cmValue3,,,   'Очистить все поля',,sci1Esc;
+  cmCancel,,,   'Выход',,sci1Esc;
+<<
+ <.~У~становить.> <.~В~ыполнить отбор.> <.~С~нять.> <.~О~чистить.> <.Отмена.>
+>>
+end;
+#else
+Screen LowerButtonScreen ('',hcOsVFiltr,sci13Esc);
+  Show At (,27,,) FIXED_Y;
+  Table NastrOs
+Buttons
+  cmOk,Default,,'Установить ограничения',,sci1Esc;
+  cmValue2,,,   'Снять установленные ограничения',,sci1Esc;
+  cmValue3,,,   'Очистить все поля',,sci1Esc;
+  cmCancel,,,   'Выход',,sci1Esc;
+<<
+ <.~У~становить фильтр.>  <.  ~С~нять фильтр  .>  <.~О~чистить.>  <. Отмена .>
+>>
+end;
+#endif
+end;    // window
+
+//------------------------------------------------------------------------------
+TableEvent Table NastrOs;
+cmPick:
+{
+  case CurField of
+    #FilStroy:
+    {
+      if iGetKau.GetCodeKau(cgiPick,cgKau_ObjBuild,cFilStroy) <> 0
+        Set cFilStroy := cFilStroy;
+    }
+
+    #FilAddr:
+    {
+      // храним Адрес для фильтра в AddressN. с параметрами  AddressN.ObjType=15  AddressN.cPerson=UserId()
+      if ( RunInterface(AddressWinN, 'Адрес', cFilAddr, 15, UserId) <> cmCancel )
+        Set cFilAddr := cFilAddr;
+    }
+
+    #FilVnKau1:
+      if ( RunInterface('GetKauTable', cgiPick, Word(0), wFilVnKau1, Comp(0))=cmDefault )
+        SelectField(#FilKauName1);
+    #FilVnKau2:
+      if ( RunInterface('GetKauTable', cgiPick, Word(0), wFilVnKau2, Comp(0))=cmDefault )
+        SelectField(#FilKauName2);
+    #FilVnKau3:
+      if ( RunInterface('GetKauTable', cgiPick, Word(0), wFilVnKau3, Comp(0))=cmDefault )
+        SelectField(#FilKauName3);
+    #FilVnKau4:
+      if ( RunInterface('GetKauTable', cgiPick, Word(0), wFilVnKau4, Comp(0))=cmDefault )
+        SelectField(#FilKauName4);
+    #FilVnKau5:
+      if ( RunInterface('GetKauTable', cgiPick, Word(0), wFilVnKau5, Comp(0))=cmDefault )
+        SelectField(#FilKauName5);
+    #FilVnKau6:
+      if ( RunInterface('GetKauTable', cgiPick, Word(0), wFilVnKau6, Comp(0))=cmDefault )
+        SelectField(#FilKauName6);
+
+    #FilKauName1:
+    {
+#ifdef __TPR2__
+      set FilKauName1 := PickKau(wFilVnKau1, word(coKatOs), 0, 0);
+#else
+      if iGetKau.GetCodeKau(cgiPick, wFilVnKau1, cFilVnKau1) <> 0
+      {
+        Set cFilVnKau1 := cFilVnKau1;
+        FilKauName1 := #ShowKau(wFilVnKau1,cFilVnKau1);
+      }
+#end
+    }
+    #FilKauName2:
+    {
+#ifdef __TPR2__
+      set FilKauName2 := PickKau(wFilVnKau2, word(coKatOs), 0, 0);
+#else
+      if iGetKau.GetCodeKau(cgiPick, wFilVnKau2, cFilVnKau2) <> 0
+      {
+        Set cFilVnKau2 := cFilVnKau2;
+        FilKauName2 := #ShowKau(wFilVnKau2,cFilVnKau2);
+      }
+#end
+    }
+    #FilKauName3:
+    {
+#ifdef __TPR2__
+      set FilKauName3 := PickKau(wFilVnKau3, word(coKatOs), 0, 0);
+#else
+      if iGetKau.GetCodeKau(cgiPick, wFilVnKau3, cFilVnKau3) <> 0
+      {
+        Set cFilVnKau3 := cFilVnKau3;
+        FilKauName3 := #ShowKau(wFilVnKau3,cFilVnKau3);
+      }
+#end
+    }
+    #FilKauName4:
+    {
+#ifdef __TPR2__
+      set FilKauName4 := PickKau(wFilVnKau4, word(coKatOs), 0, 0);
+#else
+      if iGetKau.GetCodeKau(cgiPick, wFilVnKau4, cFilVnKau4) <> 0
+      {
+        Set cFilVnKau4 := cFilVnKau4;
+        FilKauName4 := #ShowKau(wFilVnKau4,cFilVnKau4);
+      }
+#end
+    }
+    #FilKauName5:
+    {
+#ifdef __TPR2__
+      set FilKauName5 := PickKau(wFilVnKau5, word(coKatOs), 0, 0);
+#else
+      if iGetKau.GetCodeKau(cgiPick, wFilVnKau5, cFilVnKau5) <> 0
+      {
+        Set cFilVnKau5 := cFilVnKau5;
+        FilKauName5 := #ShowKau(wFilVnKau5,cFilVnKau5);
+      }
+#end
+    }
+    #FilKauName6:
+    {
+#ifdef __TPR2__
+      set FilKauName6 := PickKau(wFilVnKau6, word(coKatOs), 0, 0);
+#else
+      if iGetKau.GetCodeKau(cgiPick, wFilVnKau6, cFilVnKau6) <> 0
+      {
+        Set cFilVnKau6 := cFilVnKau6;
+        FilKauName6 := #ShowKau(wFilVnKau6,cFilVnKau6);
+      }
+#end
+    }
+
+    #FilKlass:
+      if RunInterface(GetExClassifier, Word(coKatos), wFilKlass) = cmDefault
+      {
+        if ( GetFirst ExClassName where ((
+                              coKatos   == ExClassName.wtable and
+                              wFilKlass == ExClassName.ClassCode  )) = tsOk)
+          FilKlass := ExClassName.Name;
+        ReReadRecord;
+      }
+    #FilKlass1:
+      if RunInterface(PickExClassifier, Word(coKatos), cFilKlass1, wTemp) = cmDefault
+      {
+        if (GetFirst ExClassSeg where ((cFilKlass1 == ExClassSeg.Nrec)) = tsOk)
+        {
+          FilKlass1  := ExClassSeg.Name;
+          wFilKlass1 := ExClassSeg.ClassCode;
+        }
+        ReReadRecord;
+      }
+    #FilKlass2:
+      if RunInterface(PickExClassifier, Word(coKatos), cFilKlass2, wTemp) = cmDefault
+      {
+        if (GetFirst ExClassSeg where ((cFilKlass2 == ExClassSeg.Nrec)) = tsOk)
+        {
+          FilKlass2  := ExClassSeg.Name;
+          wFilKlass2 := ExClassSeg.ClassCode;
+        }
+        ReReadRecord;
+      }
+    #FilKlass3:
+      if RunInterface(PickExClassifier, Word(coKatos), cFilKlass3, wTemp) = cmDefault
+      {
+        if (GetFirst ExClassSeg where ((cFilKlass3 == ExClassSeg.Nrec)) = tsOk)
+        {
+          FilKlass3  := ExClassSeg.Name;
+          wFilKlass3 := ExClassSeg.ClassCode;
+        }
+        ReReadRecord;
+      }
+    #FilKlass4:
+      if RunInterface(PickExClassifier, Word(coKatos), cFilKlass4, wTemp) = cmDefault
+      {
+        if (GetFirst ExClassSeg where ((cFilKlass4 == ExClassSeg.Nrec)) = tsOk)
+        {
+          FilKlass4  := ExClassSeg.Name;
+          wFilKlass4 := ExClassSeg.ClassCode;
+        }
+        ReReadRecord;
+      }
+    #FilKlass5:
+      if RunInterface(PickExClassifier, Word(coKatos), cFilKlass5, wTemp) = cmDefault
+      {
+        if (GetFirst ExClassSeg where ((cFilKlass5 == ExClassSeg.Nrec)) = tsOk)
+        {
+          FilKlass5  := ExClassSeg.Name;
+          wFilKlass5 := ExClassSeg.ClassCode;
+        }
+        ReReadRecord;
+      }
+    #FilKlass6:
+      if RunInterface(PickExClassifier, Word(coKatos), cFilKlass6, wTemp) = cmDefault
+      {
+        if (GetFirst ExClassSeg where ((cFilKlass6 == ExClassSeg.Nrec)) = tsOk)
+        {
+          FilKlass6  := ExClassSeg.Name;
+          wFilKlass6 := ExClassSeg.ClassCode;
+        }
+        ReReadRecord;
+      }
+
+    #fFilVidKatOs:
+      if RunInterface('KatVidNorma', wTip, cFilVid, 0, False, 0) <> cmCancel
+      {
+        ReSetBounds(#VidNorma);
+        ReSetBounds(#VidNormaS);
+        if (GetFirst VidNorma where  ((cFilVid == VidNorma.NRec)) = tsOk)
+          if VidNorma.isLeaf <> 0
+          {
+            cFilNorm := VidNorma.NRec;
+            FilNorm  := VidNorma.Name;
+            if (GetFirst VidNormaS where  ((VidNorma.cVid == VidNormaS.NRec)) = tsOk)
+              cFilVid := VidNormaS.NRec;
+          }
+
+        if cFilNorm <> 0
+          Set FilKat := FilKat or 64;
+
+        Set FilKat := FilKat or 32;
+
+        SetBounds(#VidNorma);
+        SetBounds(#VidNormaS);
+        ReReadRecord;
+      }
+
+    #FilNorm:
+    {
+      Var bYesVid : Boolean;
+      if (cFilVid = 0)
+        bYesVid := False;
+      else
+      {
+        bYesVid := True;
+        if (cFilNorm = 0)
+          cFilNorm := cFilVid;
+      }
+      if RunInterface('KatVidNorma', wTip, cFilNorm, 0, bYesVid, 1) <> cmCancel
+      {
+        ReSetBounds(#VidNorma);
+        if (GetFirst VidNorma where ((cFilNorm == VidNorma.NRec)) = tsOk)
+          if VidNorma.isLeaf = 1
+            FilNorm := VidNorma.Name;
+          else
+          {
+            message('Необходимо выбрать норму, а не вид.',CancelButton);
+            cFilNorm := 0;
+          }
+
+        Set FilKat := FilKat or 64;
+
+        SetBounds(#VidNorma);
+        ReReadRecord;
+      }
+    }
+
+    #FilOKOF:
+    if RunInterface(KodOkof, cFilOKOF, 0) <> cmCancel
+    {
+      ReSetBounds(#KODOF);
+      if (GetFirst KODOF where ((cFilOKOF == KODOF.Nrec)) = tsOk)
+        FilOKOF := KODOF.Kod_of + ' ' + KODOF.Name_of;
+      SetBounds(#KODOF);
+
+      Set FilKat := FilKat or 128;
+      ReReadRecord;
+    }
+
+    #fFilPodrKatOs:
+    {
+      RunInterface('GetAnyPodr', cNRecPodr, 0);
+      if cNRecPodr <> 0
+        Set FilKat := FilKat or 2048;
+    }
+
+    #fFilMolKatOs:
+    {
+      // будем выбирать только из МОЛ по которым есть ОС (НМА)
+      if NullVipRef(oGMRef)
+        GetVipRef(oGMRef,'GetMol');
+
+      case UPCASE(#__InterfaceName__) of
+        'KATOSS':
+        {
+          if TipDock < 100
+          { // каталог может пополняться, поэтому всегда перечитываем набор МОЛ
+            FillKatMolNRSet(TipDock, chMolKatOsLeaf + chMolKatOsNode, chReload, oGMRef);
+          }
+          else
+          { // находясь в архиве мы ничего не редактирование
+            FillKatMolNRSet(TipDock MOD 100, chMolKatArcLeaf + chMolKatArcNode, chUseBuffer, oGMRef);
+          }
+        }
+        'GETARC':
+        { // находясь в архиве мы ничего не изменяем по определению
+          FillKatMolNRSet(TipDock MOD 100, chMolAll, chUseBuffer, oGMRef);
+        }
+        else
+          FillKatMolNRSet(TipDock MOD 100, chMolAll, chUseBuffer, oGMRef);
+      end;
+
+      RunInterface('GetMol', cNRecMol, cNRecPodr);
+
+      if cNRecMol <> 0
+        Set FilKat := FilKat or 4096;
+      if cNRecPodr <> 0
+        Set FilKat := FilKat or 2048;
+
+    }
+
+    #fFilGrKatOs:
+      if RunInterface('GrOs', cFilGr, 0, Comp(0)) <> cmCancel
+      {
+        Set cFilGr := cFilGr;
+        Set FilKat := FilKat or 16;
+      }
+
+    #fFilAmGrKatOs:
+      if iGetKau.GetCodeKau(cgiPick, cgKau_AmortGr, cFilAmGr) <> 0
+      {
+        Set cFilAmGr := cFilAmGr;
+        Set FilKat := FilKat or 256;
+      }
+
+    #fFilPrSbOs:
+      if (RunInterface('KatPrSb', wTip, cFilPrSb, Word(0), Comp(0)) <> cmCancel)
+      {
+        Set cFilPrSb := cFilPrSb;
+        Set FilKat := FilKat or 262144;
+      }
+
+    #fFilCO_Os:
+      if iGetKau.GetCodeKau(cgiPick, cgKau_FpCO, cFilCO) <> 0
+      {
+        Set cFilCO := cFilCO;
+        Set FilKat := FilKat or 524288;
+      }
+
+    #ifdef __KatosFilters__
+    #ifdef __TPR2__
+    #FilNote:
+      if ( RunInterface('GetSomKatNotes', wTipOper, 0, 0, False, cFilcNote) <> cmCancel )
+      {
+        if (GetFirst KatNotes where (( cFilcNote == KatNotes.NRec)) = tsOk)     // статусы
+        {
+          Set cFilcNote := cFilcNote;
+          Set FilNote   := KatNotes.Name;
+          FilKatExt := pOsFun.SetBit(FilKatExt, 8, True);
+        }
+      }
+
+    #fFilCOFilial_Os:
+      if ( iGetKau.GetCodeKau(cgiPick, cgKau_COFilial, cFilCOFilial) <> 0 )
+      {
+        Set cFilCOFilial := cFilCOFilial;
+        Set FilKat       := FilKat or 4194304;
+      }
+    #end
+    #end
+
+    #fFilIspKatOs:
+      if (RunInterface('IsPos', wTip, cFilIsp, Word(0), Comp(0)) <> cmCancel)
+      {
+        Set cFilIsp := cFilIsp;
+        Set FilKat  := FilKat or 1024;
+      }
+
+    #FilMetod:
+      if RunInterface('GetAlgAmort' ,cFilMetod, 'начисления амортизации', wTip, 0, 0) <> cmCancel
+      {
+        ReSetBounds(#OsAlg);
+        if (GetFirst OsAlg where ((cFilMetod == OsAlg.Nrec)) = tsOk)
+          FilMetod := OsAlg.NAME;
+
+        Set FilKat := FilKat or 8192;
+
+        SetBounds(#OsAlg);
+        ReReadRecord;
+      }
+
+    #FilHozOper:
+      if ( RunInterface('GetHozOper', myPlansNo, TipDock mod 100, 5, cFilHozOper, (cgiPick or cgiSetFilter)) = cmDefault )
+      {
+        ReSetBounds(#HozOper);
+        if (GetFirst HozOper where ((cFilHozOper == HozOper.Nrec)) = tsOk)
+          FilHozOper := HozOper.NAME1;
+
+        Set FilKat := FilKat or 16384;
+
+        SetBounds(#HozOper);
+        ReReadRecord;
+      }
+
+    #FilTipOb:
+      if RunInterface('GetSposobAmort', cFilTipOb, 0) <> cmCancel
+      {
+        ReSetBounds(#Sposob);
+        if (GetFirst Sposob where ((cFilTipOb == Sposob.Nrec)) = tsOk)
+          FilTipOb := Sposob.NameSb;
+
+        Set FilKat := FilKat or 32768;
+
+        SetBounds(#Sposob);
+        ReReadRecord;
+      }
+
+    #FilDvd1: Set FilDvd1 := cur_date;
+    #FilDvd2: Set FilDvd2 := cur_date;
+    #FilDv1:  Set FilDv1  := cur_date;
+    #FilDv2:  Set FilDv2  := cur_date;
+    #FilDp1:  Set FilDp1  := cur_date;
+    #FilDp2:  Set FilDp2  := cur_date;
+    #FilDb1:  Set FilDb1  := cur_date;
+    #FilDb2:  Set FilDb2  := cur_date;
+
+    #fGrDescr:
+      if (RunInterface('GetGrDescr', fGrDescr, False, False, Comp(0)) <> cmCancel)
+        Set FilKat := FilKat or 1048576;
+    #fDescr:
+      if (RunInterface('GetDescr', fDescr, fGrDescr, Word(12345)) <> cmCancel)
+        Set FilKat := FilKat or 2097152;
+#ifdef __TPR2__
+#ifdef __KatosFilters__
+    #FilvsNameTune:
+    {
+     if ( RunInterface('GetSaldTune', vcSaldTune, vwSaldTune) = cmDefault )
+      {
+        set FilvsNameTune := oTune.TuneName;
+        FilFieldState(vwSaldTune);
+      }
+    }
+    #FilvsKau1:
+    {
+      wFilCUKau1 := oTune.GetGrKau(1);
+      set FilvsKau1 := PickKau(wFilCUKau1, word(coSpSopr), vcSaldTune, 1);
+    }
+    #FilvsKau2:
+    {
+      wFilCUKau2 := oTune.GetGrKau(2);
+      set FilvsKau2 := PickKau(wFilCUKau2, word(coSpSopr), vcSaldTune, 2);
+    }
+    #FilvsKau3:
+    {
+      wFilCUKau3 := oTune.GetGrKau(3);
+      set FilvsKau3 := PickKau(wFilCUKau3, word(coSpSopr), vcSaldTune, 3);
+    }
+    #FilvsKau4:
+    {
+      wFilCUKau4 := oTune.GetGrKau(4);
+      set FilvsKau4 := PickKau(wFilCUKau4, word(coSpSopr), vcSaldTune, 4);
+    }
+    #FilvsKau5:
+    {
+      wFilCUKau5 := oTune.GetGrKau(5);
+      set FilvsKau5 := PickKau(wFilCUKau5, word(coSpSopr), vcSaldTune, 5);
+    }
+    #FilvsKau6:
+    {
+      wFilCUKau6 := oTune.GetGrKau(6);
+      set FilvsKau6 := PickKau(wFilCUKau6, word(coSpSopr), vcSaldTune, 6);
+    }
+    #FilvsKau7:
+    {
+      wFilCUKau7 := oTune.GetGrKau(7);
+      set FilvsKau7 := PickKau(wFilCUKau7, word(coSpSopr), vcSaldTune, 7);
+    }
+    #FilvsKau8:
+    {
+      wFilCUKau8 := oTune.GetGrKau(8);
+      set FilvsKau8 := PickKau(wFilCUKau8, word(coSpSopr), vcSaldTune, 8);
+    }
+    #FilvsKau9:
+    {
+      wFilCUKau9 := oTune.GetGrKau(9);
+      set FilvsKau9 := PickKau(wFilCUKau9, word(coSpSopr), vcSaldTune, 9);
+    }
+    #FilvsKau10:
+    {
+      wFilCUKau10 := oTune.GetGrKau(10);
+      set FilvsKau10 := PickKau(wFilCUKau10, word(coSpSopr), vcSaldTune, 10);
+    }
+#end
+#end
+  end;
+}
+
+//---------------------------------------------------------
+cmCheckField :
+{
+  Case CurField of
+    #FilInNum  : Set FilKat := FilKat or 1;
+    #FilName   : Set FilKat := FilKat or 2;
+    #FilZvIz   : Set FilKat := FilKat or 4;
+    #FilModTip : Set FilKat := FilKat or 8;
+    #FilZavN   : Set FilKat := FilKat or 512;
+    #FilBArKod : Set FilKat := FilKat or 65536;
+    #FilImNum  : Set FilKat := FilKat or 131072;
+
+    #FilPasN   : Set FilPas := FilPas or 1;
+
+    #FilDv1,
+    #FilDv2:
+      if ( ((LongInt(FilDv1) <> 0) Or (LongInt(FilDv2) <> 0)) And
+           ((FilDD And 1) = 0) )
+        Set FilDD := FilDD or 1;
+
+    #FilDvd1,
+    #FilDvd2:
+      if ( ((LongInt(FilDvd1) <> 0) Or (LongInt(FilDvd2) <> 0)) And
+           ((FilDD And 2) = 0) )
+        Set FilDD := FilDD or 2;
+
+    #FilDp1,
+    #FilDp2:
+      if ( ((LongInt(FilDp1) <> 0) Or (LongInt(FilDp2) <> 0)) And
+           ((FilDD And 4) = 0) )
+        Set FilDD := FilDD or 4;
+
+    #FilDb1,
+    #FilDb2:
+      if ( ((LongInt(FilDb1) <> 0) Or (LongInt(FilDb2) <> 0)) And
+           ((FilDD And 8) = 0) )
+        Set FilDD := FilDD or 8;
+  end;
+}
+
+//---------------------------------------------------------
+cmDelOnProtect :
+{
+  case CurField of
+    #FilStroy:
+      Set cFilStroy := 0;
+
+    #FilAddr:
+    {
+      AF.DelAdr(cFilAddr);
+      Set cFilAddr := 0;
+    }
+
+    #FilVnKau1:
+    {
+#ifdef __KatosFilters__
+ #ifdef __TPR2__
+      DelFilVnKau(word(coKatOs),wFilVnKau1, 0);
+ #end
+#end
+      Set wFilVnKau1 := 0;
+      Set cFilVnKau1 := 0;
+    }
+    #FilVnKau2:
+    {
+#ifdef __KatosFilters__
+ #ifdef __TPR2__
+      DelFilVnKau(word(coKatOs),wFilVnKau2, 0);
+ #end
+#end
+      Set wFilVnKau2 := 0;
+      Set cFilVnKau2 := 0;
+    }
+    #FilVnKau3:
+    {
+#ifdef __KatosFilters__
+ #ifdef __TPR2__
+      DelFilVnKau(word(coKatOs),wFilVnKau3, 0);
+ #end
+#end
+      Set wFilVnKau3 := 0;
+      Set cFilVnKau3 := 0;
+    }
+    #FilVnKau4:
+    {
+#ifdef __KatosFilters__
+ #ifdef __TPR2__
+      DelFilVnKau(word(coKatOs),wFilVnKau4, 0);
+ #end
+#end
+      Set wFilVnKau4 := 0;
+      Set cFilVnKau4 := 0;
+    }
+    #FilVnKau5:
+    {
+#ifdef __KatosFilters__
+ #ifdef __TPR2__
+      DelFilVnKau(word(coKatOs),wFilVnKau5, 0);
+ #end
+#end
+      Set wFilVnKau5 := 0;
+      Set cFilVnKau5 := 0;
+    }
+    #FilVnKau6:
+    {
+#ifdef __KatosFilters__
+ #ifdef __TPR2__
+      DelFilVnKau(word(coKatOs),wFilVnKau6, 0);
+ #end
+#end
+      Set wFilVnKau6 := 0;
+      Set cFilVnKau6 := 0;
+    }
+
+    #FilKauName1 :
+      {
+        Set cFilVnKau1 := 0;
+        Set FilKauName1 := '';
+  #ifdef __KatosFilters__
+   #ifdef __TPR2__
+        DelFilVnKau(word(coKatOs),wFilVnKau1, 0);
+   #end
+  #end
+      }
+    #FilKauName2 :
+      {
+        Set cFilVnKau2 := 0;
+        Set FilKauName2 := '';
+  #ifdef __KatosFilters__
+   #ifdef __TPR2__
+        DelFilVnKau(word(coKatOs),wFilVnKau2, 0);
+   #end
+  #end
+      }
+    #FilKauName3 :
+      {
+        Set cFilVnKau3 := 0;
+        Set FilKauName3 := '';
+  #ifdef __KatosFilters__
+   #ifdef __TPR2__
+        DelFilVnKau(word(coKatOs),wFilVnKau3, 0);
+   #end
+  #end
+      }
+    #FilKauName4 :
+      {
+        Set cFilVnKau4 := 0;
+        Set FilKauName4 := '';
+  #ifdef __KatosFilters__
+   #ifdef __TPR2__
+        DelFilVnKau(word(coKatOs),wFilVnKau4, 0);
+   #end
+  #end
+      }
+    #FilKauName5 :
+      {
+        Set cFilVnKau5 := 0;
+        Set FilKauName5 := '';
+  #ifdef __KatosFilters__
+   #ifdef __TPR2__
+        DelFilVnKau(word(coKatOs),wFilVnKau5, 0);
+   #end
+  #end
+      }
+    #FilKauName6 :
+      {
+        Set cFilVnKau6 := 0;
+        Set FilKauName6 := '';
+  #ifdef __KatosFilters__
+   #ifdef __TPR2__
+        DelFilVnKau(word(coKatOs),wFilVnKau6, 0);
+   #end
+  #end
+      }
+#ifdef __KatosFilters__
+    #FilvsNameTune:
+    {
+      set FilvsNameTune := '';
+      vwSaldTune := 0;
+   #ifdef __TPR2__
+      DelFilVnKau(word(coSpSopr),0, 0);
+   #end
+      FilFieldState(vwSaldTune);
+      wFilCUKau1 := 0;
+      wFilCUKau2 := 0;
+      wFilCUKau3 := 0;
+      wFilCUKau4 := 0;
+      wFilCUKau5 := 0;
+      wFilCUKau6 := 0;
+      wFilCUKau7 := 0;
+      wFilCUKau8 := 0;
+      wFilCUKau9 := 0;
+      wFilCUKau10 := 0;
+    }
+    #FilvsKau1:
+    {
+   #ifdef __TPR2__
+      DelFilVnKau(word(coSpSopr),wFilCUKau1, 0);
+   #end
+      wFilCUKau1 := 0;
+      FilvsKau1  := '';
+    }
+    #FilvsKau2:
+    {
+   #ifdef __TPR2__
+      DelFilVnKau(word(coSpSopr),wFilCUKau2, 0);
+   #end
+      wFilCUKau2 := 0;
+      FilvsKau2  := '';
+    }
+    #FilvsKau3:
+    {
+   #ifdef __TPR2__
+      DelFilVnKau(word(coSpSopr),wFilCUKau3, 0);
+   #end
+      wFilCUKau3 := 0;
+      FilvsKau3  := '';
+    }
+    #FilvsKau4:
+    {
+   #ifdef __TPR2__
+      DelFilVnKau(word(coSpSopr),wFilCUKau4, 0);
+   #end
+      wFilCUKau4 := 0;
+      FilvsKau4  := '';
+    }
+    #FilvsKau5:
+    {
+   #ifdef __TPR2__
+      DelFilVnKau(word(coSpSopr),wFilCUKau5, 0);
+   #end
+      wFilCUKau4 := 0;
+      FilvsKau5  := '';
+    }
+    #FilvsKau6:
+    {
+   #ifdef __TPR2__
+      DelFilVnKau(word(coSpSopr),wFilCUKau6, 0);
+   #end
+      wFilCUKau6 := 0;
+      FilvsKau6  := '';
+    }
+    #FilvsKau7:
+    {
+   #ifdef __TPR2__
+      DelFilVnKau(word(coSpSopr),wFilCUKau7, 0);
+   #end
+      wFilCUKau7 := 0;
+      FilvsKau7  := '';
+    }
+    #FilvsKau8:
+    {
+   #ifdef __TPR2__
+      DelFilVnKau(word(coSpSopr),wFilCUKau8, 0);
+   #end
+      wFilCUKau8 := 0;
+      FilvsKau8  := '';
+    }
+    #FilvsKau9:
+    {
+   #ifdef __TPR2__
+      DelFilVnKau(word(coSpSopr),wFilCUKau9, 0);
+   #end
+      wFilCUKau9 := 0;
+      FilvsKau9  := '';
+    }
+    #FilvsKau10:
+    {
+   #ifdef __TPR2__
+      DelFilVnKau(word(coSpSopr),wFilCUKau10, 0);
+   #end
+      wFilCUKau10 := 0;
+      FilvsKau10  := '';
+    }
+#end
+    #FilKlass:
+    {
+      Set wFilKlass := 0;
+      Set  FilKlass := '';
+    }
+    #FilKlass1:
+    {
+      Set cFilKlass1 := 0;
+      Set wFilKlass1 := 0;
+      Set  FilKlass1 := '';
+    }
+    #FilKlass2:
+    {
+      Set cFilKlass2 := 0;
+      Set wFilKlass2 := 0;
+      Set  FilKlass2 := '';
+    }
+    #FilKlass3:
+    {
+      Set cFilKlass3 := 0;
+      Set wFilKlass3 := 0;
+      Set  FilKlass3 := '';
+    }
+    #FilKlass4:
+    {
+      Set cFilKlass4 := 0;
+      Set wFilKlass4 := 0;
+      Set  FilKlass4 := '';
+    }
+    #FilKlass5:
+    {
+      Set cFilKlass5 := 0;
+      Set wFilKlass5 := 0;
+      Set  FilKlass5 := '';
+    }
+    #FilKlass6:
+    {
+      Set cFilKlass6 := 0;
+      Set wFilKlass6 := 0;
+      Set  FilKlass6 := '';
+    }
+
+    #fFilGrKatOs:
+      Set cFilGr := 0;
+
+    #fFilVidKatOs:
+      Set cFilVid := 0;
+
+    #FilNorm:
+    {
+      Set cFilNorm := 0;
+      Set  FilNorm := '';
+    }
+
+    #FilOKOF:
+    {
+      Set cFilOKOF := 0;
+      Set  FilOKOF := '';
+    }
+
+    #fFilAmGrKatOs:
+      Set cFilAmGr := 0;
+
+    #fFilPrSbOs:
+      Set cFilPrSb := 0;
+
+    #fFilCO_Os:
+      Set cFilCO := 0;
+    #ifdef __KatosFilters__
+    #ifdef __TPR2__
+    #FilNote:
+    {
+      Set cFilcNote := 0;
+      FilNote := '';
+    }
+    #fFilCOFilial_Os:
+      Set cFilCOFilial := 0;
+    #cFilInvCard:
+      Set cFilInvCard := 0;
+    #end
+    #end
+
+    #fFilIspKatOs:
+      Set cFilIsp  := 0;
+
+    #cFilSobs:
+      Set cFilSobs := 0;
+    #cFilZnak:
+      Set cFilZnak := 0;
+
+    #cFilZnakIspPs:
+      Set cFilZnakIspPs := 0;
+    #cFilZnakIspCur:
+      Set cFilZnakIspCur := 0;
+    #cFilZnakSrokIsp:
+      Set cFilZnakSrokIsp := 0;
+    #cFilZnakOstSrok:
+      Set cFilZnakOstSrok := 0;
+    #cFilZnakPoprkoef:
+      Set cFilZnakPoprkoef := 0;
+
+    #cFilDrg:
+      Set cFilDrg := 0;
+
+    #fFilPodrKatOs:
+      Set cNRecPodr := 0;
+
+    #fFilMolKatOs:
+      Set cNRecMol := 0;
+
+    #FilMetod:
+    {
+      Set cFilMetod := 0;
+      Set  FilMetod := '';
+    }
+    #FilHozOper:
+    {
+      Set cFilHozOper := 0;
+      Set  FilHozOper := '';
+    }
+    #FilTipOb:
+      if not PrSpecOb
+      {
+        Set cFilTipOb := 0;
+        Set  FilTipOb := '';
+      }
+    #fGrDescr:
+    {
+      Set fGrDescr := '';
+#ifdef __KatosFilters__
+      CurDesGr     := sGetTune('User.DesGr');
+#end
+    }
+    #fDescr:
+    {
+      Set fDescr := '';
+#ifdef __KatosFilters__
+      CurDescr   := sGetTune('User.Descr');
+#end
+    }
+  end;
+}
+end; // TableEvent Table NastrOs;
+
+#ifdef __KatosFilters__
+//-----------------------------------------------------------------------------
+Procedure SetFieldsSelectWiFindOsIzn;
+{
+  ToggleFieldVisible(#fsFindCondition, (fwFindTitle = 1) or (fwFindTitle = 5));
+  ToggleFieldSelectable(#fwFindTitle, wSelCheck = 0);
+  ToggleFieldSelectable(#fsFindCondition, wSelCheck = 0);
+  ToggleFieldSelectable(#fdBeginDate, wSelCheck = 0 and fwFindTitle <> 3 and fwFindTitle <> 4 and fwFindTitle <> 6 and fwFindTitle <> 7);
+  ToggleFieldSelectable(#fdEndDate,   wSelCheck = 0 and fwFindTitle <> 3 and fwFindTitle <> 4 and fwFindTitle <> 6 and fwFindTitle <> 7);
+
+  ToggleFieldSelectable(#fsFindGrOs,     fwFindTitle <> 6);
+  ToggleFieldSelectable(#fsFindVid,      fwFindTitle <> 6);
+  ToggleFieldSelectable(#fsFindNorm,     fwFindTitle <> 6);
+  ToggleFieldSelectable(#fsFindIspOs,    fwFindTitle <> 6);
+  ToggleFieldSelectable(#fsFindPodr,     fwFindTitle <> 6);
+  ToggleFieldSelectable(#fsFindMol,      fwFindTitle <> 6);
+  ToggleFieldSelectable(#fsFindMetod,    fwFindTitle <> 6);
+  ToggleFieldSelectable(#fsFindTxo,      fwFindTitle <> 6);
+  ToggleFieldSelectable(#fwCheckAccord,  fwFindTitle <> 6);
+  ToggleFieldSelectable(#fsFindDM,       fwFindTitle <> 6 and TipDock = 15);
+  ToggleFieldSelectable(#fsAttachDoc,    fwFindTitle <> 6);
+  ToggleFieldSelectable(#fsArendator,    fwFindTitle <> 6);
+  ToggleFieldSelectable(#fsArendodatel,  fwFindTitle <> 6);
+  ToggleFieldSelectable(#fwBindedKAU,    fwFindTitle <> 6);
+  ToggleFieldSelectable(#fsBindedKAUkod, fwFindTitle <> 6 and fwBindedKAU = 1);
+  ToggleFieldSelectable(#boNullOnly,     fwFindTitle <> 6 and fwBindedKAU = 1);
+  ToggleFieldSelectable(#boInMemLoad,    fwFindTitle <> 6);
+
+  if fwFindTitle = 6
+    ClusterDisabledField(#wSelCheck, cgSel_GrOs + cgSel_Vid  + cgSel_Norm + cgSel_IspOs + cgSel_Podr +
+                                     cgSel_MOL + cgSel_Metod + cgSel_TXO  + cgSel_Accord + cgSel_DM +
+                                     cgSel_AttachDoc + cgSel_Arendator + cgSel_Arendodatel + cgSel_BindedKAU + cgSel_BindedCU);
+  else
+    ClusterDisabledField(#wSelCheck, 0000000000);
+
+  if TipDock <> 15
+    ClusterDisabledField(#wSelCheck, cgSel_DM);
+  RescanPanel(#MyStruct);
+} // Procedure SetFieldsSelectWiFindOsIzn
+
+//-----------------------------------------------------------------------------
+// Копировать выбор из одного wList в другой
+Function CopyPick(_src, _dest: Word) : LongInt;
+{
+  Result := 0;
+
+  ResetBounds(#Pick);
+  Delete PickS where (( _dest == PickS.wList ));
+
+  _loop PickS where ((_src == PickS.wList))
+  {
+    ClearBuffer(#Pick);
+    Pick.wList := _dest;
+    Pick.cRec  := PickS.cRec;
+    Insert Current Pick;
+
+    Result++;
+  }
+
+  SetBounds(#Pick);
+}
+
+//------------------------------------------------------------------------------
+TableEvent Table MyStruct;
+cmPick:
+{
+  case CurField of
+    #fsFindCondition:
+    {
+      if fwFindTitle = 1
+        RunWindowModal(wiSetFindOperation);
+      else
+        if fwFindTitle = 5
+          RunWindowModal(wiSetFindChangeHist);
+    }
+
+    #fsFindGrOs:
+    {
+      fwKolFindGrOs := 0;
+      fsFindGrOs    := '';
+      if ( RunInterface('GrOs', cFilGr, 1, 0) <> cmCancel )
+      {
+        _loop PickS where ((cgPick_GrOs == PickS.wList))
+          fwKolFindGrOs++;
+        if fwKolFindGrOs = 1
+        {
+          if GetFirst PickS where ((cgPick_GrOs == PickS.wList)) = tsOk
+            if GetFirst GrOs where ((PickS.cRec == GrOs.nRec)) = tsOk
+              Set fsFindGrOs := GrOs.NameGr;
+        }
+        else
+          Set fsFindGrOs := 'множественный выбор (' + String(fwKolFindGrOs) + ')';
+      }
+    }
+
+    #fsFindVid:
+    {
+      fwKolFindVid := 0;
+      fsFindVid    := '';
+      if ( RunInterface('KatVidNorma', wTip, cFilVid, 1 + 4, False, 0) <> cmCancel )
+      {
+        _loop PickS where ((cgPick_VidNorm == PickS.wList))
+          fwKolFindVid++;
+        if fwKolFindVid = 1
+        {
+          if GetFirst PickS where ((cgPick_VidNorm == PickS.wList)) = tsOk
+            if GetFirst VidNorma where ((PickS.cRec == VidNorma.nRec)) = tsOk
+              Set fsFindVid := VidNorma.Name;
+        }
+        else
+          Set fsFindVid := 'множественный выбор (' + String(fwKolFindVid) + ')';
+      }
+    }
+
+    #fsFindNorm:
+    {
+      fwKolFindNorm := 0;
+      fsFindNorm    := '';
+      CopyPick(cgPick_VidNorm, ConstPick);    // сохраним выбор cgPick_VidNorm
+      CopyPick(cgPick_Norm, cgPick_VidNorm);
+      if ( RunInterface('KatVidNorma', wTip, cFilnorm, 1 + 8, False, 1) <> cmCancel )
+      {
+        fwKolFindNorm := CopyPick(cgPick_VidNorm, cgPick_Norm);
+        if fwKolFindNorm = 1
+        {
+          if GetFirst PickS where ((cgPick_Norm == PickS.wList)) = tsOk
+            if GetFirst VidNorma where ((PickS.cRec == VidNorma.nRec)) = tsOk
+              Set fsFindNorm := VidNorma.Name;
+        }
+        else
+          Set fsFindNorm := 'множественный выбор (' + String(fwKolFindNorm) + ')';
+      }
+      CopyPick(ConstPick, cgPick_VidNorm);   // восстановим выбор cgPick_VidNorm
+    }
+
+    #fsFindIspOs:
+    {
+      Var cRec : Comp = 0;
+      fwKolFindIspOs :=0;
+      fsFindIspOs    := '';
+      if ( RunInterface('IsPos', wTip, cRec, 1, 0) <> cmCancel )
+      {
+        _loop PickS where ((cgPick_IspOs == PickS.wList))
+          fwKolFindIspOs++;
+        if fwKolFindIspOs = 1
+        {
+          if GetFirst PickS where ((cgPick_IspOs == PickS.wList)) = tsOk
+            if GetFirst IspOs where ((PickS.cRec == IspOs.nRec)) = tsOk
+              Set fsFindIspOs := IspOs.NameIs;
+        }
+        else
+          Set fsFindIspOs := 'множественный выбор (' + String(fwKolFindIspOs) + ')';
+      }
+    }
+
+    #fsFindPodr:
+    {
+      fwKolFindPodr := 0;
+      fsFindPodr    := '';
+      if ( RunInterface('GetAnyPodr', cNRecPodr, 10) <> cmCancel )
+      {
+        _loop PickS where ((cgPick_Sklad == PickS.wList))
+          fwKolFindPodr++;
+        if fwKolFindPodr = 1
+        {
+          if GetFirst PickS where ((cgPick_Sklad == PickS.wList)) = tsOk
+            if GetFirst KatPodr where ((PickS.cRec == katPodr.nRec)) = tsOk
+              Set fsFindPodr := KatPodr.Name;
+        }
+        else
+          Set fsFindPodr := 'множественный выбор (' + String(fwKolFindPodr) + ')';
+      }
+    }
+
+    #fsFindMol:
+    {
+      SaveMyDsk(True, 'PickMOL_noDelPick');
+      fwKolFindMol := 0;
+      fsFindMol    := '';
+      if ( RunInterface('GetSomeMOL') <> cmCancel )
+      {
+        _loop PickS where ((cgPick_MOL == PickS.wList))
+          fwKolFindMol++;
+        if fwKolFindMol = 1
+        {
+          if GetFirst PickS where ((cgPick_Mol == PickS.wList)) = tsOk
+            if GetFirst KatMol where ((PickS.cRec == KatMol.nRec)) = tsOk
+              Set fsFindMol := KatMol.Name;
+        }
+        else
+          Set fsFindMol := 'множественный выбор (' + String(fwKolFindMol) + ')';
+      }
+    }
+
+    #fsFindMetod:
+    {
+      fwKolFindMetod := 0;
+      fsFindMetod    := '';
+      DoneMarker(MarkerAlg, 'GetAlgAm_Marker');
+      if ( RunInterface('GetAlgAmort', cFilMetod, 'начисления амортизации', wTip, 1, 0) <> cmCancel )
+      {
+        MarkerAlg := InitMarker('GetAlgAm_Marker', 8, 20, 20, False);
+        fwKolFindMetod := GetMarkerCount(MarkerAlg);
+        if fwKolFindMetod = 1
+        {
+          if GetFirst OsAlg where ((cFilMetod == OsAlg.nRec)) = tsOk
+            Set fsFindMetod := OsAlg.Name;
+        }
+        else
+          Set fsFindMetod := 'множественный выбор (' + String(fwKolFindMetod) + ')';
+      }
+    }
+
+    #fsFindTXO:
+    {
+      fwKolFindTxo := 0;
+      fsFindTxo    := '';
+      if ( RunInterface('GetHozOper', myPlansNo, TipDock mod 100, 5, cFilHozOper, (cgiPick or cgiMulti or cgiNotEdit)) = cmDefault )
+      {
+        MarkerTxo := InitMarker('HOZOPER', 8, 20, 20, False);
+        ClearMarker(MarkerTxoAmmort);
+        CopyMarker(MarkerTxoAmmort, MarkerTxo);
+        fwKolFindTxo := GetMarkerCount(MarkerTxoAmmort);
+
+        if fwKolFindTxo = 1
+        {
+          if (GetFirst HozOper where ((cFilHozOper == HozOper.Nrec)) = tsOk)
+            Set fsFindTxo := HozOper.NAME1;
+        }
+        else
+          Set fsFindTxo := 'множественный выбор (' + String(fwKolFindTxo) + ')';
+       DoneMarker(MarkerTxo, 'HOZOPER');
+      }
+    }
+
+    #fsFindDM:
+    {
+      Var cFilDM : Comp = 0;
+      fwFindDM := 0;
+      fsFindDM := '';
+      if ( RunInterface('KatDragMet', cFilDM, Word(2)) = cmDefault )
+      {
+        _loop PickS where ((cgPick_Drag == PickS.wList))
+          fwFindDM++;
+        if fwFindDM = 1
+        {
+          if GetFirst PickS where ((cgPick_Drag == PickS.wList)) = tsOk
+            if GetFirst KatDrag where ((PickS.cRec == KatDrag.nRec)) = tsOk
+              Set fsFindDM := KatDrag.Name;
+        }
+        else
+          Set fsFindDM := 'множественный выбор (' + String(fwFindDM) + ')';
+      }
+    }
+
+    #fsAttachDoc:
+    {
+      Var cAttachDoc : Comp = 0;
+      fwAttachDoc := 0;
+      fsAttachDoc := '';
+      if ( RunInterface('KatKl', Word(1516), cAttachDoc, Word(1), Comp(0)) = cmDefault )
+      {
+        _loop PickS where ((cgPick_KlassOs == PickS.wList))
+           fwAttachDoc++;
+        if fwAttachDoc = 1
+        {
+          if GetFirst PickS where ((cgPick_KlassOs == PickS.wList)) = tsOk
+            if GetFirst KlassOs where ((PickS.cRec == KlassOs.nRec)) = tsOk
+              Set fsAttachDoc := KlassOs.Name;
+        }
+        else
+          Set fsAttachDoc := 'множественный выбор (' + String(fwAttachDoc) + ')';
+      }
+    }
+
+    #fsArendator:
+    {
+      _wIntMode   := cgiPickKau;
+      fwArendator := 0;
+      fsArendator := '';
+      #ifdef GalFuture
+      if ( RunInterface('GetSomeKontrPrim', True, IGetSomeKontrPrimParametersBase(Self)) = cmDefault )
+      #else
+      if ( RunInterface('GetSomeKontrPrim', True, IGetSomeKontrPrimParameters(Self)) = cmDefault )
+      #end
+      {
+        MarkerOrg := InitMarker('KatOrg', 8, 100, 50, False);
+        ClearMarker(MarkerArendator);
+        CopyMarker(MarkerArendator, MarkerOrg);
+        fwArendator := GetMarkerCount(MarkerArendator);
+
+        if fwArendator = 1
+        {
+          Var cArendOrg : Comp = 0;
+          GetMarker(MarkerArendator, 0, cArendOrg);
+          if (GetFirst KatOrgArenda where ((cArendOrg == KatOrgArenda.Nrec)) = tsOk)
+            Set fsArendator := KatOrgArenda.Name;
+        }
+        else
+          Set fsArendator := 'множественный выбор (' + String(fwArendator) + ')';
+        DoneMarker(MarkerOrg, 'KatOrg');
+      }
+    }
+
+    #fsArendodatel:
+    {
+      _wIntMode     := cgiPickKau;
+      fwArendodatel := 0;
+      fsArendodatel := '';
+      #ifdef GalFuture
+      if ( RunInterface('GetSomeKontrPrim', True, IGetSomeKontrPrimParametersBase(Self)) = cmDefault )
+      #else
+      if ( RunInterface('GetSomeKontrPrim', True, IGetSomeKontrPrimParameters(Self)) = cmDefault )
+      #end
+      {
+        MarkerOrg := InitMarker('KatOrg', 8, 100, 50, False);
+        ClearMarker(MarkerArendodatel);
+        CopyMarker(MarkerArendodatel, MarkerOrg);
+        fwArendodatel := GetMarkerCount(MarkerArendodatel);
+
+        if fwArendodatel = 1
+        {
+          Var cArendOrg : Comp = 0;
+          GetMarker(MarkerArendodatel, 0, cArendOrg);
+          if (GetFirst KatOrgArenda where ((cArendOrg == KatOrgArenda.Nrec)) = tsOk)
+            Set fsArendodatel := KatOrgArenda.Name;
+        }
+        else
+          Set fsArendodatel := 'множественный выбор (' + String(fwArendodatel) + ')';
+        DoneMarker(MarkerOrg, 'KatOrg');
+      }
+    }
+
+    #fsBindedKAUkod:
+    {
+      fwBindedKAUkod := 0;
+      fsBindedKAUkod := '';
+      if ( RunInterface('GetKauTable', cgiPick, cgKatKau_BuhDisabled, fwBindedKAUkod, Comp(0)) = cmDefault )
+        if GetFirst KatKau where ((fwBindedKAUkod == KatKau.KodGroup)) = tsOk
+          Set fsBindedKAUkod := KatKau.Name;
+    }
+  end; // case
+
+  SetFieldsSelectWiFindOsIzn;
+}
+
+cmCheckField:
+{
+  if CurField = #fwFindTitle
+    if fwFindTitle = 6
+      boInMemLoad := True;
+
+  SetFieldsSelectWiFindOsIzn
+}
+
+cmDelOnProtect:
+{
+  case CurField of
+    #fsFindCondition:
+      Set fwFindCondition := 0;
+    #fsFindGrOs:     { Set fsFindGrOs     := ''; Set fwKolFindGrOs  := 0;
+                       if Delete PickS where ((cgPick_GrOs == PickS.wList)) <> tsOk {}}
+    #fsFindVid:      { Set fsFindVid      := ''; Set fwKolFindVid   := 0;
+                       if Delete PickS where ((cgPick_VidNorm == PickS.wList)) <> tsOk {}}
+    #fsFindNorm:     { Set fsFindNorm     := ''; Set fwKolFindNorm  := 0;
+                       if Delete PickS where ((cgPick_Norm == PickS.wList)) <> tsOk {}}
+    #fsFindIspOs:    { Set fsFindIspOs    := ''; Set fwKolFindIspOs := 0;
+                       if Delete PickS where ((cgPick_IspOs == PickS.wList)) <> tsOk {}}
+    #fsFindPodr:     { Set fsFindPodr     := ''; Set fwKolFindPodr  := 0;
+                       if Delete PickS where ((cgPick_Sklad == PickS.wList)) <> tsOk {}}
+    #fsFindMol:      { Set fsFindMol      := ''; Set fwKolFindMol   := 0;
+                       if Delete PickS where ((cgPick_Mol == PickS.wList)) <> tsOk {}}
+    #fsFindMetod:    { Set fsFindMetod    := ''; Set fwKolFindMetod := 0;
+                       ClearMarker(MarkerAlg);}
+    #fsFindTxo:      { Set fsFindTxo      := ''; Set fwKolFindTxo   := 0; }
+    #fsFindDM:       { Set fsFindDM :='наличие'; Set fwFindDM       := 0;
+                       if Delete PickS where ((cgPick_Drag == PickS.wList)) <> tsOk {}}
+    #fsAttachDoc:    { Set fsAttachDoc    := ''; Set fwAttachDoc    := 0;
+                       if Delete PickS where ((cgPick_KlassOs == PickS.wList)) <> tsOk {}}
+    #fsArendator:    { Set fsArendator    := ''; Set fwArendator    := 0;
+                       ClearMarker(MarkerArendator);}
+    #fsArendodatel:  { Set fsArendodatel  := ''; Set fwArendodatel  := 0;
+                       ClearMarker(MarkerArendodatel);}
+    #fsBindedKAUkod: { Set fsBindedKAUkod := ''; Set fwBindedKAUkod := 0; }
+
+    #fsFindOperPost:      { Set fsFindOperPost     := ''; Set cMoveOsPost     := 0; }
+    #fsFindOperVnPerem:   { Set fsFindOperVnPerem  := ''; Set cMoveOsVnPerem  := 0; }
+    #fsFindOperIzmStoim:  { Set fsFindOperIzmStoim := ''; Set cMoveOsIzmStoim := 0; }
+    #fsFindOperVibil:     { Set fsFindOperVibil    := ''; Set cMoveOsVibil    := 0; }
+    #fsFindOperPereoc:    { Set fsFindOperPereoc   := ''; Set cMoveOsPereoc   := 0; }
+    #fsFindOperIzmGroup:  { Set fsFindOperIzmGroup := ''; Set cMoveOsIzmGroup := 0; }
+    #fsFindOperIzmParam:  { Set fsFindOperIzmParam := ''; Set cMoveOsIzmParam := 0; }
+
+    #fsFindTxoPost:     { Set fsFindTxoPost     := ''; Set fwKolFindTxoPost     := 0; ClearMarker(MarkerTxoPost);     }
+    #fsFindTxoVnPerem:  { Set fsFindTxoVnPerem  := ''; Set fwKolFindTxoVnPerem  := 0; ClearMarker(MarkerTxoVnPerem);  }
+    #fsFindTxoIzmStoim: { Set fsFindTxoIzmStoim := ''; Set fwKolFindTxoIzmStoim := 0; ClearMarker(MarkerTxoIzmStoim); }
+    #fsFindTxoVibil:    { Set fsFindTxoVibil    := ''; Set fwKolFindTxoVibil    := 0; ClearMarker(MarkerTxoVibil);    }
+    #fsFindTxoPereoc:   { Set fsFindTxoPereoc   := ''; Set fwKolFindTxoPereoc   := 0; ClearMarker(MarkerTxoPereoc);   }
+    #fsFindTxoIzmGroup: { Set fsFindTxoIzmGroup := ''; Set fwKolFindTxoIzmGroup := 0; ClearMarker(MarkerTxoIzmGroup); }
+    #fsFindTxoIzmParam: { Set fsFindTxoIzmParam := ''; Set fwKolFindTxoIzmParam := 0; ClearMarker(MarkerTxoIzmParam); }
+  end;
+
+  SetFieldsSelectWiFindOsIzn;
+}
+End; // TableEvent Table MyStruct;
+#endif
+
+//------------------------------------------------------------------------------
+Procedure Field_NMA;
+{
+  ClearFieldOption(#FilTipOb,ofSelecTable);
+  ClearFieldOption(#FilBArKod,ofSelecTable);
+
+  ClusterDisabledField(#FilKat,32768 or 65536);
+
+  SetFieldandLabelVisible(#cFilDrg, false);
+
+  ClearFieldOption(#FilAddr, ofSelecTable);
+  ClusterDisabledField(#FilSelKs, 2);
+}
+
+//------------------------------------------------------------------------------
+WindowEvent wiFiltrKatOs;
+  //----------------------------------------------------------
+cmInit :
+{
+  // вкладка "Картотека"
+  if (not isFiltrPodr) and (not isFiltrMOL) and (not PrSpecOb)
+    ReadMyDsk(FilKat, 'KatOss_FilKat_' + String(TipDock), True);
+  ReadMyDsk(FilKatExt, 'KatOss_FilKatExt_' + String(TipDock), True);
+  if (isFiltrPodr)
+    Set FilKat := FilKat or 2048;
+  if (isFiltrMOL)
+    Set FilKat := FilKat or 4096;
+  if (PrSpecOb)
+    Set FilKat := FilKat or 32768;
+
+  ReadMyDsk(FilPas,    'KatOss_FilPas_'    + String(TipDock), True);
+
+  ReadMyDsk(FilInNum,  'KatOss_FilInNum_'  + String(TipDock), True);
+  ReadMyDsk(FilName,   'KatOss_FilName_'   + String(TipDock), True);
+  ReadMyDsk(FilZvIz,   'KatOss_FilZvIz_'   + String(TipDock), True);
+  ReadMyDsk(FilModTip, 'KatOss_FilModTip_' + String(TipDock), True);
+
+  ReadMyDsk(cFilGr,   'KatOss_cFilGr_'     + String(TipDock), True);
+  ReadMyDsk(cFilVid,  'KatOss_cFilVid_'    + String(TipDock), True);
+  ReadMyDsk(cFilNorm, 'KatOss_cFilNorm_'   + String(TipDock), True);
+  ReadMyDsk(cFilOKOF, 'KatOss_cFilOKOF_'   + String(TipDock), True);
+  ReadMyDsk(cFilAmGr, 'KatOss_cFilAmGr_'   + String(TipDock), True);
+  ReadMyDsk(FilZavN,  'KatOss_FilZavN_'    + String(TipDock), True);
+  ReadMyDsk(FilPasN,  'KatOss_FilPasN_'    + String(TipDock), True);
+  ReadMyDsk(cFilIsp,  'KatOss_cFilIsp_'    + String(TipDock), True);
+
+  if (Not BoundActive(tbbyKatosPdrz))
+  {
+    ReadMyDsk(cNRecPodr, 'KatOss_cNRecPodr_' + String(TipDock), True);
+    #ifdef __KatosFilters__
+    ReadMyDsk(wTipPodr,  'KatOss_wTipPodr_'  + String(TipDock), True);
+    #end
+  }
+  if (Not BoundActive(tbbyKatosMol))
+    ReadMyDsk(cNRecMol, 'KatOss_cNRecMol_' + String(TipDock), True);
+  ReadMyDsk(cFilMetod,  'KatOss_cFilMetod_'   + String(TipDock), True);
+  ReadMyDsk(cFilHozOper,'KatOss_cFilHozOper_' + String(TipDock), True);
+  if not PrSpecOb
+    ReadMyDsk(cFilTipOb,  'KatOss_cFilTipOb_' + String(TipDock), True);
+
+  ReadMyDsk(FilBArKod, 'KatOss_FilBArKod_' + String(TipDock), True);
+  ReadMyDsk(FilImNum,  'KatOss_FilImNum_'  + String(TipDock), True);
+  ReadMyDsk(cFilPrSb,  'KatOss_cFilPrSb_'  + String(TipDock), True);
+  if CurCO = 0
+    ReadMyDsk(cFilCO, 'KatOss_cFilCO_' + String(TipDock), True);
+  ReadMyDsk(cFilCOFilial, 'KatOss_cFilCOFilial_' + String(TipDock), True);
+
+#ifdef __KatosFilters__
+  #ifdef __TPR2__
+  ReadMyDsk(cFilcNote, 'KatOss_cFilcNote_' + String(TipDock), True);
+  if (cFilcNote <> 0)
+    if (GetFirst KatNotes where ((cFilcNote == KatNotes.NRec)) = tsOk)     // статусы
+      FilNote := KatNotes.Name;
+  if AvailableInvCardType = 0
+    ReadMyDsk(cFilInvCard, 'KatOss_cFilInvCard_' + String(TipDock), True);
+  #end
+
+  if (not ReadMyDsk(fDescr, 'KatOss_fDescr_' + String(TipDock), True))
+    FDescr := CurDescr;
+  if (CurVisible = cgDocVisible_MySelf) or (Trim(FDescr) = '')
+    FDescr := CurDescr;
+
+  if (not ReadMyDsk(fGrDescr, 'KatOss_fGrDescr_' + String(TipDock), True))
+    FGrDescr := CurDesGr;
+  if (CurVisible = cgDocVisible_GrRead or CurVisible = cgDocVisible_GrAll) or (Trim(FGrDescr) = '')
+    FGrDescr := CurDesGr;
+
+  if (isProtectDesGrForCurUser)
+  {
+    Set FilKat := FilKat or 1048576;
+    ClearFieldOption(#fGrDescr, ofSelecTable);
+  }
+
+  if isProtectDescr
+  {
+    Set FilKat := FilKat or 2097152;
+    ClearFieldOption(#FDescr, ofSelecTable);
+  }
+
+  ClusterDisabledField(#FilKat,
+                      if(isProtectDesGrForCurUser, 1048576, Word(0)) or
+                      if(isProtectDescr,           2097152, Word(0)));
+
+  if CurVisibleCO = dcOwnOnly
+  {
+    Set FilKat := FilKat or 524288;
+    ClearFieldOption(#FFILCO_OS, ofSelecTable);
+    ClusterDisabledField(#FilKat, 524288);
+  }
+#end
+
+  // вкладка "Объект строительства"
+  ReadMyDsk(wFilVvSysOper, 'KatOss_wFilVvSysOper_' + String(TipDock), True);
+  ReadMyDsk(cFilStroy,     'KatOss_cFilStroy_'     + String(TipDock), True);
+  ReadMyDsk(cFilAddr,      'KatOss_cFilAddr_'      + String(TipDock), True);
+
+  if (cFilNorm <> 0)
+    if (GetFirst VidNorma where ((cFilNorm == VidNorma.NRec)) = tsOk)
+      if VidNorma.isLeaf = 1
+        FilNorm := VidNorma.Name;
+
+  if (cFilOKOF <> 0)
+    if (GetFirst KODOF where ((cFilOKOF == KODOF.Nrec)) = tsOk)
+       FilOKOF := KODOF.Kod_of + ' ' + KODOF.Name_of;
+
+  if (cFilMetod <> 0)
+    if (GetFirst OsAlg where  ((cFilMetod == OsAlg.Nrec)) = tsOk)
+       FilMetod := OsAlg.NAME;
+
+  if (cFilHozOper <> 0)
+    if (GetFirst HozOper where ((cFilHozOper == HozOper.Nrec)) = tsOk)
+       FilHozOper := HozOper.NAME1;
+
+  if (cFilTipOb <> 0)
+    if (GetFirst Sposob where ((cFilTipOb == Sposob.Nrec)) = tsOk)
+       FilTipOb := Sposob.NameSb;
+
+  if (wTip=15) and (cFilAddr=0)
+    if (GetFirst AddressN where ((   15 == AddressN.ObjType
+                           and UserId() == AddressN.cPerson )) = tsOk)
+      cFilAddr := AddressN.nRec;
+
+  if (wTip = 15) or (wTip = 16)
+  {
+    SetTabbedSheetVisible(scrFiltrStroy, True);
+
+    if N_int = 1
+    {
+      SetTabbedSheetVisible(scFiltrArcDat, False);
+
+        SelectFormat(scFiltrKatOs);
+        #ifdef __KatosFilters__
+        #ifdef __TPR2__
+        if boGetTune('OS.COMP.USE') and (AvailableInvCardType = 0)
+        {
+          SetFieldState(#cFilInvCard, sfVisible);
+          ClusterDisabledField(#FilKatExt, 0);
+        }
+        else
+        {
+          if AvailableInvCardType <> 0
+            FilKatExt := FilKatExt or 4;
+          ClearFieldState(#cFilInvCard, sfVisible);
+          ClusterDisabledField(#FilKatExt, 4);
+        }
+        #end
+        #end
+
+      if (wTip = 16)
+        Field_NMA();
+      SelectFieldInFormat(scFiltrKatOs,#FilInNum);
+    }
+    else
+      if N_int = 3
+      {
+        if wTip = 15
+        {
+          SetTabbedSheetVisible(scFiltrArcDat, True);
+
+          SelectFormat(scFiltrArcDat);
+          #ifdef __KatosFilters__
+          #ifdef __TPR2__
+          if boGetTune('OS.COMP.USE') and (AvailableInvCardType = 0)
+          {
+            SetFieldState(#cFilInvCard, sfVisible);
+            ClusterDisabledField(#FilKatExt, 0);
+          }
+          else
+          {
+            if AvailableInvCardType <> 0
+              FilKatExt := FilKatExt or 4;
+            ClearFieldState(#cFilInvCard, sfVisible);
+            ClusterDisabledField(#FilKatExt, 4);
+          }
+          #end
+          #end
+
+#ifdef __ArcIznosFilters__
+          SelectFieldInFormat(scFiltrArcDat, #bMDateTop);
+#end
+        }
+        else
+        {
+          SetTabbedSheetVisible(scFiltrArcDat, True);
+
+          SelectFormat(scFiltrArcDat);
+#ifdef __ArcIznosFilters__
+          SelectFieldInFormat(scFiltrArcDat, #bMDateTop);
+#end
+
+          Field_NMA;
+        }
+      }
+      else
+      {
+        SetTabbedSheetVisible(scFiltrArcDat, False);
+
+        SelectFormat(scFiltrKatOs);
+
+        SelectFieldInFormat(scFiltrKatOs, #FilInNum);
+
+        ClusterDisabledField(#FilKat, 32768);
+        ClearFieldOption(#FilTipOb, ofSelecTable);
+      }
+  }
+  else
+  {
+    SetTabbedSheetVisible(scrFiltrStroy, False);
+
+    if N_int = 1
+    {
+      SetTabbedSheetVisible(scFiltrArcDat, False);
+
+      if KatOs.TiDk = 115
+      {
+        SelectFormat(scFiltrKatOs);
+        #ifdef __KatosFilters__
+        #ifdef __TPR2__
+        if boGetTune('OS.COMP.USE') and (AvailableInvCardType = 0)
+        {
+          SetFieldState(#cFilInvCard, sfVisible);
+          ClusterDisabledField(#FilKatExt, 0);
+        }
+        else
+        {
+          if AvailableInvCardType <> 0
+            FilKatExt := FilKatExt or 4;
+          ClearFieldState(#cFilInvCard, sfVisible);
+          ClusterDisabledField(#FilKatExt, 4);
+        }
+        #end
+        #end
+      }
+      else
+      {
+        SelectFormat(scFiltrKatOs);
+
+        Field_NMA();
+      }
+
+      SelectFieldInFormat(scFiltrKatOs, #FilInNum);
+    }
+  }
+
+  #ifdef __ArcIznosFilters__
+  SetFieldSelectable(#TipBoundsNrec, wFiltNRec = 1);
+  #end
+
+  SetInternalHelpLine(scFiltrKatOs2, #cFilZnakSumIzn, sNameHelpLineSumIzn);
+  SetInternalHelpLine(scFiltrKatOs2, #FilSumIzn     , sNameHelpLineSumIzn);
+  SetInternalHelpLine(scFiltrKatOs2, #cFilZnakSIznM,  sNameHelpLineSIznM);
+  SetInternalHelpLine(scFiltrKatOs2, #FilSIznM     ,  sNameHelpLineSIznM);
+
+  #ifdef __KatosFilters__
+  // Вкладка "Отбор"
+  ReadMyDsk(fwFindTitle,     'OsIznFunc_fwFindTitle_'     + TipDock, True);
+  ReadMyDsk(fwFindCondition, 'OsIznFunc_fwFindCondition_' + TipDock, True);
+  ReadMyDsk(fwHistCond,      'OsIznFunc_fwHistCond_'      + TipDock, True);
+  ReadMyDsk(fdBeginDate,     'OsIznFunc_fdBeginDate_'     + TipDock, True);
+  ReadMyDsk(fdEndDate,       'OsIznFunc_fdEndDate_'       + TipDock, True);
+  ReadMyDsk(wSelCheck,       'OsIznFunc_wSelCheck_'       + TipDock, True);
+  ReadMyDsk(boInMemLoad,     'OsIznFunc_boInMemLoad'      + TipDock, True);
+  ReadMyDsk(boNullOnly,      'OsIznFunc_boNullOnly'       + TipDock, True);
+  ReadMyDsk(fwCheckAccord,   'OsIznFunc_fwCheckAccord'    + TipDock, True);
+  ReadMyDsk(fwBindedKAU,     'OsIznFunc_fwBindedKAU'      + TipDock, True);
+  ReadMyDsk(fwBindedKAUkod,  'OsIznFunc_fwBindedKAUkod'   + TipDock, True);
+
+  fwKolFindGrOs := fwKolFindVid := fwKolFindNorm  := fwKolFindIspOs := 0;
+  fwKolFindPodr := fwKolFindMol := fwKolFindMetod := fwKolFindTxo   := 0;
+  fwFindDM      := fwAttachDoc  := fwArendator    := fwArendodatel  := 0;
+
+  _loop PickS where ((cgPick_GrOs == PickS.wList))
+     fwKolFindGrOs++;
+  if (fwKolFindGrOs <> 0)
+    fsFindGrOs:= 'множественный выбор (' + String(fwKolFindGrOs) + ')';
+
+  _loop PickS where ((cgPick_VidNorm == PickS.wList))
+     fwKolFindVid++;
+  if (fwKolFindVid <> 0)
+    fsFindVid:= 'множественный выбор (' + String(fwKolFindVid) + ')';
+
+  _loop PickS where ((cgPick_Norm == PickS.wList))
+     fwKolFindNorm++;
+  if (fwKolFindNorm <> 0)
+    fsFindNorm:= 'множественный выбор (' + String(fwKolFindNorm) + ')';
+
+  _loop PickS where ((cgPick_IspOs == PickS.wList))
+    fwKolFindIspOs++;
+  if (fwKolFindIspOs <> 0)
+    fsFindIspOs:= 'множественный выбор (' + String(fwKolFindIspOs) + ')';
+
+  _loop PickS where ((cgPick_Sklad == PickS.wList))
+    fwKolFindPodr++;
+  if (fwKolFindPodr <> 0)
+    fsFindPodr:= 'множественный выбор (' + String(fwKolFindPodr) + ')';
+
+  _loop PickS where ((cgPick_Mol == PickS.wList))
+    fwKolFindMol++;
+  if (fwKolFindMol <> 0)
+    fsFindMol:= 'множественный выбор (' + String(fwKolFindMol) + ')';
+
+  MarkerAlg := InitMarker('GetAlgAm_Marker', 8, 20, 20, False);
+  fwKolFindMetod := GetMarkerCount(MarkerAlg);
+  if (fwKolFindMetod <> 0)
+    fsFindMetod := 'множественный выбор (' + String(fwKolFindMetod) + ')';
+
+  MarkerTxoAmmort := InitMarker('Ammort', 8, 20, 20, False);
+  fwKolFindTxo := GetMarkerCount(MarkerTxoAmmort);
+  if (fwKolFindTxo <> 0)
+    fsFindTxo := 'множественный выбор (' + String(fwKolFindTxo) + ')';
+
+  _loop PickS where ((cgPick_Drag == PickS.wList))
+     fwFindDM++;
+  if (fwFindDM <> 0)
+    fsFindDM:= 'множественный выбор (' + String(fwFindDM) + ')';
+  else
+    fsFindDM:= 'наличие';
+
+  _loop PickS where ((cgPick_KlassOs == PickS.wList))
+    fwAttachDoc++;
+  if (fwAttachDoc <> 0)
+    fsAttachDoc:= 'множественный выбор (' + String(fwAttachDoc) + ')';
+
+  MarkerArendator := InitMarker('Arendator', 8, 20, 20, False);
+  fwArendator := GetMarkerCount(MarkerArendator);
+  if (fwArendator <> 0)
+    fsArendator := 'множественный выбор (' + String(fwArendator) + ')';
+
+  MarkerArendodatel := InitMarker('Arendodatel', 8, 20, 20, False);
+  fwArendodatel := GetMarkerCount(MarkerArendodatel);
+  if (fwArendodatel <> 0)
+    fsArendodatel := 'множественный выбор (' + String(fwArendodatel) + ')';
+
+  if (fwBindedKAUkod <> 0)
+    if GetFirst KatKau where ((fwBindedKAUkod == KatKau.KodGroup)) = tsOk
+      fsBindedKAUkod := KatKau.Name;
+
+  MarkerTxoPost     := InitMarker('Post'    , 8, 20, 20, False);
+  MarkerTxoVnPerem  := InitMarker('VnPerem' , 8, 20, 20, False);
+  MarkerTxoIzmStoim := InitMarker('IzmStoim', 8, 20, 20, False);
+  MarkerTxoVibil    := InitMarker('Vibil'   , 8, 20, 20, False);
+  MarkerTxoPereoc   := InitMarker('Pereoc'  , 8, 20, 20, False);
+  MarkerTxoIzmGroup := InitMarker('IzmGroup', 8, 20, 20, False);
+  MarkerTxoIzmParam := InitMarker('IzmParam', 8, 20, 20, False);
+
+  fwKolFindTxoPost := GetMarkerCount(MarkerTxoPost);
+  if (fwKolFindTxoPost <> 0)
+    fsFindTxoPost := 'множественный выбор (' + String(fwKolFindTxoPost) + ')';
+
+  fwKolFindTxoVnPerem := GetMarkerCount(MarkerTxoVnPerem);
+  if (fwKolFindTxoVnPerem <> 0)
+    fsFindTxoVnPerem := 'множественный выбор (' + String(fwKolFindTxoVnPerem) + ')';
+
+  fwKolFindTxoIzmStoim := GetMarkerCount(MarkerTxoIzmStoim);
+  if (fwKolFindTxoIzmStoim <> 0)
+    fsFindTxoIzmStoim := 'множественный выбор (' + String(fwKolFindTxoIzmStoim) + ')';
+
+  fwKolFindTxoVibil := GetMarkerCount(MarkerTxoVibil);
+  if (fwKolFindTxoVibil <> 0)
+    fsFindTxoVibil := 'множественный выбор (' + String(fwKolFindTxoVibil) + ')';
+
+  fwKolFindTxoPereoc := GetMarkerCount(MarkerTxoPereoc);
+  if (fwKolFindTxoPereoc <> 0)
+    fsFindTxoPereoc := 'множественный выбор (' + String(fwKolFindTxoPereoc) + ')';
+
+  fwKolFindTxoIzmGroup := GetMarkerCount(MarkerTxoIzmGroup);
+  if (fwKolFindTxoIzmGroup <> 0)
+    fsFindTxoIzmGroup := 'множественный выбор (' + String(fwKolFindTxoIzmGroup) + ')';
+
+  fwKolFindTxoIzmParam := GetMarkerCount(MarkerTxoIzmParam);
+  if (fwKolFindTxoIzmParam <> 0)
+    fsFindTxoIzmParam := 'множественный выбор (' + String(fwKolFindTxoIzmParam) + ')';
+
+  SetFieldsSelectWiFindOsIzn;
+
+  ReadMyDsk(cMoveOsPost,     'cMoveOsPost',     True);
+  if( (cMoveOsPost <> 0) and ( GetFirst MoveOs where((cMoveOsPost == MoveOs.NRec)) = tsOk ) )
+    fsFindOperPost := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+
+  ReadMyDsk(cMoveOsVnPerem,  'cMoveOsVnPerem',  True);
+  if( (cMoveOsVnPerem <> 0) and ( GetFirst MoveOs where((cMoveOsVnPerem == MoveOs.NRec)) = tsOk ) )
+    fsFindOperVnPerem := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+
+  ReadMyDsk(cMoveOsIzmStoim, 'cMoveOsIzmStoim', True);
+  if( (cMoveOsIzmStoim <> 0) and ( GetFirst MoveOs where((cMoveOsIzmStoim == MoveOs.NRec)) = tsOk ) )
+    fsFindOperIzmStoim := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+
+  ReadMyDsk(cMoveOsVibil,    'cMoveOsVibil',    True);
+  if( (cMoveOsVibil <> 0) and ( GetFirst MoveOs where((cMoveOsVibil == MoveOs.NRec)) = tsOk ) )
+    fsFindOperVibil := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+
+  ReadMyDsk(cMoveOsPereoc,   'cMoveOsPereoc',   True);
+  if( (cMoveOsPereoc <> 0) and ( GetFirst MoveOs where((cMoveOsPereoc == MoveOs.NRec)) = tsOk ) )
+    fsFindOperPereoc := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+
+  ReadMyDsk(cMoveOsIzmGroup, 'cMoveOsIzmGroup', True);
+  if( (cMoveOsIzmGroup <> 0) and ( GetFirst MoveOs where((cMoveOsIzmGroup == MoveOs.NRec)) = tsOk ) )
+    fsFindOperIzmGroup := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+
+  ReadMyDsk(cMoveOsIzmParam, 'cMoveOsIzmParam', True);
+  if( (cMoveOsIzmParam <> 0) and ( GetFirst MoveOs where((cMoveOsIzmParam == MoveOs.NRec)) = tsOk ) )
+    fsFindOperIzmParam := MoveOs.NoDoc + ' от ' + DateToStr(MoveOs.DatOb, 'DD/MM/YYYY');
+
+  MarkerInMemo := InitMarker('InMemo', 8, 20, 20, False);
+
+  Var lValues : Array [1..7] of Integer;
+  Var sValues : Array [1..7] of String;
+  Var iNum : Word = 1;
+
+  lValues[iNum] := 0;
+  sValues[iNum] := 'полностью изношенных';
+  iNum++;
+
+  lValues[iNum] := 1;
+  sValues[iNum] := 'по операциям';
+  iNum++;
+
+  if wGetTune('Country') = ccRus
+  {
+    lValues[iNum] := 2;
+    sValues[iNum] := 'с амортизационной льготой';
+    iNum++;
+  }
+
+  lValues[iNum] := 3;
+  sValues[iNum] := 'поступивших с помеченными';
+  iNum++;
+
+  if TipDock = 15
+  {
+    lValues[iNum] := 4;
+    sValues[iNum] := 'в залоге';
+    iNum++;
+  }
+
+  lValues[iNum] := 5;
+  sValues[iNum] := 'по истории изменений';
+  iNum++;
+
+  lValues[iNum] := 6;
+  sValues[iNum] := 'по помеченным';
+  iNum++;
+
+  if TipDock = 15 AND OS_Reserv_Use
+  {
+    lValues[iNum] := 7;
+    sValues[iNum] := 'по наличию резервов';
+    iNum++;
+  }
+
+  SetEnumList(scFindOsIzn, #fwFindTitle, sValues, lValues);
+
+  if not isValid(#slParams)
+    FillParams;
+  if fwHistCond = 0
+  {
+    if GetFirst slParams <> tsOk {}
+  }
+  else
+    if GetFirst slParams where ((fwHistCond == slParams.NumKod)) <> tsOk {}
+
+#ifdef __KatosFilters__
+  FilFieldState(vwSaldTune);
+#end
+
+  #endif
+ } //cmInit
+
+//----------------------------------------------------------
+cmDone :
+{
+  // вкладка "Картотека"
+  if (not isFiltrPodr) and (not isFiltrMOL) and (not PrSpecOb)
+    SaveMyDsk(FilKat, 'KatOss_FilKat_' + String(TipDock));
+  SaveMyDsk(FilKatExt, 'KatOss_FilKatExt_' + String(TipDock));
+  SaveMyDsk(FilPas,    'KatOss_FilPas_'    + String(TipDock));
+
+  SaveMyDsk(FilInNum,  'KatOss_FilInNum_'  + String(TipDock));
+  SaveMyDsk(FilName,   'KatOss_FilName_'   + String(TipDock));
+  SaveMyDsk(FilZvIz,   'KatOss_FilZvIz_'   + String(TipDock));
+  SaveMyDsk(FilModTip, 'KatOss_FilModTip_' + String(TipDock));
+
+  SaveMyDsk(cFilGr,    'KatOss_cFilGr_'    + String(TipDock));
+  SaveMyDsk(cFilVid,   'KatOss_cFilVid_'   + String(TipDock));
+  SaveMyDsk(cFilNorm,  'KatOss_cFilNorm_'  + String(TipDock));
+  SaveMyDsk(cFilOKOF,  'KatOss_cFilOKOF_'  + String(TipDock));
+  SaveMyDsk(cFilAmGr,  'KatOss_cFilAmGr_'  + String(TipDock));
+  SaveMyDsk(FilZavN,   'KatOss_FilZavN_'   + String(TipDock));
+  SaveMyDsk(FilPasN,   'KatOss_FilPasN_'   + String(TipDock));
+  SaveMyDsk(cFilIsp,   'KatOss_cFilIsp_'   + String(TipDock));
+
+  if (Not isFiltrPodr)
+  {
+    SaveMyDsk(cNRecPodr, 'KatOss_cNRecPodr_' + String(TipDock));
+    #ifdef __KatosFilters__
+    SaveMyDsk(wTipPodr,  'KatOss_wTipPodr_'  + String(TipDock));
+    #end
+  }
+  if (Not isFiltrMOL)
+    SaveMyDsk(cNRecMol,  'KatOss_cNRecMol_'  + String(TipDock));
+  SaveMyDsk(cFilMetod,   'KatOss_cFilMetod_'   + String(TipDock));
+  SaveMyDsk(cFilHozOper, 'KatOss_cFilHozOper_' + String(TipDock));
+  SaveMyDsk(cFilTipOb,   'KatOss_cFilTipOb_'   + String(TipDock));
+
+  SaveMyDsk(FilBArKod,    'KatOss_FilBArKod_'    + String(TipDock));
+  SaveMyDsk(FilImNum,     'KatOss_FilImNum_'     + String(TipDock));
+  SaveMyDsk(cFilPrSb,     'KatOss_cFilPrSb_'     + String(TipDock));
+  SaveMyDsk(cFilCO,       'KatOss_cFilCO_'       + String(TipDock));
+  SaveMyDsk(cFilCOFilial, 'KatOss_cFilCOFilial_' + String(TipDock));
+  SaveMyDsk(cFilcNote,    'KatOss_cFilcNote_'    + String(TipDock));
+  SaveMyDsk(cFilInvCard,  'KatOss_cFilInvCard_'  + String(TipDock));
+
+  SaveMyDsk(fDescr,   'KatOss_fDescr_'   + String(TipDock));
+  SaveMyDsk(fGrDescr, 'KatOss_fGrDescr_' + String(TipDock));
+
+  // вкладка "Объект строительства"
+  SaveMyDsk(wFilVvSysOper, 'KatOss_wFilVvSysOper_' + String(TipDock));
+  SaveMyDsk(cFilStroy,     'KatOss_cFilStroy_'     + String(TipDock));
+  SaveMyDsk(cFilAddr,      'KatOss_cFilAddr_'      + String(TipDock));
+
+  #ifdef __KatosFilters__
+  // вкладка "Отбор"
+  DoneMarker(MarkerTxo,         'Ammort'  );
+  DoneMarker(MarkerTxoPost,     'Post'    );
+  DoneMarker(MarkerTxoVnPerem,  'VnPerem' );
+  DoneMarker(MarkerTxoIzmStoim, 'IzmStoim');
+  DoneMarker(MarkerTxoVibil,    'Vibil'   );
+  DoneMarker(MarkerTxoPereoc,   'Pereoc'  );
+  DoneMarker(MarkerTxoIzmGroup, 'IzmGroup');
+  DoneMarker(MarkerTxoIzmParam, 'IzmParam');
+  DoneMarker(MarkerArendator,   'Arendator');
+  DoneMarker(MarkerArendodatel, 'Arendodatel');
+  DoneMarker(MarkerAlg,         'GetAlgAm_Marker');
+
+  SaveMyDsk(fwFindTitle,     'OsIznFunc_fwFindTitle_'     + TipDock);
+  SaveMyDsk(fwFindCondition, 'OsIznFunc_fwFindCondition_' + TipDock);
+  SaveMyDsk(fwHistCond,      'OsIznFunc_fwHistCond_'      + TipDock);
+  SaveMyDsk(fdBeginDate,     'OsIznFunc_fdBeginDate_'     + TipDock);
+  SaveMyDsk(fdEndDate,       'OsIznFunc_fdEndDate_'       + TipDock);
+  SaveMyDsk(wSelCheck,       'OsIznFunc_wSelCheck_'       + TipDock);
+  SaveMyDsk(boInMemLoad,     'OsIznFunc_boInMemLoad'      + TipDock);
+  SaveMyDsk(boNullOnly,      'OsIznFunc_boNullOnly'       + TipDock);
+  SaveMyDsk(fwCheckAccord,   'OsIznFunc_fwCheckAccord'    + TipDock);
+  SaveMyDsk(fwBindedKAU,     'OsIznFunc_fwBindedKAU'      + TipDock);
+  SaveMyDsk(fwBindedKAUkod,  'OsIznFunc_fwBindedKAUkod'   + TipDock);
+
+  SaveMyDsk(cMoveOsPost,     'cMoveOsPost'    );
+  SaveMyDsk(cMoveOsVnPerem,  'cMoveOsVnPerem' );
+  SaveMyDsk(cMoveOsIzmStoim, 'cMoveOsIzmStoim');
+  SaveMyDsk(cMoveOsVibil,    'cMoveOsVibil'   );
+  SaveMyDsk(cMoveOsPereoc,   'cMoveOsPereoc'  );
+  SaveMyDsk(cMoveOsIzmGroup, 'cMoveOsIzmGroup');
+  SaveMyDsk(cMoveOsIzmParam, 'cMoveOsIzmParam');
+
+  DoneMarker(MarkerInMemo, 'InMemo');
+  #endif
+}
+
+#ifdef __KatosFilters__
+//----------------------------------------------------------
+cmValue4:
+{
+  if (wSelCheck = 0)
+  {
+    if (fdBeginDate > fdEndDate) and (fdEndDate <> ZeroDate)
+    {
+      Message('Начало диапазона не может быть больше конца диапазона.');
+      SelectField(#fdBeginDate);
+      Exit;
+    }
+
+    if (fwFindTitle = 1) and (fwFindCondition = 0) and (fwKolFindPodr=0)
+    {
+      Message('Выберете операции, по которым должен'#13 +
+              'осуществляться поиск инвентарных карточек.');
+      SelectField(#fsFindCondition);
+      Exit;
+    }
+
+    if (fwFindTitle = 3) and (loPickKatOS.RecordExists Pick  where ((cgPick_KatOs == Pick.wList)) <> tsOk)
+    {
+      Message('Для пометки объектов поступивших с помеченными,'#13 +
+               'необходимо чтобы были помеченные объекты.'
+               , Information + CancelButton);
+      Exit;
+    }
+
+    if (fwFindTitle = 5) and (fdBeginDate = ZeroDate)
+    {
+      Message('Для поиска по истории изменений необходимо задать период.');
+      Exit;
+    }
+
+    if (fwFindTitle = 6) and (loPickKatOS.RecordExists Pick  where ((cgPick_KatOs == Pick.wList)) <> tsOk)
+    {
+      Message('Для данного режима необходимо'#13 +
+               'чтобы были помеченные объекты.'
+               , Information + CancelButton);
+      Exit;
+    }
+  }
+  else
+  {
+    if ((wSelCheck and cgSel_GrOs) <> 0) and (fwKolFindGrOs = 0)
+    {
+      Message('Выберете группы, по которым должен'#13 + 'осуществляться поиск инвентарных карточек.');
+      SelectField(#fsFindGrOs);
+      Exit;
+    }
+    if ((wSelCheck and cgSel_Vid) <> 0) and (fwKolFindVid = 0)
+    {
+      Message('Выберете виды амортизации, по которым должен'#13 + 'осуществляться поиск инвентарных карточек.');
+      SelectField(#fsFindVid);
+      Exit;
+    }
+    if ((wSelCheck and cgSel_Norm) <> 0) and (fwKolFindNorm = 0)
+    {
+      Message('Выберете нормы амортизации, по которым должен'#13 + 'осуществляться поиск инвентарных карточек.');
+      SelectField(#fsFindNorm);
+      Exit;
+    }
+    if ((wSelCheck and cgSel_IspOs) <> 0) and (fwKolFindIspOs = 0)
+    {
+      Message('Выберете признаки использования, по которым должен'#13 + 'осуществляться поиск инвентарных карточек.');
+      SelectField(#fsFindIspOs);
+      Exit;
+    }
+    if ((wSelCheck and cgSel_Podr) <> 0) and (fwKolFindPodr = 0)
+    {
+      Message('Выберете подразделения, по которым должен'#13 + 'осуществляться поиск инвентарных карточек.');
+      SelectField(#fsFindPodr);
+      Exit;
+    }
+    if ((wSelCheck and cgSel_Mol) <> 0) and (fwKolFindMol = 0)
+    {
+      Message('Выберете МОЛ, по которым должен'#13 + 'осуществляться поиск инвентарных карточек.');
+      SelectField(#fsFindMol);
+      Exit;
+    }
+    if ((wSelCheck and cgSel_Metod) <> 0) and (fwKolFindMetod = 0)
+    {
+      Message('Выберете алгоритмы начисления амортизации, по которым должен'#13 + 'осуществляться поиск инвентарных карточек.');
+      SelectField(#fsFindMetod);
+      Exit;
+    }
+    if ((wSelCheck and cgSel_Txo) <> 0) and (fwKolFindTxo = 0)
+    {
+      Message('Выберете алгоритмы начисления амортизации, по которым должен'#13 + 'осуществляться поиск инвентарных карточек.');
+      SelectField(#fsFindTxo);
+      Exit;
+    }
+    if ((wSelCheck and cgSel_AttachDoc) <> 0) and (fwAttachDoc = 0)
+    {
+      Message('Выберете типы прикрепленных документов, по которым должен'#13 + 'осуществляться поиск инвентарных карточек.');
+      SelectField(#fsAttachDoc);
+      Exit;
+    }
+#ifdef __TPR2__
+    if ((wSelCheck and cgSel_BindedKAU) <> 0) and (fwBindedKAUkod = 0) and (fwBindedKAU = 1)
+                             and (FilKauName1 = '') and (FilKauName2 = '') and (FilKauName3 = '')
+                                   and (FilKauName4 = '') and (FilKauName5 = '') and (FilKauName6 = '')
+    {
+      Message('На закладке "Внешние КАУ" выберете внешние КАУ,'#13 + 'по которым должен осуществляться поиск инвентарных карточек.');
+      Exit;
+    }
+
+    if ((wSelCheck and cgSel_BindedCU) <> 0) and
+           ((vwSaldTune = 0) or ((wFilCUKau1 = 0) and (wFilCUKau2 = 0) and (wFilCUKau3 = 0) and (wFilCUKau4 = 0)
+                                   and (wFilCUKau5 = 0) and (wFilCUKau6 = 0) and (wFilCUKau7 = 0) and (wFilCUKau8 = 0)
+                                   and (wFilCUKau9 = 0) and (wFilCUKau10 = 0)))
+    {
+      Message('На закладке "Целевой учет" выберете признаки целевого учета,'#13 + 'по которым должен осуществляться поиск инвентарных карточек.');
+      Exit;
+    }
+#end
+  }
+
+  ClearMarker(MarkerInMemo);
+  if (boInMemTitle)
+  {
+    ReInitTable(#KatOs, fmNormal);
+    boInMemTitle := False;
+    ReReadRecord(#KatOs);
+  }
+
+  StartNewVisual(vtIndicatorVisual, vfTimer + vfBreak + vfConfirm, 'Идет поиск...', RecordsInTable(#KatOs));
+
+  boSwitchView := False;
+
+  if (isTree)
+  {
+    if BoundActive(tbbyTree)
+      SubBounds(tbbyTree);
+  }
+  else
+    if BoundActive(tbbyBrowse)
+      SubBounds(tbbyBrowse);
+
+  if (wSelCheck > 0)
+    SelectOS;
+  else
+    case fwFindTitle of
+      0: FindOsFullIznos;      // поиск полностью изношенных объектов за период
+      1: if (fsFindCondition > 0)
+          FindOsByOperation;   // поиск инвентарных карточек по операциям за период
+      2: FindOsByAmortPrem;    // поиск инвентарных карточек с амортизационной льготой
+      3: FindOsPostWithMarked; // поиск инвентарных карточек поступивших с помеченными
+      4: FindOsInZalog;        // поиск инвентарных карточек ОС в залоге
+      5: FindOsChangeHist;     // поиск инвентарных карточек с историей изменения по определенному параметру
+      6: FindOsByMarked;       // выгрузка в память уже помеченных
+      7: FindOsByReserves;     // поиск ИК имеющих резервы
+    end;
+
+  if (isTree)
+    AddBounds(tbbyTree);
+  else
+    AddBounds(tbbyBrowse);
+
+  SetTitles();
+  StopVisual('',0);
+  CloseWindow(CurWindow);
+}
+#endif
+
+//----------------------------------------------------------
+cmOk :
+{
+  Var strErr : String = '';
+
+  if ( (LongInt(FilDv2) > 0) And ( FilDv1 > FilDv2) And ((FilDD And 1) <> 0 ) )
+    strErr := strErr + ''#13' - диапазона дат выпуска ОС (НМА)';
+
+  if ( (LongInt(FilDvd2) > 0) And (FilDvd1 > FilDvd2) And ((FilDD And 2) <> 0 ) )
+    strErr := strErr + ''#13' - диапазона дат ввода в эксплуатацию';
+
+  if ( (LongInt(FilDp2) > 0) And (FilDp1 > FilDp2 ) And ((FilDD And 4) <> 0) )
+    strErr := strErr + ''#13' - диапазона дат поступления ОС (НМА)';
+
+  if ( (LongInt(FilDb2) > 0) And (FilDb1 > FilDb2) And ((FilDD And 8) <> 0) )
+    strErr := strErr + ''#13' - диапазона дат выбытия ОС (НМА)';
+
+  if (strErr <> '')
+  {
+    Message('Ошибка ввода:' + strErr + ' !', Warning+CancelButton);
+    Abort;
+    Exit;
+  }
+
+  StartNewVisual( vtRotateVisual,  vfTimer,  'Установка ограничений.', 1);
+
+  Sub_Bounds();
+
+  #ifdef __ArcIznosFilters__
+  dtDateTop := Date(1,bMDateTop,wYDateTop);
+  dtDateEnd := Date(1,bMDateEnd,wYDateEnd);
+  dtDateEnd := Date(Last_Day(dtDateEnd),bMDateEnd,wYDateEnd);
+  if ((dtDateTop > dtDateEnd) and (wFiltDate <> 0))
+  {
+    Message('Начальная дата больше конечной!',Error+OkButton);
+    Exit;
+  }
+  else
+  {
+    AddSubBounds();
+    SetTitles();
+  }
+  #end
+
+  if (FilKat and 1) = 1
+    AddBounds(tbbyKatosInNum);
+
+  if (FilKat and 2) = 2
+    PushConditionForLeave(tccnKatos, #KatOs);
+
+  if (FilKat and 4) = 4
+    PushConditionForLeave(tccnKatosNameIzg, #KatOs);
+
+  if (FilKat and 8) = 8
+    PushConditionForLeave(tccnKatosTipMark, #KatOs);
+
+  if (FilKat and 16) = 16
+    AddBounds(tbbyKatosKodGr);
+
+  if (FilKat and 32) = 32
+    AddBounds(tbbyKatosKodVid);
+
+  if (FilKat and 64) = 64
+    AddBounds(tbbyKatosNorma);
+
+  if (FilKat and 128) = 128
+    AddBounds(tbbyKatosKodOf);
+
+  if (FilKat and 256) = 256
+    AddBounds(tbbySpKatOsGrAm);
+
+  if (FilKat and 512) = 512
+    PushConditionForLeave(tccnKatosZavNom, #KatOs);
+
+  if (FilPas and 1) = 1
+    PushConditionForLeave(tccnKatosP, #KatOs);
+
+  if (FilKat and 1024) = 1024
+    AddBounds(tbbyKatosPrIsp);
+
+  if (FilKat and 2048) = 2048
+  {
+    #ifdef __KatosFilters__
+    case wTipPodr of
+      0: AddBounds(tbbyKatosPdrz);
+      #ifdef __TPR2__
+      1: AddBounds(tbbyKatosPdrzTr);
+      #end
+    end;
+    #else
+    AddBounds(tbbyKatosPdrz);
+    #end
+  }
+
+  if (FilKat and 4096) = 4096
+    AddBounds(tbbyKatosMol);
+
+  if (FilKat and 8192) = 8192
+    AddBounds(tbbyKatosMetod);
+
+  if (FilKat and 16384) = 16384
+    AddBounds(tbbyKatosHozOper);
+
+  if (FilKat and 32768) = 32768
+  {
+    AddBounds(tbbyKatosSPOSOB);
+
+    #ifdef __KatosFilters__
+    if KatOs.TiDk = 15 and cFilTipOb <> 0
+    {
+      cfsSetProp('c_TRDOCUMENT_KATOS.REGNUM_Регистрац._номер',    cfpVisible, True);
+      cfsSetProp('c_TRDOCUMENT_PROBTRCURR.MES[13]_Текущий_месяц', cfpVisible, True);
+
+      cfsSetProp('c_PDOCUMENT_KATOS.REGNUM_Регистрац._номер',    cfpVisible, True);
+      cfsSetProp('c_PDOCUMENT_PROBTRCURR.MES[13]_Текущий_месяц', cfpVisible, True);
+    }
+    #end
+  }
+
+  if (FilKat and 65536) = 65536
+    PushConditionForLeave(tccnKatosBarKod, #KatOs);
+
+  if (FilKat and 131072) = 131072
+    PushConditionForLeave(tccnKatosImNum, #KatOs);
+
+  if (FilKat and 262144) = 262144
+    if not BoundActive(tbbyKatOsPrSb)
+      AddBounds(tbbyKatOsPrSb);
+
+  if (FilKat and 524288) = 524288
+    if not BoundActive(tbbyKatOsCO)
+      AddBounds(tbbyKatOsCO);
+
+  #ifdef __KatosFilters__
+  if (FilKat and 1048576) = 1048576
+  {
+    curdesGr := fGrDescr;
+    if not BoundActive(tbVscGrBound)
+      AddBounds(tbVscGrBound);
+  }
+
+  if (FilKat and 2097152) = 2097152
+  {
+    curdescr := fDescr;
+    if not BoundActive(tbVscBound)
+      AddBounds(tbVscBound);
+  }
+
+  #ifdef __TPR2__
+  if (FilKatExt and 1) = 1
+    if not BoundActive(tbbyKatOscNote)
+      AddBounds(tbbyKatOscNote);
+
+  if (FilKatExt and 2) = 2
+    if not BoundActive(tbbyKatOsCOFilial)
+      AddBounds(tbbyKatOsCOFilial);
+
+  if (FilKatExt and 4) = 4
+    if AvailableInvCardType = 0
+    {
+      if cFilInvCard = 0
+        AddBounds(tbbyCompOSMain);
+      else
+        AddBounds(tbbyCompOSSub);
+    }
+  #end
+  #end
+
+  if wFilKlass <> 0
+    AddBounds(tbbyKatosKlass);
+
+  if cFilKlass1 <> 0
+    AddBounds(tbbyKatosKlass1);
+
+  if cFilKlass2 <> 0
+    AddBounds(tbbyKatosKlass2);
+
+  if cFilKlass3 <> 0
+    AddBounds(tbbyKatosKlass3);
+
+  if cFilKlass4 <> 0
+    AddBounds(tbbyKatosKlass4);
+
+  if cFilKlass5 <> 0
+    AddBounds(tbbyKatosKlass5);
+
+  if cFilKlass6 <> 0
+    AddBounds(tbbyKatosKlass6);
+
+  if wFilVnKau1 <> 0
+    AddBounds(tbByKatOsVnKau1);
+
+  if wFilVnKau2 <> 0
+    AddBounds(tbByKatOsVnKau2);
+
+  if wFilVnKau3 <> 0
+    AddBounds(tbByKatOsVnKau3);
+
+  if wFilVnKau4 <> 0
+    AddBounds(tbByKatOsVnKau4);
+
+  if wFilVnKau5 <> 0
+    AddBounds(tbByKatOsVnKau5);
+
+  if wFilVnKau6 <> 0
+    AddBounds(tbByKatOsVnKau6);
+
+
+  if (FilDD and 1) = 1
+    AddBounds(tbbyKatosGodV1);
+
+  if (FilDD and 1) = 1
+    AddBounds(tbbyKatosGodV2);
+
+  if (FilDD and 2) = 2
+    AddBounds(tbbyKatosDatEk1);
+
+  if (FilDD and 2) = 2
+    AddBounds(tbbyKatosDatEk2);
+
+  if (FilDD and 4) = 4
+    AddBounds(tbbyKatosDatOk1);
+
+  if (FilDD and 4) = 4
+    AddBounds(tbbyKatosDatOk2);
+
+  if (FilDD and 8) = 8
+    AddBounds(tbbyKatosDatV1);
+
+  if (FilDD and 8) = 8
+    AddBounds(tbbyKatosDatV2);
+
+  if (FilKat and 8192)  = 8192  or          // cFilMetod
+     (FilKat and 16384) = 16384 or          // cFilHozOper
+     (FilKat and 64)    = 64    or          // cFilNorm
+     (FilKat and 1024)  = 1024  or          // cFilIsp
+     (FilKat and 256)   = 256   or          // cFilAmGr
+     (cFilZnakIspPs    <> 0)    or
+     (cFilZnakOstSrok  <> 0)    or
+     (cFilZnakPoprkoef <> 0)    or
+     (cFilZnak         <> 0)    or
+     (cFilZnakStoim    <> 0)    or
+     (cFilZnakSumIzn   <> 0)    or
+     (cFilZnakSIznM    <> 0)
+     #ifdef __KatosFilters__
+     or  (cFilZnakIspCur   <> 0)
+     or  (cFilZnakSrokIsp  <> 0)
+     #end
+  {
+    if not BoundActive(tbbySpKatOs)
+       AddBounds(tbbySpKatOs);
+    else
+       SubBounds(tbbySpKatOs);
+  }
+
+  PushConditionForLeave(tccnKatosDrag, #KatOs);
+
+  #ifdef __KatosFilters__
+  if ( (wStoimZaEd = 1) and (NastrOs.Field4 <> 0) )
+  {
+    if (cFilZnakStoim = 1)
+      PushConditionForLeave(tccnKatosStoim1, tnSpKatOs);
+    if (cFilZnakStoim = 2)
+      PushConditionForLeave(tccnKatosStoim2, tnSpKatOs);
+    if (cFilZnakStoim = 3)
+      PushConditionForLeave(tccnKatosStoim3, tnSpKatOs);
+    if (cFilZnakStoim = 4)
+      PushConditionForLeave(tccnKatosStoim4, tnSpKatOs);
+    if (cFilZnakStoim = 5)
+      PushConditionForLeave(tccnKatosStoim5, tnSpKatOs);
+
+    if (cFilZnakSumIzn = 1)
+      PushConditionForLeave(tccnKatosSumIzn1, tnSpKatOs);
+    if (cFilZnakSumIzn = 2)
+      PushConditionForLeave(tccnKatosSumIzn2, tnSpKatOs);
+    if (cFilZnakSumIzn = 3)
+      PushConditionForLeave(tccnKatosSumIzn3, tnSpKatOs);
+    if (cFilZnakSumIzn = 4)
+      PushConditionForLeave(tccnKatosSumIzn4, tnSpKatOs);
+    if (cFilZnakSumIzn = 5)
+      PushConditionForLeave(tccnKatosSumIzn5, tnSpKatOs);
+
+    if (cFilZnakSIznM = 1)
+      PushConditionForLeave(tccnKatosSIznm1, tnSpKatOs);
+    if (cFilZnakSIznM = 2)
+      PushConditionForLeave(tccnKatosSIznm2, tnSpKatOs);
+    if (cFilZnakSIznM = 3)
+      PushConditionForLeave(tccnKatosSIznm3, tnSpKatOs);
+    if (cFilZnakSIznM = 4)
+      PushConditionForLeave(tccnKatosSIznm4, tnSpKatOs);
+    if (cFilZnakSIznM = 5)
+      PushConditionForLeave(tccnKatosSIznm5, tnSpKatOs);
+    if (cFilZnakSIznM = 6)
+      PushConditionForLeave(tccnKatosSIznm6, tnSpKatOs);
+
+    if (cFilZnak = 1)
+      PushConditionForLeave(tccnKatosSum11, tnSpKatOs);
+    if (cFilZnak = 2)
+      PushConditionForLeave(tccnKatosSum21, tnSpKatOs);
+    if (cFilZnak = 3)
+      PushConditionForLeave(tccnKatosSum31, tnSpKatOs);
+    if (cFilZnak = 4)
+      PushConditionForLeave(tccnKatosSum41, tnSpKatOs);
+    if (cFilZnak = 5)
+      PushConditionForLeave(tccnKatosSum51, tnSpKatOs);
+  }
+  else
+  {
+  #end
+    if (cFilZnakStoim = 1)
+      AddBounds(tbbyKatosStoim1);
+    if (cFilZnakStoim = 2)
+      AddBounds(tbbyKatosStoim2);
+    if (cFilZnakStoim = 3)
+      AddBounds(tbbyKatosStoim3);
+    if (cFilZnakStoim = 4)
+      AddBounds(tbbyKatosStoim4);
+    if (cFilZnakStoim = 5)
+      AddBounds(tbbyKatosStoim5);
+
+    if (cFilZnakSumIzn = 1)
+      AddBounds(tbbyKatosSumIzn1);
+    if (cFilZnakSumIzn = 2)
+      AddBounds(tbbyKatosSumIzn2);
+    if (cFilZnakSumIzn = 3)
+      AddBounds(tbbyKatosSumIzn3);
+    if (cFilZnakSumIzn = 4)
+      AddBounds(tbbyKatosSumIzn4);
+    if (cFilZnakSumIzn = 5)
+      AddBounds(tbbyKatosSumIzn5);
+
+    if (cFilZnakSIznM = 1)
+      AddBounds(tbbyKatosSIznm1);
+    if (cFilZnakSIznM = 2)
+      AddBounds(tbbyKatosSIznm2);
+    if (cFilZnakSIznM = 3)
+      AddBounds(tbbyKatosSIznm3);
+    if (cFilZnakSIznM = 4)
+      AddBounds(tbbyKatosSIznm4);
+    if (cFilZnakSIznM = 5)
+      AddBounds(tbbyKatosSIznm5);
+    if (cFilZnakSIznM = 6)
+      PushConditionForLeave(tccnKatosSIznm6_Total, tnSpKatOs);
+
+    if (cFilZnak = 1)
+      PushConditionForLeave(tccnKatosSum1, tnSpKatOs);
+    if (cFilZnak = 2)
+      PushConditionForLeave(tccnKatosSum2, tnSpKatOs);
+    if (cFilZnak = 3)
+      PushConditionForLeave(tccnKatosSum3, tnSpKatOs);
+    if (cFilZnak = 4)
+      PushConditionForLeave(tccnKatosSum4, tnSpKatOs);
+    if (cFilZnak = 5)
+      PushConditionForLeave(tccnKatosSum5, tnSpKatOs);
+  #ifdef __KatosFilters__
+  }
+  #end
+  if (cFilZnakPoprkoef = 1)
+    AddBounds(tbbyKatosPoprkoef1);
+  if (cFilZnakPoprkoef = 2)
+    AddBounds(tbbyKatosPoprkoef2);
+  if (cFilZnakPoprkoef = 3)
+    AddBounds(tbbyKatosPoprkoef3);
+  if (cFilZnakPoprkoef = 4)
+    AddBounds(tbbyKatosPoprkoef4);
+  if (cFilZnakPoprkoef = 5)
+    AddBounds(tbbyKatosPoprkoef5);
+
+  if (cFilZnakIspPs = 1)
+    AddBounds(tbbyKatosIspPs1);
+  if (cFilZnakIspPs = 2)
+    AddBounds(tbbyKatosIspPs2);
+  if (cFilZnakIspPs = 3)
+    AddBounds(tbbyKatosIspPs3);
+  if (cFilZnakIspPs = 4)
+    AddBounds(tbbyKatosIspPs4);
+  if (cFilZnakIspPs = 5)
+    AddBounds(tbbyKatosIspPs5);
+
+  if (cFilZnakIspCur = 1)
+    AddBounds(tbbyKatosIspCur1);
+  if (cFilZnakIspCur = 2)
+    AddBounds(tbbyKatosIspCur2);
+  if (cFilZnakIspCur = 3)
+    AddBounds(tbbyKatosIspCur3);
+  if (cFilZnakIspCur = 4)
+    AddBounds(tbbyKatosIspCur4);
+  if (cFilZnakIspCur = 5)
+    AddBounds(tbbyKatosIspCur5);
+
+  if (cFilZnakSrokIsp = 1)
+    AddBounds(tbbyKatosSrokIsp1);
+  if (cFilZnakSrokIsp = 2)
+    AddBounds(tbbyKatosSrokIsp2);
+  if (cFilZnakSrokIsp = 3)
+    AddBounds(tbbyKatosSrokIsp3);
+  if (cFilZnakSrokIsp = 4)
+    AddBounds(tbbyKatosSrokIsp4);
+  if (cFilZnakSrokIsp = 5)
+    AddBounds(tbbyKatosSrokIsp5);
+
+  if (cFilKol = 1)
+    AddBounds(tbbyKatOsKol1);
+  if (cFilKol = 2)
+    AddBounds(tbbyKatOsKol2);
+  if (cFilKol = 3)
+    AddBounds(tbbyKatOsKol3);
+  if (cFilKol = 4)
+    AddBounds(tbbyKatOsKol4);
+  if (cFilKol = 5)
+    AddBounds(tbbyKatOsKol5);
+
+  if (cFilZnakOstSrok = 1)
+    PushConditionForLeave(tccnKatosOstSrok1, tnSpKatOs);
+  if (cFilZnakOstSrok = 2)
+    PushConditionForLeave(tccnKatosOstSrok2, tnSpKatOs);
+  if (cFilZnakOstSrok = 3)
+    PushConditionForLeave(tccnKatosOstSrok3, tnSpKatOs);
+  if (cFilZnakOstSrok = 4)
+    PushConditionForLeave(tccnKatosOstSrok4, tnSpKatOs);
+  if (cFilZnakOstSrok = 5)
+    PushConditionForLeave(tccnKatosOstSrok5, tnSpKatOs);
+
+  #ifdef __KatosFilters__
+  if (FlFilOtchPer = 1)
+  {
+    FilOtchPer := Date( Last_Day(FilOtchPer), Month(FilOtchPer), Year(FilOtchPer));
+    if (cFilZnakOtchPer = 1)
+      AddBounds(tbbyKatosOtchPer1);
+    if (cFilZnakOtchPer = 2)
+      AddBounds(tbbyKatosOtchPer2);
+    if (cFilZnakOtchPer = 3)
+      AddBounds(tbbyKatosOtchPer3);
+    if (cFilZnakOtchPer = 4)
+      AddBounds(tbbyKatosOtchPer4);
+    if (cFilZnakOtchPer = 5)
+      AddBounds(tbbyKatosOtchPer5);
+  }
+  #end
+
+  if (FilSelKs and 1) <> 0   // По объекту стрительства
+  {
+    SubBounds(tbbyStroyNewKatOs);
+    SubBounds(tbKatOsBySpVv    );
+    SubBounds(tbSpVvByStroyMod );
+    SubBounds(tbSpVvByStroyAny );
+    case wFilVvSysOper of
+      0: AddBounds(tbbyStroyNewKatOs);
+      1: { AddBounds(tbKatOsBySpVv); AddBounds(tbSpVvByStroyMod); }
+      2: { AddBounds(tbKatOsBySpVv); AddBounds(tbSpVvByStroyAny); }
+    end;
+  }
+
+  if (FilSelKs and 2) <> 0        // По адресу
+  {
+    Delete All mtAddr;
+    if (GetFirst AddressNFil where (( cFilAddr == AddressNFil.nrec)) = tsOk)
+    {
+      _loop  AddressN where ((Word(3) == AddressN.ObjType))      // Совпадают по терроториальному делению
+      {
+        if (AddressNFil.cSterr <> AddressN.cSterr)   // Совпадают по терроториальному делению
+          if not CheckTerrParent(AddressNFil.cSterr, AddressN.cSterr)  // является ли Родителем Территоря из фильтра
+            Continue;
+        if (AddressNFil.sAddress1 <> '')   // Если в фильтре задана улица и т.д
+          if (inStr(UpCase(AddressNFil.sAddress1),UpCase(AddressN.sAddress1)) = 0)   // совпадают начиная с улицы
+            Continue;
+        if (AddressNFil.sPostINd <> '')   // Если в фильтре задан почтовый индекс? то сравниваем и индексы
+          if (AddressNFil.sPostINd <> AddressN.sPostINd)
+            Continue;
+
+        if (GetFirst mtAddr where ((AddressN.nRec == mtAddr.cAddr)) <> tsOk)
+          Insert mtAddr Set mtAddr.cAddr := AddressN.nRec;
+      }
+    }
+    else
+      Insert mtAddr Set mtAddr.cAddr := 0;     // Будут искаться ИК у которых нет адреса
+
+    AddBounds(tbbyAddr);
+  }
+
+  #ifdef __ArcIznosFilters__
+  if (GetLast ArcIznos <> tsOk)
+  {
+    StopVisual('',0);
+    Message('Нет записей, удовлетворяющих заданному ограничению!',CancelButton);
+    wFiltDate := 0;
+    wFiltNRec := 0;
+    Sub_Bounds();
+    myFiltrR := False;
+  }
+  else
+  {
+    StopVisual('',0);
+    if (FilKat +  FilPas +  FilDD + FilSelKs > 0)
+      myFiltrR := True;
+
+    CloseWindow(CurWindow);
+  }
+  #else
+  if (GetLast KatOs <> tsOk)
+  {
+    StopVisual('',0);
+    Message('Нет записей, удовлетворяющих заданному ограничению!',CancelButton);
+    Sub_Bounds();
+    myFiltrR := False;
+  }
+  else
+  {
+    StopVisual('',0);
+    myFiltrR := True;
+
+    CloseWindow(CurWindow);
+    SetTitles();
+  }
+  #end
+} // cmOk
+
+//----------------------------------------------------------
+cmValue2:  // Снять
+{
+  #ifdef __KatosFilters__
+  // Снимает Отбор
+  Var cRec : Comp;
+  cRec := KatOS.nRec;
+
+  if (boInMemTitle)
+  {
+    ReInitTable(#KatOs, fmNormal);
+    boInMemTitle := False;
+  }
+  if (isTree)
+    TreeJumpToRecord(trDocument, cRec);
+  else
+    if (GetFirst Katos where ((cRec == Katos.nrec)) = tsOk) {}
+  MyJumpToRecord();
+  #endif
+
+  // Снимаем Фильтр
+#ifdef __ArcIznosFilters__
+  wFiltDate := wFiltNRec := 0;
+#end
+  Sub_Bounds();
+  if PrSpecOb
+    AddBounds(tbbyKatosSPOSOB);
+
+  // FilKat :=0;   FilPas :=0;   // Птички на первой закладке не снимаем
+  FilDD := FilSelKs :=0;
+  myFiltrR := False;
+  ReReadRecord(#KatOs);
+  CloseWindow(CurWindow);
+}
+
+//----------------------------------------------------------
+cmValue3 :  // Очистить
+{
+  Set FilDD := FilPas := FilSelKs :=0;
+
+  Set FilInNum :=  FilName  :=  FilZvIz  := '';
+  Set FilModTip:=  FilZavN  :=  FilPasN  := '';
+  Set cFilGr   :=  cFilVid  :=  cFilNorm := 0;
+  Set FilNorm  := '';
+  Set cFilOKOF := 0;
+  Set FilOKOF  := '';
+  cFilInvCard  := 0;
+  Set cFilAmGr := cFilPrSb := 0;
+  if (CurVisibleCO <> dcOwnOnly)
+    set cFilCO := 0;
+  Set cFilIsp  := cFilSobs := cFilZnak := 0;
+  Set cFilDrg  := cNRecPodr:= cNRecMol := 0;
+  Set cFilMetod:= cFilHozOper:= 0;
+  Set FilMetod := FilHozOper := '';
+  if not PrSpecOb
+  {
+    Set FilKat    := 0;
+    Set cFilTipOb := 0;
+    Set FilTipOb  := '';
+  }
+  else
+    Set FilKat := 32768;
+  Set FilStoim  := cFilZnakStoim := 0;
+  Set FilSumIzn := cFilZnakSumIzn:= 0;
+  Set FilSIznM  := cFilZnakSIznM := 0;
+  Set FilSum    := cFilZnak := 0;
+  Set FilBarKod := FilImNum := '';
+
+  Set cFilZnakIspPs   := 0; FilIspPs    := 0;
+  Set cFilZnakIspCur  := 0; FilIspCur   := 0;
+  Set cFilZnakSrokIsp := 0; FilSrokIsp  := 0;
+  Set cFilZnakOstSrok := 0; FilOstSrok  := 0;
+  Set cFilZnakPoprkoef:= 0; FilPoprkoef := 0;
+
+  Set FilDvd1 := FilDvd2 := ZeroDate;
+  Set FilDv1  := FilDv2  := ZeroDate;
+  Set FilDp1  := FilDp2  := ZeroDate;
+  Set FilDb1  := FilDb2  := ZeroDate;
+
+#ifdef __KatosFilters__
+  Set FlFilOtchPer := 0;
+#end
+  Set wFilKlass  := 0;
+  Set FilKlass   := '';
+  Set cFilKlass1 :=  wFilKlass1 := 0;
+  Set FilKlass1  := '';
+  Set cFilKlass2 :=  wFilKlass2 := 0;
+  Set FilKlass2  := '';
+  Set cFilKlass3 :=  wFilKlass3 := 0;
+  Set FilKlass3  := '';
+  Set cFilKlass4 := wFilKlass4 := 0;
+  Set FilKlass4  := '';
+  Set cFilKlass5 := wFilKlass5 := 0;
+  Set FilKlass5  := '';
+  Set cFilKlass6 := wFilKlass6 := 0;
+  Set FilKlass6  := '';
+
+  Set FilKauName1 := '';
+  Set wFilVnKau1 := cFilVnKau1 := 0;
+  Set FilKauName2 := '';
+  Set wFilVnKau2 := cFilVnKau2 := 0;
+  Set FilKauName3 := '';
+  Set wFilVnKau3 := cFilVnKau3 := 0;
+  Set FilKauName4 := '';
+  Set wFilVnKau4 := cFilVnKau4 := 0;
+  Set FilKauName5 := '';
+  Set wFilVnKau5 := cFilVnKau5 := 0;
+  Set FilKauName6 := '';
+  Set wFilVnKau6 := cFilVnKau6 := 0;
+#ifdef __TPR2__
+  #ifdef __KatosFilters__
+  DelFilVnKau(word(coKatOs), 0, 0);
+  #end
+#end
+#ifdef __KatosFilters__
+   #ifdef __TPR2__
+  Set FilvsNameTune := '';
+  set vwSaldTune := 0;
+  set FilvsRole1 := FilvsKau1 := '';
+  set FilvsRole2 := FilvsKau2 := '';
+  set FilvsRole3 := FilvsKau3 := '';
+  set FilvsRole4 := FilvsKau4 := '';
+  set FilvsRole5 := FilvsKau5 := '';
+  set FilvsRole6 := FilvsKau6 := '';
+  set FilvsRole7 := FilvsKau7 := '';
+  set FilvsRole8 := FilvsKau8 := '';
+  set FilvsRole9 := FilvsKau9 := '';
+  set FilvsRole10 := FilvsKau10 := '';
+
+  DelFilVnKau(word(coSpSopR), 0, 0);
+  #end 
+#end
+
+  Set cFilStroy := cFilAddr := 0;
+
+#ifdef __KatosFilters__
+  if not isProtectDesGrForCurUser
+    Set fGrDescr := '';
+  else
+    Set FilKat := FilKat or 1048576;
+
+  if not isProtectDescr
+    Set fDescr := '';
+  else
+    Set FilKat := FilKat or 2097152;
+
+  if CurVisibleCO = dcOwnOnly
+    Set FilKat := FilKat or 524288;
+
+#else
+  Set fGrDescr := '';
+  Set fDescr   := '';
+#end
+
+#ifdef __KatosFilters__
+  #ifdef __TPR2__
+  Set FilKatExt := 0;
+  Set cFilcNote := 0;
+  Set FilNote   := '';
+  if AvailableInvCardType <> 0
+    FilKatExt := FilKatExt or 4;
+  else
+    Set cFilCOFilial := 0;
+  #end
+#end
+
+#ifdef __ArcIznosFilters__
+  Set wFiltNRec := wFiltDate := 0;
+
+  ClearFieldOption(#TipBoundsNrec, ofSelectable);
+  ClearFieldOption(#bMDateTop,     ofSelectable);
+  ClearFieldOption(#wYDateTop,     ofSelectable);
+  ClearFieldOption(#bMDateEnd,     ofSelectable);
+  ClearFieldOption(#wYDateEnd,     ofSelectable);
+#end
+
+  #ifdef __KatosFilters__
+  // вкладка "Отбор"
+  Set fwFindTitle     := 0;
+  Set fwFindCondition := 0;
+  Set wSelCheck       := 0;
+  Set fdBeginDate := fdEndDate := ZeroDate;
+  Set boInMemLoad := False;
+
+  Set fsFindGrOs     := ''; Set fwKolFindGrOs  := 0;
+  if Delete PickS where ((cgPick_GrOs == PickS.wList)) <> tsOk {}
+  Set fsFindVid      := ''; Set fwKolFindVid   := 0;
+  if Delete PickS where ((cgPick_VidNorm == PickS.wList)) <> tsOk {}
+  Set fsFindNorm     := ''; Set fwKolFindNorm  := 0;
+  if Delete PickS where ((cgPick_Norm == PickS.wList)) <> tsOk {}
+  Set fsFindIspOs    := ''; Set fwKolFindIspOs := 0;
+  if Delete PickS where ((cgPick_IspOs == PickS.wList)) <> tsOk {}
+  Set fsFindPodr     := ''; Set fwKolFindPodr  := 0;
+  if Delete PickS where ((cgPick_Sklad == PickS.wList)) <> tsOk {}
+  Set fsFindMol      := ''; Set fwKolFindMol   := 0;
+  if Delete PickS where ((cgPick_Mol == PickS.wList)) <> tsOk {}
+  Set fsFindMetod    := ''; Set fwKolFindMetod := 0; ClearMarker(MarkerAlg);
+  Set fsFindTxo      := ''; Set fwKolFindTxo   := 0;
+  if Delete PickS where ((cgPick_Drag == PickS.wList)) <> tsOk {}
+  Set fsAttachDoc    := ''; Set fwAttachDoc    := 0;
+  if Delete PickS where ((cgPick_KlassOs == PickS.wList)) <> tsOk {}
+  Set fsArendator    := ''; Set fwArendator    := 0; ClearMarker(MarkerArendator);
+  Set fsArendodatel  := ''; Set fwArendodatel  := 0; ClearMarker(MarkerArendodatel);
+  Set fwBindedKAU    := 0;  Set fsBindedKAUkod := ''; Set fwBindedKAUkod := 0;
+  Set boNullOnly     := False;
+
+  Set fsFindOperPost     := ''; Set cMoveOsPost     := 0;
+  Set fsFindOperVnPerem  := ''; Set cMoveOsVnPerem  := 0;
+  Set fsFindOperIzmStoim := ''; Set cMoveOsIzmStoim := 0;
+  Set fsFindOperVibil    := ''; Set cMoveOsVibil    := 0;
+  Set fsFindOperPereoc   := ''; Set cMoveOsPereoc   := 0;
+  Set fsFindOperIzmGroup := ''; Set cMoveOsIzmGroup := 0;
+  Set fsFindOperIzmParam := ''; Set cMoveOsIzmParam := 0;
+
+  Set fsFindTxoPost     := ''; Set fwKolFindTxoPost     := 0; ClearMarker(MarkerTxoPost);
+  Set fsFindTxoVnPerem  := ''; Set fwKolFindTxoVnPerem  := 0; ClearMarker(MarkerTxoVnPerem);
+  Set fsFindTxoIzmStoim := ''; Set fwKolFindTxoIzmStoim := 0; ClearMarker(MarkerTxoIzmStoim);
+  Set fsFindTxoVibil    := ''; Set fwKolFindTxoVibil    := 0; ClearMarker(MarkerTxoVibil);
+  Set fsFindTxoPereoc   := ''; Set fwKolFindTxoPereoc   := 0; ClearMarker(MarkerTxoPereoc);
+  Set fsFindTxoIzmGroup := ''; Set fwKolFindTxoIzmGroup := 0; ClearMarker(MarkerTxoIzmGroup);
+  Set fsFindTxoIzmParam := ''; Set fwKolFindTxoIzmParam := 0; ClearMarker(MarkerTxoIzmParam);
+
+  SetFieldsSelectWiFindOsIzn;
+  #endif
+}
+
+//----------------------------------------------------------
+cmCancel :
+{
+}
+
+//----------------------------------------------------------
+cmOpenSearch :
+{
+  case CurField of
+    #FilStroy     : QuickChoiceName := 'qcKatStroyNameObj';
+
+    #fFilGrKatOs  : QuickChoiceName := 'qcGrOsNameGr';
+
+    #fFilVidKatOs : QuickChoiceName := 'qcVidNormaKod';
+
+    #FilNorm      : QuickChoiceName := 'qcVidNormaKod';
+    #FilOkof      : QuickChoiceName := 'qcKodofKod_of';
+
+    #fFilIspKatOs : QuickChoiceName := 'qcIsPosNameIs';
+
+    #fFilPodrKatOs: QuickChoiceName := 'qcKatPodrName';
+    #fFilMolKatOs : QuickChoiceName := 'qcKatMolName';
+
+    #FilMetod     : QuickChoiceName := 'qcOsAlgName';
+    #FilTipOb     : QuickChoiceName := 'qcSposobNameSb';
+
+    #fFilPrSbOs   : QuickChoiceName := 'qcPrSbKod';
+  end;
+
+  ProcessCommand(cmPick);
+}
+
+end;

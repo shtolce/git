@@ -1,0 +1,3712 @@
+//******************************************************************************
+//                                                      (c) корпорация Галактика
+// Галактика 8.1 - Бухгалтерский контур
+// Процедура печати ведомости наличия и износа из картотеки ОС/НМА
+//******************************************************************************
+
+#include NalogRegLic.vpp
+#include InvOpis_Fun.vpp
+
+File MemoFile;
+
+#include ReadMemoStr.vpp   // читать строку из мемо-файла
+
+Var
+  wMonthReeOtchPer
+, wYearReeOtchPer : Word;
+
+const
+  coTopTotal    : Word = 1; // Итоги сверху
+  coBottomTotal : Word = 2; // Итоги снизу
+  StrHierar = '....................';
+end;
+
+Var
+  nNumber   : LongInt; // Номер по порядку
+  sFilter   : Array[1..50] of String;
+  sFilterIndex : Comp;
+  dArcOstStoimDate : Date;
+  //-------------------
+  pXL         : XLSRepBuilder;
+  pxlrepsetup : xlrepsetup;
+  //-------------------
+  SubjReport
+, SumFormat    // Формат отображения сумм
+, KolFormat    // Формат отображения количества
+, SrtName      // наименование сортировки
+, GrpName      // наименование группировки
+, SubjDet1
+, SubjDet2
+, SubjDet3
+, dix_filt
+, dix_uch
+, ID      : String;
+  //-------------------
+  wPeriodOtch
+, wNalIznPrintSort  //Порядок сортировки при печати
+, toc
+, prFormOt               //используется  в osReestr.vpp
+, wPeriod : Word; // период, в котором выбыли включаемые в отчёт объекты
+  //-------------------
+  bContinueFormReport
+, bOkClicked
+, bPrintAsLeft
+, fStop
+, bPrLeaf : Boolean;     // печать листы (простые объекты) или нет
+                        //для определения выбыл ли объект в отчётном периоде
+  wPrnMemoOS, wListItog : Word;    // признак вывода в поток характеристик ИК  и итогов по странице
+//-------------------
+  icount : Longint;
+
+Var    MenuForRusOs : Array [0..6] of String;
+Var    MenuForBelOs : Array [0..6] of String;
+Var    MenuForRusNMA: Array [0..4] of String;
+Var    MenuForBelNMA: Array [0..4] of String;
+
+
+
+//----------------------------------------------------------------------------
+// Окно настройки печати ведомостей наличия и износа из каталога Осов
+//----------------------------------------------------------------------------
+Window NastrPrintNalIzn 'Настройка печатной формы' (,hcOSPrnQuickVedParamPrint, sci1Esc), Gray;
+  Show At ( , , 89, 16);
+
+Panel NastrPanelNalIzn;
+//------------------------------------------------------------------------------
+Screen NastrScreenNalIznPick
+  noTableNavigation;
+Fields
+  wPeriodOtch ('Параметр выбора даты отчета',,) : NoProtect;
+  wMonthReeOtchPer ('Отчетный месяц',,):
+                   [List 1 'Январь'
+                         , 'Февраль'
+                         , 'Март'
+                         , 'Апрель'
+                         , 'Май'
+                         , 'Июнь'
+                         , 'Июль'
+                         , 'Август'
+                         , 'Сентябрь'
+                         , 'Октябрь'
+                         , 'Ноябрь'
+                         , 'Декабрь'], Protect;
+  wYearReeOtchPer  ('Отчетный год',,) :   [4], NoProtect, {InputMask = '[1,2]999'};
+  bPrLeaf   ('Выводить на печать карточки') : [List 'нет','да'], Protect;
+  wPrnMemoOS ('Выводить на печать характеристику по карточке') :
+             [List 'без характеристики','с характеристикой'],  Protect;
+  wPeriod   ('Формировать с учетом выбывших объектов за период',, sci13Esc) :
+            [List 'месяц','квартал','полугодие','год'], Protect;
+  wNalIznPrintSort ('Порядок сортировки при печати') :
+            [List 'сохранять порядок сортировки','печатать по порядку пометки'], Protect;
+  SumFormat ('Формат представления сумм') : NoProtect;
+  KolFormat ('Формат представления количества') : NoProtect;
+  wRegNumFrom ('Регистрационный номер брать из') : [List 'из дополнительной информации',
+                                                         'из единого гос. реестра прав'], Protect;
+  sFeeSignersStringOsOne ('Комиссия. (F3 - Выбор, Ctrl+F3 - Выбор с параметрами)',, sci13Esc) : PickButton, Protect,
+    {Font = { Color = if(iFeeSigners.FeeSignersIsValid, ColorSysBlack, ColorSysRed); } };
+  toc : [List 'Бизнес-Текст','MS Excel'], Protect;
+  prFormOt : [List 'Сводная ведомость износа ОС/НМА', 'Ведомость износа ОС/НМА'], Protect;
+  wListItog ('Выводить на печать итоги по странице') : NoProtect;
+
+Buttons
+  cmOk, Default,, 'Сформировать отчет';
+  cmExcelFormat;
+  cmCancel,,,     'Отмена операции';
+<<
+`Получить отчет за` (.) Отчетный период модуля`
+                    (.) Задать месяц вручную  ` .@@@@@@@@@@@@@.@@@@
+`Выводить на печать карточки`    .@@@@@.@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`С учетом выбывших за`           .@@@@@@@@@@
+`Cортировка при печати`          .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Формат представления сумм`      .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Формат представления количества`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Регистрационный номер брать из` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+`Комиссия`                       .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+`Вид отчета`                     .@@@@@@@@@@@@@ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                                                           [.] Печатать итоги по странице`
+
+      <. Сформировать .>     <.Настройка Excel шаблона.>     <.     Отмена     .>
+>>
+end;//screen
+
+//------------------------------------------------------------------------------
+HandleEvent
+cmDelOnProtect:
+{
+  Case (curfield) Of
+    #sFeeSignersStringOsOne:
+      if iFeeSigners.ClearFeeSigners
+        Set sFeeSignersStringOsOne := iFeeSigners.GetFeeSignersName;
+  End;
+} // cmDelOnProtect
+end;//HandleEvent panel NastrPanelNalIzn
+end;//panel NastrPanelNalIzn
+
+//------------------------------------------------------------------------------
+HandleEvent //Window NastrPrintNalIzn
+
+cmInit:
+{
+  wPeriodOtch := 0;
+  wPrnMemoOS  := 0;
+  dReeOtchPer := dGetTune('OS.OTCHPERIOD');
+  wMonthReeOtchPer := Month(dReeOtchPer);
+  wYearReeOtchPer  := Year(dReeOtchPer);
+
+  ReadMyDsk(wListItog, 'Opis_wListItog', False);
+
+  if (Not ReadMyDsk(bPrLeaf, 'bPrLeafNalIzn', True))
+    bPrLeaf := True;
+
+  if (Not ReadMyDsk(wPeriod, 'wPeriodNalIzn', True))
+    wPeriod := 0;
+
+  if (isPick)
+    if (Not ReadMyDsk(wNalIznPrintSort, 'wNalIznPrintSortIK', True))
+      wNalIznPrintSort := 0;
+
+  if (Not ReadMyDsk(SumFormat, 'SumFormatNalIzn', True))
+    SumFormat := '\2p[|-]3666''666''666''666''666''666.88';
+
+  if (Not ReadMyDsk(KolFormat, 'KolFormatNalIzn', True))
+  {
+    KolFormat := '\' + String(OS_RazrKol) + 'p[|-]3666''666''666''666''666''666';
+
+    if ( OS_RazrKol > 0 )
+    {
+      Var i : Word;
+      KolFormat := KolFormat + '.';
+
+      For (i := 1; i <= OS_RazrKol; i := i + 1)
+        KolFormat := KolFormat + '8';
+    }
+  }
+
+  if (Not ReadMyDsk(wRegNumFrom, 'Opis_wRegNumFrom', True))
+    wRegNumFrom := 0;
+  SetFieldAndLabelVisible(#wRegNumFrom, (wCountry = ccRus));
+
+  SetFieldAndLabelVisible(#wNalIznPrintSort, isPick);
+  /*
+  if (isPick)
+    SetFormat(NastrScreenNalIznPick);
+  else
+    SetFormat(NastrScreenNalIzn);
+  */
+
+  // Инициализация объекта, таким образом, чтобы для каждой объектной переменной были разные экземпляры объекта.
+  // Для корректного использования, одновременно и комиссий и ответственных лиц.
+  if (NullVipRef(iFeeSigners))
+  {
+    LoadVipInterface(iFeeSigners);
+    iFeeSigners.InitFeeSignersExt(cgReport_Os, True, True);
+  }
+  Set sFeeSignersStringOsOne := iFeeSigners.GetFeeSignersName;
+
+
+  ID := 'F_OSRep\Opis';
+
+  if (Not ReadMyDsk(sXLTFileName, ID, True))
+    set sXLTFileName := TranslatePath('%ClientStartPath%') + 'XLS\' + ID + '.xlt';
+
+  if (Not ReadMyDsk(toc, ID+'toc', True))
+    toc := 0;
+
+  Putcommand(cmValue24);
+}//cmInit
+
+cmValue24 :
+{
+  if ( Word(bPrLeaf) = 1 AND (toc = 0) )
+    SetFieldState(#wPrnMemoOS, sfVisible)
+  else
+  {
+    wPrnMemoOS := 0;
+    ClearFieldState(#wPrnMemoOS, sfVisible);
+  }
+
+  if ( (Word(bPrLeaf) = 0) or (toc = 0) )
+    SetFieldAndLabelVisible(#wListItog, false);
+  else
+    SetFieldAndLabelVisible(#wListItog, true);
+
+  SetFieldAndLabelVisible(#prFormOt, toc <> 0);
+  SetCommandEnabled (cmExcelFormat, toc <> 0);  // выключение кнопки
+
+  SetFieldAndLabelVisible(#wMonthReeOtchPer, wPeriodOtch <> 0);
+  SetFieldAndLabelVisible(#wYearReeOtchPer,  wPeriodOtch <> 0);
+
+}
+
+cmPick:
+  {
+    case CurField of
+    //--------------
+      #sFeeSignersStringOsOne :
+      {
+        iFeeSigners.RunWindowFeeSigners(1);
+        set sFeeSignersStringOsOne := iFeeSigners.GetFeeSignersName;
+      }
+    //--------------
+    end; // case
+  } // cmPick
+
+cmRestoreDoc :
+  {
+    case CurField of
+    //--------------
+      #sFeeSignersStringOsOne :
+      {
+        iFeeSigners.RunWindowFeeSigners(0);
+        set sFeeSignersStringOsOne := iFeeSigners.GetFeeSignersName;
+      }
+    //--------------
+    end; // case
+  } // cmRestoreDoc
+
+cmExcelFormat: // настройка печати
+{
+  RunInterface('xlrepsetup', 1, ID, sXLTFileName);
+  ReadMyDsk(sXLTFileName, ID, True);
+}
+
+cmOk:
+{
+  bOkClicked := True;
+  SaveMyDsk(bPrLeaf, 'bPrLeafNalIzn');
+  SaveMyDsk(wPeriod, 'wPeriodNalIzn');
+
+  if (isPick)
+    SaveMyDsk(wNalIznPrintSort, 'wNalIznPrintSortIK');
+
+
+  if ( wPeriodOtch = 1 )
+    dReeOtchPer := Date(1, wMonthReeOtchPer, wYearReeOtchPer);
+
+  dReeOtchPer := pOsFun.LastDayDate(dReeOtchPer);
+
+  CloseWindow(NastrPrintNalIzn);
+}
+
+cmCancel:
+  bContinueFormReport := False;
+
+cmClose:
+  if (Not bOkClicked)
+    bContinueFormReport := False;
+
+cmDone:
+{
+  SaveMyDsk(SumFormat, 'SumFormatNalIzn');
+  SaveMyDsk(KolFormat, 'KolFormatNalIzn');
+  SaveMyDsk(toc, ID + 'toc');
+  SaveMyDsk(wListItog, 'Opis_wListItog');
+  SaveMyDsk(wRegNumFrom, 'Opis_wRegNumFrom');
+}
+
+end;//HandleEvent
+end;//Window NastrPrintNalIzn
+
+//=========================================================================
+// Определяет принадлежит ли дата DatV и дата (PeriodDate), по состоянию на
+// которую составляется отчёт одному и тому же указанному периоду PeriodKind,
+// т.е. месяцу (0), кварталу (1), полугодию (2) или году (3)
+//=========================================================================
+Function IsLeftInThisPeriod(PeriodKind:word; PeriodDate:date; DatV:Date):boolean;
+var
+  Month1
+, Month2 : word;
+  Quarter_1_1
+, Quarter_2_1
+, Quarter_1_2
+, Quarter_2_2
+, Quarter_1_3
+, Quarter_2_3
+, Quarter_1_4
+, Quarter_2_4 : boolean;
+{
+  Month1 := Month(PeriodDate);
+  Month2 := Month(DatV);
+  Quarter_1_1 := (Month1 = 1) or (Month1 =2 ) or (Month1 = 3);
+  Quarter_2_1 := (Month2 = 1) or (Month2 =2 ) or (Month2 = 3);
+  Quarter_1_2 := (Month1 = 4) or (Month1 =5 ) or (Month1 = 6);
+  Quarter_2_2 := (Month2 = 4) or (Month2 =5 ) or (Month2 = 6);
+  Quarter_1_3 := (Month1 = 7) or (Month1 =8 ) or (Month1 = 9);
+  Quarter_2_3 := (Month2 = 7) or (Month2 =8 ) or (Month2 = 9);
+  Quarter_1_4 := (Month1 = 10) or (Month1 =11 ) or (Month1 = 12);
+  Quarter_2_4 := (Month2 = 10) or (Month2 =11 ) or (Month2 = 12);
+
+  IsLeftInThisPeriod := False;
+
+  if (Year(PeriodDate) = Year(DatV))
+    case PeriodKind of
+    //----------------
+      0: if (Month1 = Month2)
+           IsLeftInThisPeriod := True;
+    //----------------
+      1:
+      {
+        if ((Quarter_1_1) and (Quarter_2_1)) or
+           ((Quarter_1_2) and (Quarter_2_2)) or
+           ((Quarter_1_3) and (Quarter_2_3)) or
+           ((Quarter_1_4) and (Quarter_2_4))
+          IsLeftInThisPeriod := True;
+      }
+    //----------------
+      2:
+      {
+        if (((Quarter_1_1) or (Quarter_1_2)) and
+            ((Quarter_2_1) or (Quarter_2_2)))
+           or
+           (((Quarter_1_3) or (Quarter_1_4)) and
+            ((Quarter_2_3) or (Quarter_2_4)))
+          IsLeftInThisPeriod := True;
+      }
+    //----------------
+      3: IsLeftInThisPeriod := True;
+    //----------------
+    end;
+}//IsLeftInThisPeriod
+
+// -- PrintLine -----------------------------------------------------
+// Вывод в форму строки карточки
+// ------------------------------------------------------------------
+var
+  // суммы для карточки
+  dOS_Stoim                 // стоимость
+, dOS_SumIzn                // полный износ
+, dOS_SIznM                 // износ за месяц
+, dOS_ArcDStoim             // стоимость на 31.12.2002
+, dOS_ArcDSumIzn            // износ на 31.12.2002
+, dOS_StoimPs
+, dOS_IznosPs
+, dKatOS_Kol
+, dKatOS_MU_Kol
+, dFormSumIzn               // Сумма износа для вывода в форму
+, dOS_SrokIsp               // срок полезного использования
+, dOS_OstSrokIsp            // остаточный срок использования
+  // итоговые суммы
+, VedStoim                  // итого по стоимости
+, VedSumIzn                 // итого по износу
+, VedSIznM                  // итого по износу за месяц
+, VedArcDStoim              // итого по ст. на 31.12.2002
+, VedArcDSumIzn             // итого по износу на 31.12.2002
+, VedStoim2                 // итого по стоимости без учета выбывших
+, VedSumIzn2                // итого по износу без учета выбывших
+, VedSIznM2                 // итого по износу за месяц без учета выбывших
+, VedArcDStoim2             // итого по ст. на 31.12.2002 без учета выбывших
+, VedArcDSumIzn2            // итого по износу на 31.12.2002 без учета выбывших
+, VedKatOS_Kol   : double;  // итого количество
+
+
+// ------------------------------------------------------------------
+Procedure PrintLine( wTreeLevel : word );
+var
+  boIsArcive : boolean;
+{
+  dOS_Stoim  := 0.0;      // стоимость
+  dOS_SumIzn := 0.0;      // полный износ
+  dOS_SIznM  := 0.0;      // износ за месяц
+  dOS_ArcDStoim := 0.0;   // стоимость на 31.12.2002
+  dOS_ArcDSumIzn := 0.0;  // износ на 31.12.2002
+  dKatOS_Kol := 0.0;
+  dKatOS_MU_Kol := 0.0;
+  dOS_StoimPs := 0.0;      // стоимость при поступлении
+  dOS_IznosPs := 0.0;      // износ при поступлении
+  dFormSumIzn := 0.0;
+  dOS_SrokIsp := 0.0;              // срок полезного использования
+  dOS_OstSrokIsp := 0.0;           // остаточный срок использования
+  boIsArcive := False;
+
+  //откуда печать ...
+  if ( KatOS.OtchPer <= dReeOtchPer )
+  {
+    dOS_Stoim   := SpKatOs.Stoim;                       // стоимость
+    dOS_StoimPs := SpKatOS.StoimPs;
+    dOS_IznosPs := SpKatOS.IznosPs;
+    dKatOS_MU_Kol  := fKatosKol;
+    dKatOS_Kol  := KatOS.Kol;
+    dOS_SrokIsp := SpKatOS.SrokIsp;
+    dOS_OstSrokIsp := SpKatOS.SrokIsp - SpKatOS.IspPs - SpKatOS.IspCur;
+
+    if ( dOS_OstSrokIsp < 0.0 )
+      dOS_OstSrokIsp := 0.0;
+
+    if ( KatOS.OtchPer < dReeOtchPer )
+    {
+      dFormSumIzn := SpKatOs.SumIzn + SpKatOs.SIznM;
+      dOS_SumIzn  := SpKatOs.SumIzn + SpKatOs.SIznM;      // полный износ
+      dOS_SIznM   := 0.0;                                 // износ за месяц
+    }
+    else
+    {
+      dFormSumIzn := if ( OS_FormIzn = 0, SpKatOs.SumIzn, SpKatOs.SumIzn + SpKatOs.SIznM);
+      dOS_SumIzn  := SpKatOs.SumIzn;     // полный износ
+      dOS_SIznM   := SpKatOs.SIznM;      // износ за месяц
+    }
+  }
+  else
+  {
+    boIsArcive := (GetLast ArcIznos_PrevOtchPer = tsOK);
+
+    if boIsArcive
+    {
+      dOS_Stoim   := ArcIznos_PrevOtchPer.Stoim;      // стоимость
+      dOS_SumIzn  := ArcIznos_PrevOtchPer.SumIzn;     // полный износ
+      dOS_SIznM   := ArcIznos_PrevOtchPer.SIznM;      // износ за месяц
+      dKatOS_MU_Kol  := if (NastrOs.Field4 = 0, ArcIznos_PrevOtchPer.Kol, 1);
+      dKatOS_Kol  := ArcIznos_PrevOtchPer.Kol;
+      dOS_StoimPs := ArcIznos_PrevOtchPer.StoimPs;
+      dOS_IznosPs := ArcIznos_PrevOtchPer.IznosPs;
+      dOS_SrokIsp := ArcIznos_PrevOtchPer.SrokIsp;
+      dOS_OstSrokIsp := ArcIznos_PrevOtchPer.SrokIsp - SpKatOS.IspPs - ArcIznos_PrevOtchPer.IspCur;
+
+      if ( dOS_OstSrokIsp < 0.0 )
+        dOS_OstSrokIsp := 0.0;
+
+      if ( ArcIznos_PrevOtchPer.Data = dReeOtchPer )
+      {
+        dFormSumIzn := if ( OS_FormIzn = 0
+                          , ArcIznos_PrevOtchPer.SumIzn
+                          , ArcIznos_PrevOtchPer.SumIzn + ArcIznos_PrevOtchPer.SIznM );
+      }
+      else
+      {
+        dFormSumIzn := ArcIznos_PrevOtchPer.SumIzn + ArcIznos_PrevOtchPer.SIznM;
+      }
+    }
+  }
+
+  if ( KatOs.isLeaf = 0 )
+  { // Узел
+    fOSOpis.PutEventById( feDoLoop, fcGruppaOS1 );
+    fOSOpis.Write( comp(0) );
+    fOSOpis.SkipFormat(2);
+    fOSOpis.Write( Substr(StrHierar,1,wTreeLevel) + KatOs.NameOs );
+    fOSOpis.Write( True );
+
+    fOSOpis.Write(dOS_Stoim * dKatOS_MU_Kol);                  //Итого_верх_стоимость с учетом выбывших в отчетном месяце
+    fOSOpis.SkipFormat(1);                                     //Итого_верх_стоимость_Факт с учетом выбывших в отчетном месяце (фактически по инвентаризации)
+    fOSOpis.Write(dOS_Stoim * dKatOS_MU_Kol);                  //Итого_верх_стоимость_Бух стоимость по данным бух.учета по инвентаризации
+    fOSOpis.Write(dOS_SumIzn * dKatOS_MU_Kol);                 //Итого_верх_износ_весь
+    fOSOpis.Write(dOS_SIznM * dKatOS_MU_Kol);                  //Итого_верх_износ_мес
+    fOSOpis.Write( (dOS_Stoim - dFormSumIzn) * dKatOS_MU_Kol );//Итого_верх_остаточная
+
+    fOSOpis.Write(fOstStoim_2001_12_31 * dKatOS_MU_Kol);       //Итого_верх_Остаточная_стоимость_на_1_января : Double
+
+    fOSOpis.Write(dOS_Stoim * dKatOS_MU_Kol);                  //Итого_верх_стоимость_2      без учета выбывших в отчетном месяце
+    fOSOpis.SkipFormat(1);                                     //Итого_верх_стоимость_2_Факт без учета выбывших в отчетном месяце (фактически по инвентаризации)
+    fOSOpis.Write(dOS_SumIzn * dKatOS_MU_Kol);                 //Итого_верх_износ_весь_2
+    fOSOpis.Write(dOS_SIznM * dKatOS_MU_Kol);                  //Итого_верх_износ_мес_2
+    fOSOpis.Write( (dOS_Stoim - dFormSumIzn) * dKatOS_MU_Kol );//Итого_верх_остаточная_2
+    fOSOpis.Write(fOstStoim_2001_12_31 * dKatOS_MU_Kol);       //Итого_верх_Остаточная_стоимость_на_1_января_2
+
+    fOSOpis.SkipFormat(2);                                     //Итого_верх_Количество
+                                                               //Итого_верх_Ликвидационая_стоимость
+    fOSOpis.SkipFormat(1);                                     //Итого_верх_Количество_Факт
+    fOSOpis.SkipFormat(1);                                     //Итого_верх_Количество_Бух
+    fOSOpis.SkipFormat(4);                                     //Итого_верх_Излишек_Количество
+                                                               //Итого_верх_Излишек_Стоимость
+                                                               //Итого_верх_Недостача_Количество
+                                                               //Итого_верх_Недостача_Стоимость
+
+    fOSOpis.SkipFormat(72);
+  }
+  else
+  {  // Лист
+    if ( bPrLeaf )
+    {
+      nNumber := nNumber + 1;
+      fOSOpis.PutEventById( feDoLoop, fcNameOS1 );
+      fOSOpis.Write( nNumber );
+
+      if (bPrintAsLeft)
+        fOSOpis.Write( True )
+      else
+        fOSOpis.Write( False );
+
+      fOSOpis.SkipFormat(4);
+      fOSOpis.Write( KatOS.NRec );
+      fOSOpis.Write( KatOS.cMc  );
+      fOSOpis.Write( if (boIsArcive, ArcIznos_PrevOtchPer.NRec, comp(0)) );
+      fOSOpis.Write( SpKatOS.NRec );
+      fOSOpis.Write( if (KatOs.cHigherOs=0, KatOs.InNum, pOsFun.GetKatOsInNum(KatOS.NRec) ) );
+      fOSOpis.Write( KatOS.NameOS );
+      fOSOpis.Write( dKatOS_Kol);
+      fOSOpis.Write( SpKatOs.StoimL );//ликвидационная стоимость
+      fOSOpis.Write(dOS_Stoim * dKatOS_MU_Kol);
+      fOSOpis.SkipFormat(2);
+      fOSOpis.Write( dFormSumIzn * dKatOS_MU_Kol );
+      fOSOpis.Write(dOS_SIznM * dKatOS_MU_Kol);
+      fOSOpis.Write( (dOS_Stoim - dFormSumIzn) * dKatOS_MU_Kol );
+      // Остаточная стоимость на 31.12.2001
+      fOSOpis.Write(fOstStoim_2001_12_31 * dKatOS_MU_Kol);
+      //Стоимость_поступления
+      //Износ_поступления
+      fOSOpis.Write( dOS_StoimPs * dKatOS_MU_Kol );
+      fOSOpis.Write( dOS_IznosPs * dKatOS_MU_Kol );
+
+      //'Эти поля не видны в интерфейсе
+      fOSOpis.Write( GetPasportNum(KatOs.nRec) );    // Номер паспорта
+
+      fOSOpis.Write( KatOS.RegNum );
+      fOSOpis.Write( KatOS.ZavNom );
+      if (isValid(#Transp))
+        fOSOpis.Write( Transp.GarNom ); // гаражный номер
+      else
+        fOSOpis.SkipFormat(1);
+
+      fOSOpis.Write( KatOS.NameIzg );
+      fOSOpis.Write( KatOS.TipMark );
+      fOSOpis.Write( KatOS.BarKod );
+      fOSOpis.Write( KatOS.Kod );
+
+      if ( KatOS.DatGar <> Date(0,0,0) )
+        fOSOpis.Write( KatOS.DatGar )
+      else
+        fOSOpis.SkipFormat(1);
+
+      if ( KatOS.GodV <> Date(0,0,0) )
+        fOSOpis.Write( KatOS.GodV )
+      else
+        fOSOpis.SkipFormat(1);
+
+      if ( KatOS.DateK <> Date(0,0,0) )
+        fOSOpis.Write( KatOS.DateK )
+      else
+        fOSOpis.SkipFormat(1);
+
+      if ( KatOS.DatOk <> Date(0,0,0) )
+        fOSOpis.Write( KatOS.DatOk )
+      else
+        fOSOpis.SkipFormat(1);
+
+      if ( (KatOS.DatV <> Date(0,0,0)) AND (KatOS.DatV <= dReeOtchPer) )
+        fOSOpis.Write( KatOS.DatV );
+      else
+        fOSOpis.SkipFormat(1);
+
+      cVibitKatOs := KatOs.nRec;
+      var bFoundVib : boolean;
+      bFoundVib := False;
+
+      if ((KatOS.DatV) <> Date(0,0,0) AND (KatOS.DatV <= dReeOtchPer) )
+      {
+        _LOOP SpMoveOsVib
+        {
+          // частичное выбытие !!!
+          if (SpMoveOsVib.cKatOsNew <> comp(0))
+            Continue;
+
+          if ( GetFirst MoveOsVib = tsOk )
+          {
+            if ((pCheckOper.OperProv(MoveOsVib.NRec,0) and (MoveOsVib.CanPereprov = 0)))
+            {
+              fOSOpis.Write(MoveOsVib.NoDoc);
+
+              if (GetFirst KlassOsVib = tsOk)
+                fOSOpis.Write(KlassOsVib.Name);
+              else
+                fOSOpis.SkipFormat(1);
+
+              bFoundVib := True;
+              Break;
+            }
+          }
+        }
+
+        if (Not bFoundVib)
+        {
+          _LOOP SpMoveOsVibPart
+          {
+            if (NastrOs.nRec = SpMoveOsVibPart.cNastrOs)
+            {
+              _LOOP MoveOsVibPart
+              {
+                if ((pCheckOper.OperProv(MoveOsVibPart.NRec,0) and (MoveOsVibPart.CanPereprov = 0)))
+                {
+                  fOSOpis.Write(MoveOsVibPart.NoDoc);
+
+                  if (GetFirst KlassOsVibPart = tsOk)
+                    fOSOpis.Write(KlassOsVibPart.Name);
+                  else
+                    fOSOpis.SkipFormat(1);
+
+                  bFoundVib := True;
+                  Break;
+                }
+              }
+            }//if
+
+            if (bFoundVib)
+              Break;
+          }//loop
+        }//if
+      }
+
+      if (Not bFoundVib)
+        fOSOpis.SkipFormat(2);
+
+      fOSOpis.Write( SpKatOS.PoprKoef ); // ПОПРАВОЧНЫЙ коэфициент из карточки
+      fOSOpis.Write( dOS_SrokIsp );      // срок полезного использования
+      fOSOpis.Write( dOS_OstSrokIsp );   // остаточный срок использования
+      fOSOpis.Write( VidNorma.nRec );
+      fOSOpis.Write( VidNorma.Kod );     //'норма амортизации
+      fOSOpis.Write( VidNorma.Name );
+      fOSOpis.Write( VidNorma.Norma );   //'норма амортизации
+      fOSOpis.Write( OsAlg.nRec );
+      fOSOpis.Write( OsAlg.Name );       //'алгоритм начисления аморт.
+      fOSOpis.Write( Kodof.nRec );
+      fOSOpis.Write( Kodof.Kod_Of );
+      fOSOpis.Write( Kodof.Name_Of );
+      fOSOpis.Write( KlassOs.nRec);      // амортизационная группа
+      fOSOpis.Write( KlassOs.Kod);
+      fOSOpis.Write( KlassOs.Name);
+      fOSOpis.Write( GrOS.nRec );
+      fOSOpis.Write( GrOS.KodGr );
+      fOSOpis.Write( GrOS.NameGr );
+      fOSOpis.Write( VidNormaS.nRec );
+      fOSOpis.Write( VidNormaS.Kod );     //'вид
+      fOSOpis.Write( VidNormaS.Name );
+      fOSOpis.Write( VidNormaS.Norma );   //'поправочный коефф.
+      fOSOpis.Write( IspOS.nRec );
+      fOSOpis.Write( IspOS.PrIsp );
+      fOSOpis.Write( IspOS.NameIs );
+      fOSOpis.Write( IspOS.Amok );
+      fOSOpis.Write( KatPodr.nRec );
+      fOSOpis.Write( KatPodr.Kod );
+      fOSOpis.Write( KatPodr.Name );
+      fOSOpis.Write( KatMOL.nRec );
+      fOSOpis.Write( KatMOL.Kod );
+      fOSOpis.Write( KatMOL.Name );
+      fOSOpis.Write( HozOper.nRec );
+      fOSOpis.Write( HozOper.Name1 );
+      fOSOpis.Write( Sposob.nRec );
+      fOSOpis.Write( Sposob.NameSb );
+      fOSOpis.Write( GetKauReffArrayName('KatOs',KatOs.nRec) ); // внешние кау
+
+      //fOSOpis.PutEventById( feBreak, fcNameOS1 );
+
+
+      // Печать прикрепленных документов с признакмом установки права владения
+      loDoc.cKatOsnRec := KatOs.nRec;
+      loDoc.wTip := wTip;
+      loDoc._loop DocInfo
+      {
+        if GetFirst fastFirstRow KlassOs where ((loDoc.DocInfo.cLang == KlassOs.nRec)) = tsOk
+          if (wTip = 15) // ОС (15)
+          {
+            if (KlassOs.NumKod = cgDoc_Hranenie) // [102.119594] это признак аренды
+            {
+               fOSOpis.PutEventByID(feDoLoop, fcUristDoc);
+               fOSOpis.Write( loDoc.DocInfo.Nrec );
+               fOSOpis.Write( loDoc.DocInfo.Name );
+               #ifdef GAL9_1
+               fOSOpis.Write( loDoc.DocInfo.dDoc );
+               fOSOpis.Write( loDoc.DocInfo.NoDoc );
+               #end
+            }
+          }
+          else // НМА (16)
+          {
+            if (KlassOs.NumKod = cgDoc_PravoVlad) // это признак установки права владения
+            {
+               fOSOpis.PutEventByID(feDoLoop, fcUristDoc);
+               fOSOpis.Write( loDoc.DocInfo.Nrec );
+               fOSOpis.Write( loDoc.DocInfo.Name );
+               #ifdef GAL9_1
+               fOSOpis.Write( loDoc.DocInfo.dDoc );
+               fOSOpis.Write( loDoc.DocInfo.NoDoc );
+               #end
+            }
+          }
+      }
+
+      if (wPrnMemoOS <> 0)     // печать мемо-поля
+      {
+        // cKatOSDescription := KatOS.NRec;
+
+        if (GetFirst FastFirstRow AllMemo <> tsOk)
+        {
+          fOSOpis.PutEventByID(feDoLoop, fcMemoForKatOS);
+          fOSOpis.SkipFormat(1);
+        }
+        else    // печать мемо-поля
+        {
+           var sPrefix : string;
+           sPrefix := GetMemoPrefix(#AllMemo);
+           if ( UpCase(sPrefix) = 'TXT' )
+           {
+             var s: string;
+             MemoFile.OpenMemo(AllMemo.Mem);
+             While (ReadMemoStr(s, 254))
+             {
+               fOSOpis.PutEventByID(feDoLoop, fcMemoForKatOS);
+               fOSOpis.write(s);
+             }
+             MemoFile.Close;
+           }
+           else
+           {
+             fOSOpis.PutEventByID(feDoLoop, fcMemoForKatOS);
+             fOSOpis.write('Характеристика в формате '+sPrefix+'.');
+           }
+        }
+      }
+    }
+  }
+}
+
+// -- PrintTot ----------------------------------------
+// Печать итогов по группировке
+// ----------------------------------------------------
+Procedure PrintTot( _Name : string;
+                    //сумма с учётом выбывших
+                    _Kol, _Stoim, _SumIzn, _SIznM, _ArcD_Stoim, _ArcD_SumIzn : double;
+                    //суммы без учёта выбывших
+                    _Stoim2, _SumIzn2, _SIznM2, _ArcD_Stoim2, _ArcD_SumIzn2 : double);
+{
+  fOSOpis.PutEventById( feDoLoop, fcItogOS1 );
+  fOSOpis.Write( comp(0) );
+  fOSOpis.SkipFormat(2);
+  fOSOpis.Write( _Name );
+  fOSOpis.Write( _Stoim  );
+  fOSOpis.SkipFormat(2);
+  fOSOpis.Write( _SumIzn );
+  fOSOpis.Write( _SIznM  );
+  fOSOpis.Write( _Stoim - _SumIzn );
+  fOSOpis.Write( _ArcD_Stoim);
+//  fOSOpis.Write( _ArcD_Stoim - _ArcD_SumIzn);
+  fOSOpis.Write( _Stoim2 );
+  fOSOpis.SkipFormat(1);
+  fOSOpis.Write( _SumIzn2);
+  fOSOpis.Write( _SIznM2 );
+  fOSOpis.Write( _Stoim2 - _SumIzn2);
+  fOSOpis.Write( _ArcD_Stoim2);
+//  fOSOpis.Write( _ArcD_Stoim2 - _ArcD_SumIzn2);
+  fOSOpis.Write( _Kol);
+  fOSOpis.SkipFormat(7);
+  //fOSOpis.PutEventById( feBreak, fcItogOS1 );
+}
+
+// -- PrintGrp ----------------------------------------
+// Печать наименования группировки
+// ----------------------------------------------------
+Procedure PrintGrp( _Name : string );
+{
+  fOSOpis.PutEventById( feDoLoop, fcGruppaOS1 );
+  fOSOpis.Write( comp(0) );
+  fOSOpis.SkipFormat(2);
+  fOSOpis.Write( _Name );
+  fOSOpis.Write(False);
+  fOSOpis.SkipFormat(93);
+  //fOSOpis.PutEventById( feBreak, fcGruppaOS1 );
+}
+
+
+// -- ScanTree --------------------------------
+// Сканирование дерева KatOs
+// --------------------------------------------
+// Передаваемые параметры:
+//      _node - корневой узел для сканирования
+//      level - текущий уровень вложенности
+//      cont  - флаг продолжения сканирования
+// --------------------------------------------
+Procedure ScanTree( _node : comp; level : word; var cont : boolean );
+var
+  tmpNode : comp;
+  tmpCont
+, bPrintIt
+, bOnlyLeafPicked : boolean;
+{
+  tmpCont := True;
+  tmpNode := node;
+  PushPos(#KatOs);
+
+  if ( _node = comp(0) )
+  {
+    VedStoim  := 0;      VedSumIzn := 0;      VedSIznM  := 0;
+    VedArcDStoim  := 0;  VedArcDSumIzn := 0;
+    VedStoim2  := 0;     VedSumIzn2 := 0;     VedSIznM2  := 0;
+    VedArcDStoim2 := 0;  VedArcDSumIzn2 := 0; VedKatOS_Kol := 0;
+  }
+
+  node := _node;
+
+  if ( GetFirst FastFirstRow KatOs = tsOk )
+  {
+    //если сохраняем порядок сортировки - то всё работает по-старому
+    if (wNalIznPrintSort = 0)
+    {
+      _LOOP KatOs
+      {
+        //ВЕСЬ ЭТОТ КУСОК НУЖЕН ДЛЯ ПЕЧАТИ ПО ПОМЕЧЕННЫМ ЗАПИСЯМ
+        //если Pick-а нет, то признак печати всегда True
+        bPrintIt := True;
+        //если есть Pick, то определяем помечен ли текущий ОС и устанавливаем или
+        //нет признак печати ОСа, в зависимости от того, помечен он или нет
+        if (isPick) and (Not isValid(#Pick))
+          bPrintIt := False;
+
+        //если это лист
+        if ( KatOs.isLeaf = 1 )
+        {
+          //и он не помечен - то идём дальше
+          if (Not bPrintIt)
+            Continue;
+
+          if ( KatOS.OtchPer > dReeOtchPer )
+            if ( RecordExists ArcIznos_PrevOtchPer <> tsOk )
+              Continue;
+        }
+        else
+          //если это узел и он не помечен
+          if (Not bPrintIt)
+          {
+            bOnlyLeafPicked:=False;
+            //то проверяем есть ли помеченные листья у него
+            _LOOP KatOsInv
+              if (isValid(#PickInv))
+              {
+                bOnlyLeafPicked:=True;
+                Break;
+              }
+            //если их нет - то идём на следующий узел, у которого есть листья
+            //если же они есть - то печатаем узел, хотя он и без пометки
+            if (Not bOnlyLeafPicked)
+              Continue;
+          }
+        //КОНЕЦ КУСКА ДЛЯ ПЕЧАТИ ПО ПОМЕЧЕННЫМ ЗАПИСЯМ
+
+        //если нет фильтра по дате поступления, то проверяем, чтобы она была не больше отчётного периода
+        if (Not ((FilDp1 <> Date(0,0,0)) or (FilDp2 <> Date(0,0,0))))
+        {
+          if (KatOS.DatOk > Date(Last_Day(dReeOtchPer), Month(dReeOtchPer), Year(dReeOtchPer)))
+            Continue;
+        }
+
+        bPrintAsLeft := False;
+        //если нет фильтра по дате выбытия и объект выбыл, то проверяем в каком периоде он выбыл
+        if (Not ( (FilDb1 <> Date(0,0,0)) or (FilDb2 <> Date(0,0,0)) )) and
+           (LongInt(KatOS.DatV)<>0)
+        {
+          if (KatOS.DatV <= dReeOtchPer)
+            if (Not IsLeftInThisPeriod(wPeriod, dReeOtchPer, KatOs.DatV))
+              Continue;
+            else
+              bPrintAsLeft := True;
+        }
+
+        PrintLine(level);
+
+        if ( KatOs.isLeaf = 0 )
+          ScanTree( comp(KatOs.NRec), level + 1, tmpCont )
+        else
+        {
+          // итого по документу
+          VedKatOS_Kol := VedKatOS_Kol + dKatOS_Kol;
+          VedStoim  := VedStoim  + dOS_Stoim * dKatOS_MU_Kol;
+          VedSumIzn := VedSumIzn + dFormSumIzn * dKatOS_MU_Kol;
+          VedSIznM  := VedSIznM  + dOS_SIznM * dKatOS_MU_Kol;
+          // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+          //VedArcDStoim  := VedArcDStoim + fArcIznosDStoim * fArcIznosDKol;
+          //VedArcDSumIzn := VedArcDSumIzn + fArcIznosDSumIzn * fArcIznosDKol;
+          VedArcDStoim  := VedArcDStoim + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+
+          if ( (LongInt(KatOs.DatV) = 0) OR (KatOs.DatV > dReeOtchPer) )
+          {
+            VedStoim2  := VedStoim2  + dOS_Stoim * dKatOS_MU_Kol;
+            VedSumIzn2 := VedSumIzn2 + dFormSumIzn * dKatOS_MU_Kol;
+            VedSIznM2  := VedSIznM2  + dOS_SIznM * dKatOS_MU_Kol;
+            // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+            //VedArcDStoim2  := VedArcDStoim2 + fArcIznosDStoim * fArcIznosDKol;
+            //VedArcDSumIzn2 := VedArcDSumIzn2 + fArcIznosDSumIzn * fArcIznosDKol;
+            VedArcDStoim2  := VedArcDStoim2 + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+          }
+        }
+
+        cont := NextVisual;
+
+        if Not (cont and tmpCont)
+          Break;
+      }//loop
+    }
+    else    //если печатаем по порядку пометки
+    {
+      _LOOP PickInv where ((cgPick_KatOs == PickInv.wList))   ordered by PickInv.PickNum
+      {
+        if (GetFirst KatOs where ((PickInv.cRec == Katos.Nrec)) <> tsOk)
+          Continue;
+
+        //если нет фильтра по дате поступления, то проверяем, чтобы она была не больше отчётного периода
+        if (Not ((FilDp1 <> Date(0,0,0)) or (FilDp2 <> Date(0,0,0))))
+        {
+          if (KatOS.DatOk > Date(Last_Day(dReeOtchPer), Month(dReeOtchPer), Year(dReeOtchPer)))
+            Continue;
+        }
+
+        if ( KatOS.OtchPer > dReeOtchPer )
+          if ( RecordExists ArcIznos_PrevOtchPer <> tsOk )
+            Continue;
+
+        bPrintAsLeft := False;
+        //если нет фильтра по дате выбытия и объект выбыл, то проверяем в каком периоде он выбыл
+        if ( ( Not ( (FilDb1 <> Date(0,0,0)) or (FilDb2 <> Date(0,0,0)) ) )
+         and (LongInt(KatOS.DatV) <> 0) )
+        {
+          if (KatOS.DatV <= dReeOtchPer)
+            if (Not IsLeftInThisPeriod(wPeriod, dReeOtchPer, KatOs.DatV))
+              Continue;
+            else
+              bPrintAsLeft := True;
+        }
+
+        PrintLine(level);
+
+        if (KatOs.isLeaf = 1)
+        {
+          // итого по документу
+          VedKatOS_Kol := VedKatOS_Kol + dKatOS_Kol;
+          VedStoim  := VedStoim  + dOS_Stoim * dKatOS_MU_Kol;
+          VedSumIzn := VedSumIzn + dFormSumIzn * dKatOS_MU_Kol;
+          VedSIznM  := VedSIznM  + dOS_SIznM * dKatOS_MU_Kol;
+          // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+          //VedArcDStoim  := VedArcDStoim + fArcIznosDStoim * fArcIznosDKol;
+          //VedArcDSumIzn := VedArcDSumIzn + fArcIznosDSumIzn * fArcIznosDKol;
+          VedArcDStoim  := VedArcDStoim + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+
+          if ( (LongInt(KatOs.DatV) = 0) OR (KatOs.DatV > dReeOtchPer) )
+          {
+            VedStoim2  := VedStoim2  + dOS_Stoim * dKatOS_MU_Kol;
+            VedSumIzn2 := VedSumIzn2 + dFormSumIzn * dKatOS_MU_Kol;
+            VedSIznM2  := VedSIznM2  + dOS_SIznM * dKatOS_MU_Kol;
+            // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+            //VedArcDStoim2  := VedArcDStoim2 + fArcIznosDStoim * fArcIznosDKol;
+            //VedArcDSumIzn2 := VedArcDSumIzn2 + fArcIznosDSumIzn * fArcIznosDKol;
+            VedArcDStoim2  := VedArcDStoim2 + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+          }
+        }
+
+        cont := NextVisual;
+
+        if Not (cont and tmpCont)
+          Break;
+      }//loop
+    }//else
+
+    if ( _node = 0 )
+    {
+      PrintTot('Итого по документу'
+             , VedKatOS_Kol
+             , VedStoim
+             , VedSumIzn
+             , VedSIznM
+             , VedArcDStoim
+             , VedArcDSumIzn
+             , VedStoim2
+             , VedSumIzn2
+             , VedSIznM2
+             , VedArcDStoim2
+             , VedArcDSumIzn2);
+    }
+  }
+
+  PopPos(#KatOs);
+  node := tmpNode;
+}  // ScanTree
+
+// -- ScanGr ------------------------------------------
+// Сканирование KatOs с подсчетом итогов по группам
+// ----------------------------------------------------
+Procedure ScanGr;
+var
+  TotName   : array[1..2] of string;      // Наименование итогов
+  TotStoim  : array[1..2] of double;      // итого по стоимости
+  TotSumIzn : array[1..2] of double;      // итого по износу
+  TotSIznM  : array[1..2] of double;      // итого по износу за месяц
+  TotArcDStoim  : array[1..2] of double;   // итого по стоим. на 31.12.2001
+  TotArcDSumIzn : array[1..2] of double;   // итого по износу на 31.12.2001
+  TotStoim2  : array[1..2] of double;     // итого по стоимости без учета выбывших
+  TotSumIzn2 : array[1..2] of double;     // итого по износу без учета выбывших
+  TotSIznM2  : array[1..2] of double;     // итого по износу за месяц без учета выбывших
+  TotArcDStoim2  : array[1..2] of double; // итого по стоим. на 31.12.2001 без учета выбывших
+  TotArcDSumIzn2 : array[1..2] of double; // итого по износу на 31.12.2001 без учета выбывших
+  TotKatOSKol    : array[1..2] of double; // итого количество
+
+  PrintedLeafs : array[1..2] of comp;     // сколько записей помечено в данной группировке
+  VedStoim  : double;   // итого по стоимости
+  VedSumIzn : double;   // итого по износу
+  VedSIznM  : double;   // итого по износу за месяц
+  VedArcDStoim  : double;  // итого по ст. на 31.12.2002
+  VedArcDSumIzn : double;  // итого по износу на 31.12.2002
+  VedStoim2  : double;  // итого по стоимости без учета выбывших
+  VedSumIzn2 : double;  // итого по износу без учета выбывших
+  VedSIznM2  : double;  // итого по износу за месяц без учета выбывших
+  VedArcDStoim2  : double; // итого по ст. на 31.12.2002 без учета выбывших
+  VedArcDSumIzn2 : double; // итого по износу на 31.12.2002 без учета выбывших
+  VedKatOS_Kol   : double; // итого количество
+
+  PrevGrpValue   : array[1..2] of comp;   // контрольное значение группировки
+  PrevGrpName    : array[1..2] of string; // наименование значения группировки
+
+  bNextValue  : array[1..2] of boolean;   // флаг перехода к следующему значению группировки
+  bSwapSort : boolean;
+
+  bPrintIt : boolean;
+  bPrintHead : boolean;
+  i : word;
+
+{
+  if (isPick)
+    case SortRg of
+    //------------
+      2: AddBounds(tbbyPrintTrOKOF);
+    //------------
+      3: AddBounds(tbbyPrintTrMol);
+    //------------
+      4: AddBounds(tbbyPrintTrVid);
+    //------------
+      5: AddBounds(tbbyPrintTrGr);
+    //------------
+      6: AddBounds(tbbyPrintTrPodrName);
+    //------------
+      7: AddBounds(tbbyPrintTrPodrVid);
+    //------------
+      8: AddBounds(tbbyPrintTrSposob);
+    //------------
+    end;
+
+  bSwapSort := isTree;
+
+  if ( bSwapSort )
+    SwapSort();
+
+  PushPos(#KatOs);
+
+  TotName[1] := TotName[2] :='';
+
+  case SortRg of
+  //------------
+    2: TotName[1] := 'ОКОФ';
+  //------------
+    3: TotName[1] := 'МОЛ';
+  //------------
+    4: TotName[1] := 'Вид ОС';
+  //------------
+    5:
+    {
+      TotName[1] := 'Группа ОС';
+      TotName[2] := 'Вид ОС';
+    }
+  //------------
+    6: TotName[1] := 'Подразделение';
+  //------------
+    7:
+    {
+      TotName[1] := 'Подразделение';
+      TotName[2] := 'Вид ОС';
+    }
+  //------------
+    8: TotName[1] := 'Тип объекта';
+  //------------
+  end; // case
+
+  For ( i := 1; i <= 2; i++ )
+  {
+    TotName[i] := TotName[i] + ': ';
+    PrevGrpValue[i] := comp(0);
+    PrevGrpName[i]  := 'значение не определено';
+
+    TotStoim[i]  := 0;      TotSumIzn[i] := 0;       TotSIznM[i]  := 0;
+    TotArcDStoim[i] := 0;   TotArcDSumIzn[i] := 0;
+    TotStoim2[i]  := 0;     TotSumIzn2[i] := 0;     TotSIznM2[i]  := 0;
+    TotArcDStoim2[i]  := 0; TotArcDSumIzn2[i] := 0; TotKatOSKol[i]   := 0;
+  }
+
+  VedStoim  := 0;       VedSumIzn := 0;       VedSIznM  := 0;
+  VedArcDStoim  := 0;   VedArcDSumIzn := 0;
+  VedStoim2  := 0;      VedSumIzn2 := 0;      VedSIznM2  := 0;
+  VedArcDStoim2  := 0;  VedArcDSumIzn2 := 0;  VedKatOS_Kol := 0;
+
+  if ( GetFirst FastFirstRow KatOs = tsOk )
+  {
+    // если первая запись отличается от нач. установок группировки, то
+    // меняем установки группировки
+    bNextValue[1] := False;
+    bNextValue[2] := False;
+
+    case SortRg of
+    //------------
+      2:    bNextValue[1] := ( KatOs.cOKOF <> PrevGrpValue[1] );
+    //------------
+      3:    bNextValue[1] := ( KatOs.cMol <> PrevGrpValue[1] );
+    //------------
+      4:    bNextValue[1] := ( KatOs.cVid <> PrevGrpValue[1] );
+    //------------
+      5:
+      {
+        bNextValue[1] := ( KatOs.cGrup <> PrevGrpValue[1] );
+        bNextValue[2] := bNextValue[1] or ( KatOs.cVid <> PrevGrpValue[2] );
+      }
+    //------------
+      6:   bNextValue[1] := ( KatOs.cPodr <> PrevGrpValue[1] );
+    //------------
+      7:
+      {
+        bNextValue[1] := ( KatOs.cPodr <> PrevGrpValue[1] );
+        bNextValue[2] := bNextValue[1] or ( KatOs.cVid <> PrevGrpValue[2] );
+      }
+    //------------
+      8:    bNextValue[1] := ( KatOs.cSposob <> PrevGrpValue[1] );
+    //------------
+    end; // case
+
+    if ( bNextValue[1] )
+      case SortRg of
+      //------------
+        2:
+        {
+          PrevGrpValue[1] := KatOs.cOKOF;
+          PrevGrpName[1] := Kodof.Name_of;
+        }
+      //------------
+        3:
+        {
+          PrevGrpValue[1] := KatOs.cMol;
+          PrevGrpName[1] := KatMol.Name;
+        }
+      //------------
+        4:
+        {
+          PrevGrpValue[1] := KatOs.cVid;
+          PrevGrpName[1] := VidNormaS.Name;
+        }
+      //------------
+        5:
+        {
+          PrevGrpValue[1] := KatOs.cGrup;
+          PrevGrpName[1] := GrOs.NameGr;
+        }
+      //------------
+        6:
+        {
+          PrevGrpValue[1] := KatOs.cPodr;
+          PrevGrpName[1] := KatPodr.Name;
+        }
+      //------------
+        7:
+        {
+          PrevGrpValue[1] := KatOs.cPodr;
+          PrevGrpName[1] := KatPodr.Name;
+        }
+      //------------
+        8:
+        {
+          PrevGrpValue[1] := KatOs.cSposob;
+          PrevGrpName[1] := Sposob.NameSb;
+        }
+      //------------
+      end; // case
+
+    if ( bNextValue[2] )
+      case SortRg of
+      //------------
+        5, 7:
+        {
+          PrevGrpValue[2] := KatOs.cVid;
+          PrevGrpName[2] := VidNormaS.Name;
+        }
+      end; // case
+
+    bNextValue[1] := True; // Устанавливаем флаг, чтобы на итерации цикла вывести наим. группировки
+
+    case SortRg of
+    //------------
+      5, 7:    bNextValue[2] := True;
+    end; // case
+
+    PrintedLeafs[1]:=0;
+    PrintedLeafs[2]:=0;
+
+    Do
+    {
+      //если Pick-а нет, то признак печати всегда True
+      bPrintIt := True;
+      //если есть Pick, то определяем помечен ли текущий ОС и устанавливаем или
+      //нет признак печати ОСа, в зависимости от того, помечен он или нет
+      if (isPick)  and  (Not isValid(#Pick))
+        bPrintIt := False;
+
+      // Если произошел переход по группировке, то выводим наименование новой группировки
+      For ( i := 1; i <= 2; i := i + 1 )
+      {
+        if ( bNextValue[i] )
+        {
+          PrintedLeafs[i]:=0;
+          bPrintHead:=False;
+
+          if Not isPick
+             bPrintHead:=True
+          else
+          {
+            if (i = 2)
+              case SortRg of
+              //------------
+                5: AddBounds(tbbyPrintTrGr2);
+              //------------
+                7: AddBounds(tbbyPrintTrPodrVid2);
+              //------------
+              end;
+
+            _LOOP KatOsInv
+              if (isValid(#PickInv))
+              {
+                bPrintHead:=True;
+                Break;
+              }
+
+            if (i = 2)
+              case SortRg of
+              //------------
+                5: SubBounds(tbbyPrintTrGr2);
+              //------------
+                7: SubBounds(tbbyPrintTrPodrVid2);
+              //------------
+              end;
+          }
+
+          if (bPrintHead)
+            PrintGrp( TotName[i] + PrevGrpName[i]);
+
+          bNextValue[i] := False;
+        }
+      } // for i
+
+      //если нет фильтра по дате поступления, то проверяем, чтобы она была не больше отчётного периода
+      if (Not ((FilDp1 <> Date(0,0,0)) or (FilDp2 <> Date(0,0,0))))
+      {
+        if (KatOS.DatOk > Date(Last_Day(dReeOtchPer), Month(dReeOtchPer), Year(dReeOtchPer)))
+          bPrintIt := False;
+      }
+
+      if ( KatOS.OtchPer > dReeOtchPer )
+        if ( RecordExists ArcIznos_PrevOtchPer <> tsOk )
+          bPrintIt := False;
+
+      bPrintAsLeft := False;
+      //если нет фильтра по дате выбытия и объект выбыл, то проверяем в каком периоде он выбыл
+      if ( (Not ( (FilDb1 <> Date(0,0,0)) or (FilDb2 <> Date(0,0,0)) ))  and (LongInt(KatOS.DatV) <> 0) )
+      {
+        if (KatOS.DatV <= dReeOtchPer)
+          if (Not IsLeftInThisPeriod(wPeriod, dReeOtchPer, KatOs.DatV))
+            bPrintIt := False
+          else
+            bPrintAsLeft := True;
+      }
+
+      if (bPrintIt)
+      {
+        PrintLine(0);
+
+        // итого по группировке
+        For ( i := 1; i <= 2; i := i + 1 )
+        {
+          TotKatOSKol[i] := TotKatOSKol[i] + dKatOS_Kol;
+          TotStoim[i]  := TotStoim[i]  + dOS_Stoim * dKatOS_MU_Kol;
+          TotSumIzn[i] := TotSumIzn[i] + dFormSumIzn * dKatOS_MU_Kol;
+          TotSIznM[i]  := TotSIznM[i]  + dOS_SIznM * dKatOS_MU_Kol;
+          // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+          //TotArcDStoim[i]  := TotArcDStoim[i] + fArcIznosDStoim * fArcIznosDKol;
+          //TotArcDSumIzn[i] := TotArcDSumIzn[i] + fArcIznosDSumIzn * fArcIznosDKol;
+          TotArcDStoim[i]  := TotArcDStoim[i] + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+
+          if ( (Longint(KatOs.DatV) = 0) OR (KatOs.DatV > dReeOtchPer) )
+          {
+            TotStoim2[i]  := TotStoim2[i]  + dOS_Stoim * dKatOS_MU_Kol;
+            TotSumIzn2[i] := TotSumIzn2[i] + dFormSumIzn * dKatOS_MU_Kol;
+            TotSIznM2[i]  := TotSIznM2[i]  + dOS_SIznM * dKatOS_MU_Kol;
+            // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+            //TotArcDStoim2[i]  := TotArcDStoim2[i] + fArcIznosDStoim * fArcIznosDKol;
+            //TotArcDSumIzn2[i] := TotArcDSumIzn2[i] + fArcIznosDSumIzn * fArcIznosDKol;
+            TotArcDStoim2[i]  := TotArcDStoim2[i] + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+          }
+
+          PrintedLeafs[i] := PrintedLeafs[i] + 1;
+        } // for i
+        // итого по документу
+        VedKatOS_Kol := VedKatOS_Kol + dKatOS_Kol;
+        VedStoim  := VedStoim  + dOS_Stoim * dKatOS_MU_Kol;
+        VedSumIzn := VedSumIzn + dFormSumIzn * dKatOS_MU_Kol;
+        VedSIznM  := VedSIznM  + dOS_SIznM * dKatOS_MU_Kol;
+        // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+        //VedArcDStoim  := VedArcDStoim + fArcIznosDStoim * fArcIznosDKol;
+        //VedArcDSumIzn := VedArcDSumIzn + fArcIznosDSumIzn * fArcIznosDKol;
+        VedArcDStoim  := VedArcDStoim + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+
+        if ( (Longint(KatOs.DatV) = 0) OR (KatOs.DatV > dReeOtchPer) )
+        {
+          VedStoim2  := VedStoim2  + dOS_Stoim * dKatOS_MU_Kol;
+          VedSumIzn2 := VedSumIzn2 + dFormSumIzn * dKatOS_MU_Kol;
+          VedSIznM2  := VedSIznM2  + dOS_SIznM * dKatOS_MU_Kol;
+          // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+          //VedArcDStoim2  := VedArcDStoim2 + fArcIznosDStoim * fArcIznosDKol;
+          //VedArcDSumIzn2 := VedArcDSumIzn2 + fArcIznosDSumIzn * fArcIznosDKol;
+          VedArcDStoim2  := VedArcDStoim2 + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+        }
+      }
+
+      // Если следующая запись не найдена, то выводим итоги по группировке и выходим
+      if ( GetNext FastFirstRow KatOs <> tsOk )
+      {
+        case SortRg of
+        //------------
+          5,7:
+          {
+            if (PrintedLeafs[2] <> 0)
+              PrintTot('Итого по ' + TotName[2] + PrevGrpName[2]
+                     , TotKatOSKol[2]
+                     , TotStoim[2]
+                     , TotSumIzn[2]
+                     , TotSIznM[2]
+                     , TotArcDStoim[2]
+                     , TotArcDSumIzn[2]
+                     , TotStoim2[2]
+                     , TotSumIzn2[2]
+                     , TotSIznM2[2]
+                     , TotArcDStoim2[2]
+                     , TotArcDSumIzn2[2]
+                      );
+          }
+        //------------
+        end; // case
+
+        if (PrintedLeafs[1] <> 0)
+          PrintTot('Итого по ' + TotName[1] + PrevGrpName[1]
+                 , TotKatOSKol[1]
+                 , TotStoim[1]
+                 , TotSumIzn[1]
+                 , TotSIznM[1]
+                 , TotArcDStoim[1]
+                 , TotArcDSumIzn[1]
+                 , TotStoim2[1]
+                 , TotSumIzn2[1]
+                 , TotSIznM2[1]
+                 , TotArcDStoim2[1]
+                 , TotArcDSumIzn2[1]
+                  );
+
+        Break;
+      }
+
+      bNextValue[1] := False;
+      bNextValue[2] := False;
+      // если запись отличается от тек. установок группировки, то
+      // меняем установки группировки
+      case SortRg of
+      //------------
+        2: bNextValue[1] := ( KatOs.cOKOF <> PrevGrpValue[1] );
+      //------------
+        3: bNextValue[1] := ( KatOs.cMol <> PrevGrpValue[1] );
+      //------------
+        4: bNextValue[1] := ( KatOs.cVid <> PrevGrpValue[1] );
+      //------------
+        5:
+        {
+          bNextValue[1] := ( KatOs.cGrup <> PrevGrpValue[1] );
+          bNextValue[2] := bNextValue[1] or ( KatOs.cVid <> PrevGrpValue[2] );
+        }
+      //------------
+        6: bNextValue[1] := ( KatOs.cPodr <> PrevGrpValue[1] );
+      //------------
+        7:
+        {
+          bNextValue[1] := ( KatOs.cPodr <> PrevGrpValue[1] );
+          bNextValue[2] := bNextValue[1] or ( KatOs.cVid <> PrevGrpValue[2] );
+        }
+      //------------
+        8: bNextValue[1] := ( KatOs.cSposob <> PrevGrpValue[1] );
+      //------------
+      end; // case
+
+      For ( i := 2; i >= 1; i := i - 1 )
+      {
+        if ( bNextValue[i] )
+        {
+          if (PrintedLeafs[i] <> 0)
+            PrintTot('Итого по ' + TotName[i] + PrevGrpName[i]
+                   , TotKatOSKol[i]
+                   , TotStoim[i]
+                   , TotSumIzn[i]
+                   , TotSIznM[i]
+                   , TotArcDStoim[i]
+                   , TotArcDSumIzn[i]
+                   , TotStoim2[i]
+                   , TotSumIzn2[i]
+                   , TotSIznM2[i]
+                   , TotArcDStoim2[i]
+                   , TotArcDSumIzn2[i]);
+
+          TotKatOSKol[i] := 0.0;
+          TotStoim[i]  := 0.0;
+          TotSumIzn[i] := 0.0;
+          TotSIznM[i]  := 0.0;
+          TotArcDStoim[i]  := 0.0;
+          TotArcDSumIzn[i] := 0.0;
+          TotStoim2[i]  := 0.0;
+          TotSumIzn2[i] := 0.0;
+          TotSIznM2[i]  := 0.0;
+          TotArcDStoim2[i]  := 0.0;
+          TotArcDSumIzn2[i] := 0.0;
+        }
+      } // for i
+
+      if ( bNextValue[2] )
+      {
+        case SortRg of
+        //------------
+          5, 7:
+          {
+            PrevGrpValue[2] := KatOs.cVid;
+            PrevGrpName[2] := VidNormaS.Name;
+          }
+        //------------
+        end; // case
+      }
+
+      if ( bNextValue[1] )
+      {
+        case SortRg of
+        //------------
+          2:
+          {
+            PrevGrpValue[1] := KatOs.cOKOF;
+            PrevGrpName[1] := Kodof.Name_of;
+          }
+        //------------
+          3:
+          {
+            PrevGrpValue[1] := KatOs.cMol;
+            PrevGrpName[1] := KatMol.Name;
+          }
+        //------------
+          4:
+          {
+            PrevGrpValue[1] := KatOs.cVid;
+            PrevGrpName[1] := VidNormaS.Name;
+          }
+        //------------
+          5:
+          {
+            PrevGrpValue[1] := KatOs.cGrup;
+            PrevGrpName[1] := GrOs.NameGr;
+          }
+        //------------
+          6, 7:
+          {
+            PrevGrpValue[1] := KatOs.cPodr;
+            PrevGrpName[1] := KatPodr.Name;
+          }
+        //------------
+          8:
+          {
+            PrevGrpValue[1] := KatOs.cSposob;
+            PrevGrpName[1] := Sposob.NameSb;
+          }
+        //------------
+        end; // case
+      }
+    }
+    While ( NextVisual )
+
+    PrintTot('Итого по документу'
+           , VedKatOS_Kol
+           , VedStoim
+           , VedSumIzn
+           , VedSIznM
+           , VedArcDStoim
+           , VedArcDSumIzn
+           , VedStoim2
+           , VedSumIzn2
+           , VedSIznM2
+           , VedArcDStoim2
+           , VedArcDSumIzn2);
+  }
+
+  if (isPick)
+    case SortRg of
+    //------------
+      2: SubBounds(tbbyPrintTrOKOF);
+    //------------
+      3: SubBounds(tbbyPrintTrMol);
+    //------------
+      4: SubBounds(tbbyPrintTrVid);
+    //------------
+      5: SubBounds(tbbyPrintTrGr);
+    //------------
+      6: SubBounds(tbbyPrintTrPodrName);
+    //------------
+      7: SubBounds(tbbyPrintTrPodrVid);
+    //------------
+      8: SubBounds(tbbyPrintTrSposob);
+    //------------
+    end;
+
+  PopPos(#KatOs);
+
+  if ( bSwapSort )
+    SwapSort();
+}  // ScanGr
+
+//------------------------------------------------------------------------------
+Function GetStrZnak(wZnak : word) : string;
+{
+  case wZnak of
+  //-----------
+    0: GetStrZnak := ' ';
+  //-----------
+    1: GetStrZnak := '=';
+  //-----------
+    2: GetStrZnak := '>';
+  //-----------
+    3: GetStrZnak := '<';
+  //-----------
+    4: GetStrZnak := '>=';
+  //-----------
+    5: GetStrZnak := '<=';
+  //-----------
+    6: GetStrZnak := '<>';
+  //-----------
+  else
+    GetStrZnak := '?';
+  //-----------
+  end;
+}
+//=========================================================================
+//'Процедура печати
+//=========================================================================
+Procedure PrintReestr1;
+{
+  case wTip of
+  //----------
+    15 :
+    {
+      SubjReport := 'ОС';
+      SubjDet1   := 'ОСНОВНЫЕ СРЕДСТВА';
+      SubjDet2   := 'ОСНОВНЫХ СРЕДСТВ';
+      SubjDet3   := 'ОСНОВНЫМ СРЕДСТВАМ';
+
+      if (cFilIsp <> 0)
+        sFilter[5] := 'Признак использ.:    ' + #ShowKau(cgKau_IspOs, cFilIsp);
+
+      if (cFilVid <> 0)
+        sFilter[3] := 'Вид:                 ' + #ShowKau(cgKau_VidNor1, cFilVid);
+    }
+  //----------
+    16 :
+    {
+      SubjReport := 'НМА';
+      SubjDet1   := 'НЕМАТЕРИАЛЬНЫЕ АКТИВЫ';
+      SubjDet2   := 'НЕМАТЕРИАЛЬНЫХ АКТИВОВ';
+      SubjDet3   := 'НЕМАТЕРИАЛЬНЫМ АКТИВАМ';
+
+      if (cFilIsp <> 0)
+        sFilter[5] := 'Признак использ.:    ' + #ShowKau(cgKau_IspNMA, cFilIsp);
+
+      if (cFilVid <> 0)
+        sFilter[3] := 'Вид:                 ' + #ShowKau(cgKau_VidNor2, cFilVid);
+    }
+  //----------
+  end;  //'case
+
+  if ( FilOKOF <> '')
+    sFilter[1]  := 'Группировка ОКОФ:    ' + FilOKOF;
+
+  if ( cFilGr <> 0 )
+    sFilter[2]  := 'Группа:              ' + #ShowKau(cgKau_GrOs, cFilGr);
+
+  if ( FilNorm  <> '')
+    sFilter[4]  := 'Норма амортизации:   ' + FilNorm;
+
+  if ( cNRecPodr <> 0 )
+    sFilter[6]  := 'Подразделение:       ' + #ShowKau(cgKau_KatPodr, cNRecPodr);
+
+  if ( cNRecMol <> 0 )
+    sFilter[7]  := 'МОЛ:                 ' + #ShowKau(cgKau_KatMol, cNRecMol);
+
+  if ( FilMetod <> '')
+    sFilter[8]  := 'Алгоритм нач.аморт.: ' + FilMetod;
+
+  if ( FilHozOper <> '')
+    sFilter[9]  := 'ТХО нач.аморт.:      ' + FilHozOper;
+
+  if ( FilTipOb <> '')
+    sFilter[10] := 'Тип объекта:         ' + FilTipOb;
+
+  if ( FilKlass <> '')
+    sFilter[11] := 'Внешняя классиф-ция: '
+                 + FilKlass + ':'
+                 + if ( FilKlass1 <> '', ' <' + FilKlass1 + '>', '')
+                 + if ( FilKlass2 <> '', ' <' + FilKlass2 + '>', '')
+                 + if ( FilKlass3 <> '', ' <' + FilKlass3 + '>', '')
+                 + if ( FilKlass4 <> '', ' <' + FilKlass4 + '>', '')
+                 + if ( FilKlass5 <> '', ' <' + FilKlass5 + '>', '')
+                 + if ( FilKlass6 <> '', ' <' + FilKlass6 + '>', '');
+
+  if ( FilInNum <> '')
+    sFilter[12] := 'Инвентарный номер:   ' + FilInNum;
+
+  if ( FilName <> '')
+    sFilter[13] := 'Наименование:        ' + FilName;
+
+  if ( FilZavN <> '')
+    sFilter[14] := 'Заводской номер:     ' + FilZavN;
+
+  if ( FilPasN <> '')
+    sFilter[15] := 'Номер паспорта:      ' + FilPasN;
+
+  if ( FilZvIz <> '')
+    sFilter[16] := 'Завод-изготовитель:  ' + FilZvIz;
+
+  if ( FilModTip <> '')
+    sFilter[17] := 'Модель,тип,марка:    ' + FilModTip;
+
+  if ( cFilZnak <> 0 )
+    sFilter[20] := 'Остаточная ст-ть:    ' + GetStrZnak( Word(cFilZnak) )
+                 + ' ' + Trim( DoubleToStr( FilSum, SumFormat ) );
+
+  if ( cFilDrg <> 0 )
+    sFilter[22] := 'Драгметаллы: '
+                 + if ( cFilDrg = 0
+                      , ''
+                      , if ( cFilDrg = 1
+                           , 'Есть'
+                           , if ( cFilDrg = 2, 'Нет', '') ) );
+
+  if ( FilDv1 <> Date(0,0,0) or FilDv2 <> Date(0,0,0) )
+    sFilter[23] := 'Дата выпуска:        ' + 'с '+ DateToStr( FilDv1, 'DD/MM/YYYY' )
+                 + ' по ' + DateToStr( FilDv2,  'DD/MM/YYYY' );
+
+  if ( FilDvd1 <> Date(0,0,0) or FilDvd2 <> Date(0,0,0) )
+    sFilter[24] := 'Дата ввода:          ' + 'с '+ DateToStr( FilDvd1, 'DD/MM/YYYY' )
+                 + ' по ' + DateToStr( FilDvd2,  'DD/MM/YYYY' );
+
+  if ( FilDp1 <> Date(0,0,0) or FilDp2 <> Date(0,0,0) )
+    sFilter[25] := 'Дата поступления:    ' + 'с '+ DateToStr( FilDp1, 'DD/MM/YYYY' )
+                 + ' по ' + DateToStr( FilDp2,  'DD/MM/YYYY' );
+
+  if ( FilDb1 <> Date(0,0,0) or FilDb2 <> Date(0,0,0) )
+    sFilter[26] := 'Дата выбытия:        ' + 'с '+ DateToStr( FilDb1, 'DD/MM/YYYY' )
+                 + ' по ' + DateToStr( FilDb2,  'DD/MM/YYYY' );
+
+  if ( cFilAmGr <> 0)
+    sFilter[27] := 'Амортизац. группа:   ' + #ShowKau(cgKau_AmortGr, cFilAmGr);
+
+  if ( cFilZnakIspPs <> 0 )
+    sFilter[21] := 'Срок исп. до пост.:  ' + GetStrZnak( Word(cFilZnakIspPs) )
+                 + ' ' + Trim( DoubleToStr( FilIspPs, '6666666666' ) );
+
+  if ( cFilZnakIspCur <> 0 )
+    sFilter[28] := 'Срок исп.после пост.:' + GetStrZnak( Word(cFilZnakIspCur) )
+                 + ' ' + Trim( DoubleToStr( FilIspCur, '6666666666' ) );
+
+  if ( cFilZnakSrokIsp <> 0 )
+    sFilter[29] := 'Срок полезного исп.: ' + GetStrZnak( Word(cFilZnakSrokIsp) )
+                 + ' ' + Trim( DoubleToStr( FilSrokIsp, '6666666666' ) );
+
+  if ( cFilZnakOstSrok <> 0 )
+    sFilter[30] := 'Ост.срок полезн.исп.:' + GetStrZnak( Word(cFilZnakOstSrok) )
+                 + ' ' +  Trim( DoubleToStr( FilOstSrok, '6666666666' ) );
+
+  if ( cFilZnakPoprkoef <> 0 )
+    sFilter[31] := 'Поправочный коэфф.:  ' + GetStrZnak( Word(cFilZnakPoprkoef) )
+                 + ' ' + Trim( DoubleToStr( FilPoprkoef, '6666666666' ) );
+
+  if ( cFilZnakStoim <> 0 )
+    sFilter[40] := 'Стоимость:           ' + GetStrZnak( Word(cFilZnakStoim) )
+                 + ' ' + Trim( DoubleToStr( FilStoim, '6666666666' ) );
+
+  if ( cFilZnakSumIzn <> 0 )
+    sFilter[41] := Pad(sNameFieldSumIzn + ':', 21)           //'Сумма износа:        '
+                 + GetStrZnak( Word(cFilZnakSumIzn) )
+                 + ' ' + Trim( DoubleToStr( FilSumIzn, '6666666666' ) );
+
+  if ( cFilZnakSIznM <> 0 )
+    sFilter[42] := Pad(sNameFieldSIznM + ':', 21)                 //'Износ за месяц       '
+                 + GetStrZnak( Word(cFilZnakSIznM) )
+                 + ' ' + Trim( DoubleToStr( FilSIznM, '6666666666' ) );
+
+  case SortRg of
+  //------------
+    0:
+    {
+      SrtName := 'Инвентарный номер';
+      GrpName := '';
+    }
+  //------------
+    1:
+    {
+      SrtName := 'Наименование';
+      GrpName := '';
+    }
+  //------------
+    2:
+    {
+      SrtName := 'Код ОКОФ';
+      GrpName := 'Код ОКОФ';
+    }
+  //------------
+    3:
+    {
+      SrtName := 'МОЛ';
+      GrpName := 'МОЛ';
+    }
+  //------------
+    4:
+    {
+      SrtName := 'Вид ОС';
+      GrpName := 'Вид ОС';
+    }
+  //------------
+    5:
+    {
+      SrtName := 'Группа + вид ОС';
+      GrpName := 'Группа + вид ОС';
+    }
+  //------------
+    6:
+    {
+      SrtName := 'Подразделение + Наименование';
+      GrpName := 'Подразделение';
+    }
+  //------------
+    7:
+    {
+      SrtName := 'Подразделение + вид ОС';
+      GrpName := 'Подразделение + вид ОС';
+    }
+  //------------
+    8:
+    {
+      SrtName := 'Тип объекта + инвентарный номер';
+      GrpName := 'Тип объекта';
+    }
+    9:
+    {
+      SrtName := 'Дата ввода в эксплуатацию';
+      GrpName := '';
+    }
+  //------------
+  end; // case
+
+  PushPos(#KatOS);
+  node := 0;  // Начинаем обход с высшего уровня дерева
+
+  if ( GetFirst FastFirstRow KatOs = tsOk )
+  {
+    case wTip of
+    //----------
+      15:
+        if (wGetTune('Country') = 1)
+          fOSOpis.SetGroup('Ведомости наличия ОС'#1
+                         + 'Ведомости наличия ОС и НМА'#1
+                         + 'Ведомости наличия ОС <<Беларусь>>'#1
+                         + 'Ведомости наличия ОС и НМА <<Беларусь>>'#1
+                         + 'Приказ о проведении инвентаризации <<Беларусь>>')
+          else
+            if (wGetTune('Country') = 0)
+              fOSOpis.SetGroup(if ( isNalRegLicense()
+                                  ,'Ведомости наличия и износа для налоговых регистров'#1, '')
+                             + 'Ведомости наличия ОС'#1
+                             + 'Ведомости наличия ОС и НМА'#1
+                             + 'Ведомости наличия ОС <<Россия>>'#1
+                             + 'Ведомости наличия ОС и НМА <<Россия>>'#1
+                             + 'Приказ о проведении инвентаризации')
+            else
+              fOSOpis.SetGroup('Ведомости наличия ОС'#1
+                             + 'Ведомости наличия ОС и НМА'#1
+                             + 'Ведомости наличия ОС <<Россия>>'#1
+                             + 'Ведомости наличия ОС и НМА <<Россия>>'#1
+                             + 'Приказ о проведении инвентаризации');
+    //----------
+      16:
+        if (wGetTune('Country') = 1)
+          fOSOpis.SetGroup('Ведомости наличия НМА'#1
+                         + 'Ведомости наличия ОС и НМА'#1
+                         + 'Ведомости наличия НМА <<Беларусь>>'#1
+                         + 'Ведомости наличия ОС и НМА <<Беларусь>>'#1
+                         + 'Приказ о проведении инвентаризации <<Беларусь>>')
+        else
+          if (wGetTune('Country') = 0)
+            fOSOpis.SetGroup(if ( isNalRegLicense(), 'Ведомости наличия и износа для налоговых регистров'#1, '')
+                           + 'Ведомости наличия НМА'#1
+                           + 'Ведомости наличия ОС и НМА'#1
+                           + 'Ведомости наличия НМА <<Россия>>'#1
+                           + 'Ведомости наличия ОС и НМА <<Россия>>'#1
+                           + 'Приказ о проведении инвентаризации')
+          else
+            fOSOpis.SetGroup('Ведомости наличия НМА'#1
+                           + 'Ведомости наличия ОС и НМА'#1
+                           + 'Ведомости наличия НМА <<Россия>>'#1
+                           + 'Ведомости наличия ОС и НМА <<Россия>>'#1
+                           + 'Приказ о проведении инвентаризации');
+    //----------
+    end;  //'case
+
+    if ( Not fOSOpis.Error )
+    {
+      StartNewVisual( vtNumericVisual, vfTimer + vfBreak + vfConfirm, 'Подготовка отчета к печати', 1);
+
+      fOSOpis.Write( SubjReport );
+      fOSOpis.Write( SubjDet1 );
+      fOSOpis.Write( SubjDet2 );
+      fOSOpis.Write( SubjDet3 );
+      fOSOpis.Write( comp(0) );
+
+      if ( GetFirst FastFirstRow KatOrg where (( coGetTune('MYORG') == KatOrg.NRec )) <> tsOk )
+        fOSOpis.SkipFormat(3)
+      else
+      {
+        fOSOpis.Write( KatOrg.nRec );
+        fOSOpis.Write( KatOrg.Name );
+        fOSOpis.Write( KatOrg.OKPO );
+      }
+
+      //Есть_операция_инвентаризации
+      fOSOpis.Write(False);
+
+      //Подразделение
+      fOSOpis.Write( #ShowKau(cgKau_KatPodr, cNRecPodr) );
+      //Подразделение_заголовок_nRec
+      //МОЛ_инвентаризации_должность
+      //МОЛ_инвентаризации
+      //nRec_МОЛ_инвентаризации
+      fOSOpis.SkipFormat(4);
+
+      fOSOpis.Write( Date(Last_Day(dReeOtchPer), Month(dReeOtchPer), Year(dReeOtchPer)) );
+      fOSOpis.Write( NastrOS.nRec );
+      fOSOpis.Write( NastrOS.Name );
+      fOSOpis.Write( NastrOS.KIAO );// Коэф_индексации_амор_отчислений
+      fOSOpis.Write( double(1) );  // Делитель
+      fOSOpis.Write( '1' );        // Ф_делитель
+      fOSOpis.Write( 'Один' );     // Делитель_прописью
+      fOSOpis.Write( SumFormat );
+      fOSOpis.Write( KolFormat );
+
+      if (NastrOs.cVal <> 0)
+        fOSOpis.Write(KlValK.nRec)
+      else
+        fOSOpis.SkipFormat(1);
+
+      fOSOpis.Write( SimVolVMy  );
+
+      fOSOpis.Write( GrpName );  //'содержание группировки
+      fOSOpis.Write( SrtName );  //'содержание сортировки
+      fOSOpis.Write( wPeriod );  // Учет_выбывших
+
+      case wPeriod of  //С_учетом_выбывших_в_периоде
+      //-------------
+        0: fOSOpis.Write('месяце');
+      //-------------
+        1: fOSOpis.Write('квартале');
+      //-------------
+        2: fOSOpis.Write('полугодии');
+      //-------------
+      else
+        fOSOpis.Write('году');
+      //-------------
+      end;
+      //Дата_Остаточной_стоимости_на_1_января
+      fOSOpis.Write( Add_Day(dArcOstStoimDate, 1) );
+      //nRec_InvTab
+      //Номер_Приказа_инвентаризации
+      //Дата_Приказа_инвентаризации
+      //Номер_Документа_инвентаризации
+      //Дата_Документа_инвентаризации
+      //Дата_Окончания_инвентаризации
+      fOSOpis.SkipFormat(6);
+
+      #WriteCommission_FeeSigners(iFeeSigners,fOSOpis,OsOpis)   // вывод комиссии
+      #WriteResponsible_FeeSigners(iFeeSigners,fOSOpis,OsOpis)  // отв. лиц
+
+      var j : word;
+
+      For ( j := 1; j <= Count(sFilter); j := j + 1 )
+      {
+        if ( InitItem( sFilter, j ) )
+          if (sFilter[j] <> '')
+          {
+            fOSOpis.PutEventById( feDoLoop, fcFilterOS1 );
+            fOSOpis.Write( sFilter[j] );
+            //fOSOpis.PutEventById( feBreak, fcFilterOS1 );
+          }
+      }
+
+      if ( (SortRg <= 1) or  (SortRg = 9)  or
+          //если печатаем по порядку пометки, то итоги тоже не считаем
+          (wNalIznPrintSort = 1))
+      {
+        // Сканирование дерева и вывод данных в форму
+        if (isPick)
+          AddBounds(tbbyForNotGrupped);
+
+        var b: boolean; b:= true;
+        ScanTree(comp(0),word(0),b);
+
+        if (isPick)
+          SubBounds(tbbyForNotGrupped);
+      }
+      else    // Сканирование каталога с учетом группировок и вывод данных в форму
+        ScanGr();
+
+      if (Not NextVisual)
+      {
+        StopVisual('',0);
+        fStop:=True;
+        fOSOpis.AbortForm;
+      }
+
+      if Not fStop
+      {
+        fOSOpis.PutEvent(feBreak);
+        StopVisual('', 0);
+      }
+    }
+
+    if Not fStop
+      if ( Not fOSOpis.Error )
+        fOSOpis.ShowFile( 'Ведомость наличия ' + SubjReport );
+      else
+        fOSOpis.AbortForm;
+  }
+
+  PopPos(#KatOs);
+
+  if ( isTree )
+    MyJumpToRecord();
+
+  RescanPanel(#KatOs);
+}
+
+//=================================== EXEL =======================
+//------------------------------------------------------------------------------
+// Формирование массива строк для прикрепленных документов
+Procedure FillDocs_XLT(cKatOsnRec : Comp);
+{
+  var
+  ArrDocName,
+  ArrDocDate,
+  ArrDocNomer : TXLS_ArrStr;
+
+  var sOneRow, sTemp : String;
+  var iCountWrite, iKolSim : Longint;
+  var idx, iMaxRow : Integer;
+  Var ArDate, RepArDate : Date = ZeroDate;
+  Var ArOrg_UNN_DateEnd : String = '';
+
+  SetLimit(ArrDocName,  0);
+  SetLimit(ArrDocDate,  0);
+  SetLimit(ArrDocNomer, 0);
+  ArrDocName[0] := ArrDocDate[0] := ArrDocNomer[0] := '';
+  iCountWrite := iKolSim := iMaxRow := 0;
+
+  if wPeriodOtch = 0
+    RepArDate := dGetTune('OS.OtchPeriod');
+  else
+    RepArDate := Date(1, wMonthReeOtchPer, wYearReeOtchPer);
+  RepArDate := pOsFun.LastDayDate(RepArDate);
+
+  // Печать прикрепленных документов
+  if (cKatOsnRec <> Comp(0))
+  {
+    Set loDoc.cKatOsnRec :=  cKatOsnRec;
+    Set loDoc.wTip       := wTip;
+    if (loDoc.RecordExists DocInfo = tsOk)
+      loDoc._loop  DocInfo
+      {
+        if GetFirst fastFirstRow KlassOs where ((loDoc.DocInfo.cLang == KlassOs.nRec)) = tsOk
+        {
+          case wTip of
+            16:
+            {
+              case loDoc.KlassOs.NumKod of
+                cgDoc_PravoVlad:
+                {
+                  if (loDOc.DocInfo.dDoc > RepArDate)
+                    Continue;
+
+                  if ArDate < loDOc.DocInfo.dDoc
+                  {
+                    ArDate := loDoc.DocInfo.dDoc;
+
+                    ArrDocName[0]  := loDoc.DocInfo.Name;
+                    ArrDocDate[0]  := DateToStr(loDoc.DocInfo.dDoc, 'DD/MM/YYYY');
+                    ArrDocNomer[0] := loDoc.DocInfo.NoDoc;
+
+                    iCountWrite := 1;
+                  }
+                }
+                cgDoc_Hranenie:
+                {
+                  if (loDOc.DocInfo.dDoc > RepArDate) OR
+                     (loDoc.otSpDIArenda.dArendEnd < RepArDate)
+                    Continue;
+
+                  if ArDate < loDOc.DocInfo.dDoc
+                  {
+                    ArDate := loDoc.DocInfo.dDoc;
+
+                    ArrDocName[0]  := loDoc.DocInfo.Name;
+                    ArrDocDate[0]  := DateToStr(loDoc.DocInfo.dDoc, 'DD/MM/YYYY');
+                    ArrDocNomer[0] := loDoc.DocInfo.NoDoc;
+
+                    iCountWrite := 1;
+                  }
+                }
+              end;
+            }
+            15:
+            {
+              if ( (loDoc.KlassOs.NumKod = cgDoc_Hranenie)
+                    /*OR ((loDoc.KlassOs.NumKod = cgDoc_Arenda) and
+                    Not((wCountry = ccRus) and (prFormOt = 1) and (prVid = 1)))*/ )
+              {
+                if (loDOc.DocInfo.dDoc > RepArDate) OR
+                   (loDoc.otSpDIArenda.dArendEnd < RepArDate)
+                  Continue;
+
+                if ArDate < loDOc.DocInfo.dDoc
+                {
+                  ArDate := loDoc.DocInfo.dDoc;
+
+                  ArrDocName[0]  := loDoc.DocInfo.Name;
+                  ArrDocDate[0]  := DateToStr(loDoc.DocInfo.dDoc, 'DD/MM/YYYY');
+                  ArrDocNomer[0] := loDoc.DocInfo.NoDoc;
+                  ArOrg_UNN_DateEnd := loDoc.KatOrg.Name + ' ' +
+                                       loDoc.KatOrg.UNN + ' ' +
+                                       DateToStr(loDoc.otSpDIArenda.dArendEnd, 'DD/MM/YYYY');
+                  iCountWrite := 1;
+                }
+              }
+            }
+          end;
+        }
+      }
+  }
+
+  pXL.SetTblArrStrFldValue('ЮрДок_наименование', ArrDocName);
+  pXL.SetTblArrStrFldValue('ЮрДок_дата',         ArrDocDate);
+  pXL.SetTblArrStrFldValue('ЮрДок_номер',        ArrDocNomer);
+  pXl.SetTblStringFldValue('ЮрДок_Орг_ДатаКонец', ArOrg_UNN_DateEnd);
+}
+
+// -- PrintLine -----------------------------------------------------
+// Вывод в форму строки карточки
+// ------------------------------------------------------------------
+Procedure PrintLineExel( wTreeLevel : word );
+var
+  boIsArcive : boolean;
+  strName : string;
+{
+
+  dOS_Stoim  := 0.0;      // стоимость
+  dOS_SumIzn := 0.0;      // полный износ
+  dOS_SIznM  := 0.0;      // износ за месяц
+  dOS_ArcDStoim := 0.0;   // стоимость на 31.12.2002
+  dOS_ArcDSumIzn := 0.0;  // износ на 31.12.2002
+  dKatOS_MU_Kol := 0.0;
+  dKatOS_Kol := 0.0;
+  dOS_StoimPs := 0.0;      // стоимость при поступлении
+  dOS_IznosPs := 0.0;      // износ при поступлении
+  dFormSumIzn := 0.0;
+  boIsArcive  := False;
+
+  //откуда печать ...
+  if ( KatOS.OtchPer <= dReeOtchPer )
+  {
+    dOS_Stoim   := SpKatOs.Stoim;                       // стоимость
+    dOS_StoimPs := SpKatOS.StoimPs;
+    dOS_IznosPs := SpKatOS.IznosPs;
+    dKatOS_Kol  := KatOS.Kol;
+    dKatOS_MU_Kol := fKatosKol;
+
+    if ( KatOS.OtchPer < dReeOtchPer )
+    {
+      dFormSumIzn := SpKatOs.SumIzn + SpKatOs.SIznM;
+      dOS_SumIzn  := SpKatOs.SumIzn + SpKatOs.SIznM;      // полный износ
+      dOS_SIznM   := 0.0;                                 // износ за месяц
+    }
+    else
+    {
+      dFormSumIzn := if ( OS_FormIzn = 0, SpKatOs.SumIzn, SpKatOs.SumIzn + SpKatOs.SIznM);
+      dOS_SumIzn  := SpKatOs.SumIzn;     // полный износ
+      dOS_SIznM   := SpKatOs.SIznM;      // износ за месяц
+    }
+  }
+  else
+  {
+    boIsArcive := (GetLast ArcIznos_PrevOtchPer = tsOK);
+
+    if boIsArcive
+    {
+      dOS_Stoim   := ArcIznos_PrevOtchPer.Stoim;      // стоимость
+      dOS_SumIzn  := ArcIznos_PrevOtchPer.SumIzn;     // полный износ
+      dOS_SIznM   := ArcIznos_PrevOtchPer.SIznM;      // износ за месяц
+      dKatOS_MU_Kol  := if (NastrOs.Field4 = 0, ArcIznos_PrevOtchPer.Kol, 1);
+      dKatOS_Kol  := ArcIznos_PrevOtchPer.Kol;
+      dOS_StoimPs := ArcIznos_PrevOtchPer.StoimPs;
+      dOS_IznosPs := ArcIznos_PrevOtchPer.IznosPs;
+
+      if ( ArcIznos_PrevOtchPer.Data = dReeOtchPer )
+      {
+        dFormSumIzn := if ( OS_FormIzn = 0
+                          , ArcIznos_PrevOtchPer.SumIzn
+                          , ArcIznos_PrevOtchPer.SumIzn + ArcIznos_PrevOtchPer.SIznM );
+      }
+      else
+      {
+        dFormSumIzn := ArcIznos_PrevOtchPer.SumIzn + ArcIznos_PrevOtchPer.SIznM;
+      }
+    }
+  }
+
+  if ( KatOs.isLeaf = 0 )  // Узел
+  {
+     pXL.ClearTblBuffer;
+     pXL.SetTblStringFldValue('Подразделение',Substr(StrHierar,1,wTreeLevel) + KatOS.NameOS);
+     pXL.SetTblNumberFldValue('Д_1_sum', dOs_Stoim * dKatOS_MU_Kol );
+     pXL.SetTblNumberFldValue('Д_2_sum', dOs_SumIzn * dKatOS_MU_Kol );
+     pXL.SetTblNumberFldValue('Д_3_sum', dOs_SIznM * dKatOS_MU_Kol );
+     pXL.SetTblNumberFldValue('Д_9_sum', (dOs_Stoim - dOs_SumIzn) * dKatOS_MU_Kol );
+     // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+     //pXL.SetTblNumberFldValue('Д_7_sum', (fArcIznosDStoim - fArcIznosDSumIzn) * fArcIznosDKol);
+     pXL.SetTblNumberFldValue('Д_7_sum', fOstStoim_2001_12_31 * dKatOS_MU_Kol);
+     pXL.InsTblRow;
+     iCount := iCount + 1;
+    /* if (wPeriod < 4) // C учетом выбывших
+     {
+      pXL.ClearTblBuffer;
+      pXL.SetTblStringFldValue('Подразделение','');
+      pXL.SetTblStringFldValue('Наименование','           *');
+      pXL.SetTblNumberFldValue('Д_1_sum', SpKatOs.Stoim*fKatosKol  );
+      pXL.SetTblNumberFldValue('Д_2_sum', SpKatOs.SumIzn*fKatosKol );
+      pXL.SetTblNumberFldValue('Д_3_sum', SpKatOs.SIznM*fKatosKol  );
+      pXL.SetTblNumberFldValue('Д_9_sum', (SpKatOs.Stoim - SpKatOs.SumIzn)*fKatosKol);
+      pXL.SetTblNumberFldValue('Д_7_sum', (fArcIznosDStoim - fArcIznosDSumIzn) * fArcIznosDKol);
+      pXL.InsTblRow;
+      iCount := iCount + 1;
+     } */
+  }
+  else  // Лист
+  {
+    if ( bPrLeaf )
+    {
+      pXL.ClearTblBuffer;
+      nNumber := nNumber + 1;
+
+      pXL.SetTblNumberFldValue('Порядковый_номер',nNumber ); //icount
+      pXL.SetTblNumberFldValue('Штук_учет', dKatOs_Kol );
+
+      strName :=  KatOS.NameOS;
+      if (strName[1] = '=')   // Если Первый символ в ячкейке '=', то это формула и Йоксел шизеет. Уберем его.
+        strName[1] := ' ';
+      pXL.SetTblStringFldValue('Наименование', strName);
+
+      pXL.SetTblNumberFldValue('Ликвидная_стоимость', SpKatOs.StoimL );//ликвидационная стоимость
+      pXL.SetTblNumberFldValue('Д_1_sum', dOs_Stoim * dKatOS_MU_Kol  );
+      pXL.SetTblNumberFldValue('Д_2_sum', dFormSumIzn * dKatOS_MU_Kol );
+      pXL.SetTblNumberFldValue('Д_3_sum', dOs_SIznM * dKatOS_MU_Kol  );
+      pXL.SetTblNumberFldValue('Д_9_sum', (dOs_Stoim - dFormSumIzn) * dKatOS_MU_Kol );
+      // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+      //pXL.SetTblNumberFldValue('Д_7_sum', (fArcIznosDStoim - fArcIznosDSumIzn) * fArcIznosDKol);
+      pXL.SetTblNumberFldValue('Д_7_sum', fOstStoim_2001_12_31 * dKatOS_MU_Kol);
+
+      //'Эти поля не видны в интерфейсе
+      pXL.SetTblStringFldValue('Инвентарный_номер',
+         if (KatOs.cHigherOs=0, KatOs.InNum, pOsFun.GetKatOsInNum(KatOS.NRec)) );
+
+      pXL.SetTblStringFldValue('Паспорта_номер', GetPasportNum(KatOs.nRec) );  // 102.156906
+
+      pXL.SetTblStringFldValue('Регист_номер',KatOS.RegNum );
+      pXL.SetTblStringFldValue('Заводской_номер' ,KatOS.ZavNom );
+      if (isValid(#Transp))
+        pXL.SetTblStringFldValue('Гаражный_номер' , Transp.GarNom );
+
+      pXL.SetTblStringFldValue('Название_изделия', KatOS.NameIzg );
+      pXL.SetTblStringFldValue('Тип_марки', KatOS.TipMark );
+      pXL.SetTblStringFldValue('Бар_код', KatOS.BarKod );
+      pXL.SetTblStringFldValue('Дата_гарантии', if (Longint(KatOS.DatGar) = 0, '', f_datetostrZ(KatOS.DatGar)));
+      pXL.SetTblStringFldValue('Год_выпуска', if (Longint(KatOS.GodV) = 0, '', f_datetostrZ(KatOS.GodV)  ));
+      pXL.SetTblStringFldValue('Дата_ввода',  if (Longint(KatOS.DateK) = 0, '', f_datetostrZ(KatOS.DateK) ));
+      pXL.SetTblStringFldValue('Дата_поступления', if (Longint(KatOS.DatOk) = 0, '', f_datetostrZ(KatOS.DatOk) ));
+      pXL.SetTblStringFldValue('Дата_выбытия', if ((Longint(KatOS.DatV ) = 0 OR (KatOS.DatV > dReeOtchPer))
+                                                  , '', f_datetostrZ(KatOS.DatV ) ));
+      pXL.SetTblNumberFldValue('Правочный_кооэф', SpKatOS.PoprKoef ); // ПОПРАВОЧНЫЙ коэфициент из карточки
+      pXL.SetTblNumberFldValue('Полезное_испол', SpKatOS.SrokIsp );
+      if (isValid(#VidNorma))
+      {
+        pXL.SetTblStringFldValue('Амортизация_назв', VidNorma.Name );
+        pXL.SetTblStringFldValue('Амортизация_шиф', DoubleToStr(VidNorma.Norma,'6666666667.8888') );
+        pXL.SetTblStringFldValue('Амортизация_норм', VidNorma.Kod );
+        pXL.SetTblStringFldValue('Амортизация_норма', DoubleToStr(VidNorma.Norma,'66666666667.8888'));  //'норма амортизации
+      }
+      pXL.SetTblStringFldValue('Алгоритм_нач_аморт', OsAlg.Name );  //'алгоритм начисления аморт.
+      pXL.SetTblStringFldValue('Наимен_групп', Kodof.Name_Of );
+      pXL.SetTblStringFldValue('Назв_групп', GrOS.NameGr );
+      pXL.SetTblStringFldValue('Правочный_коефф_назв', VidNormaS.Name );
+      pXL.SetTblNumberFldValue('Правочный_коефф_норма', VidNormaS.Norma );   //'поправочный коефф.
+      pXL.SetTblStringFldValue('IspOS_PrIsp', IspOS.PrIsp );
+      pXL.SetTblStringFldValue('Пр_использ', IspOS.NameIs );
+      pXL.SetTblNumberFldValue('IspOS_Amok', IspOS.Amok );
+      pXL.SetTblStringFldValue('Код_поразд', KatPodr.Kod );
+      pXL.SetTblStringFldValue('Подразд', KatPodr.Name );
+      pXL.SetTblStringFldValue('МОЛ_ФИО', KatMOL.Name );
+      pXL.SetTblStringFldValue('Опер_начисл_амортиз', HozOper.Name1 );
+      pXL.SetTblStringFldValue('Тип_Объекта', Sposob.NameSb );
+      pXL.SetTblStringFldValue('Признак_собственности', if(isValid(#PrSb), PrSb.Name, '') );
+
+      if ( KatOS.cHigherOS <> 0 )
+      {
+        if GetFirst PrsB where ((KatOsLink.cPrsb == Prsb.nRec)) = tsOk
+          pXL.SetTblStringFldValue('Признак_собственности_выше', PrSb.Name );
+      }
+
+      // [102.104929]
+      //Вывод информации о праве собственности/аренды
+      FillDocs_XLT(KatOs.nRec);
+
+      pXL.InsTblRow;
+      iCount := iCount + 1;
+    }
+  }
+}
+
+// -- PrintTot ----------------------------------------
+// Печать итогов по группировке
+// ----------------------------------------------------
+Procedure PrintTotExel( _Name : string;
+                      //сумма с учётом выбывших
+                        _Stoim, _SumIzn, _SIznM, _ArcD_Stoim, _ArcD_SumIzn : double;
+                      //суммы без учёта выбывших
+                        _Stoim2, _SumIzn2, _SIznM2, _ArcD_Stoim2, _ArcD_SumIzn2 : double);
+{
+  pXL.ClearTblBuffer;
+  pxl.SetTblStringFldValue('Подразделение',_Name);
+  pXL.SetTblNumberFldValue('Д_1_sum', _Stoim  );
+  pXL.SetTblNumberFldValue('Д_2_sum', _SumIzn );
+  pXL.SetTblNumberFldValue('Д_3_sum', _SIznM  );
+  pXL.SetTblNumberFldValue('Д_9_sum', _Stoim - _SumIzn );
+  pXL.SetTblNumberFldValue('Д_7_sum', _ArcD_Stoim);
+//  pXL.SetTblNumberFldValue('Д_7_sum', _ArcD_Stoim - _ArcD_SumIzn);
+
+  if (wPeriod < 4) // C учетом выбывших
+  {
+    pXL.InsTblRow;
+    iCount := iCount + 1;
+    pXL.ClearTblBuffer;
+    pXL.SetTblStringFldValue('Наименование','        * ');
+    pXL.SetTblNumberFldValue('Д_1_sum', _Stoim2  );
+    pXL.SetTblNumberFldValue('Д_2_sum', _SumIzn2 );
+    pXL.SetTblNumberFldValue('Д_3_sum', _SIznM2  );
+    pXL.SetTblNumberFldValue('Д_9_sum', _Stoim2 - _SumIzn2);
+    pXL.SetTblNumberFldValue('Д_7_sum', _ArcD_Stoim2);
+//    pXL.SetTblNumberFldValue('Д_7_sum', _ArcD_Stoim2 - _ArcD_SumIzn2);
+  }
+
+  pXL.InsTblRow;
+  iCount := iCount + 1;
+}
+
+// -- PrintGrp ----------------------------------------
+// Печать наименования группировки
+// ----------------------------------------------------
+Procedure PrintGrpExel( _Name : string );
+{
+  pXL.ClearTblBuffer;
+  pxl.SetTblStringFldValue('Подразделение',_Name);
+  pXL.InsTblRow;
+  iCount++;
+}
+
+// -- ScanTree --------------------------------
+// Сканирование дерева KatOs
+// --------------------------------------------
+// Передаваемые параметры:
+//      _node - корневой узел для сканирования
+//      level - текущий уровень вложенности
+//      cont  - флаг продолжения сканирования
+// --------------------------------------------
+Procedure ScanTreeExel( _node : comp; level : word; var cont : boolean );
+var
+  tmpNode : comp;
+  tmpCont
+, bPrintIt
+, bOnlyLeafPicked : boolean;
+
+{
+  tmpCont := True;
+  tmpNode := node;
+  PushPos(#KatOs);
+
+  if ( _node = comp(0) )
+  {
+    VedStoim  := 0.0;
+    VedSumIzn := 0.0;
+    VedSIznM  := 0.0;
+    VedArcDStoim  := 0.0;
+    VedArcDSumIzn := 0.0;
+    VedStoim2  := 0.0;
+    VedSumIzn2 := 0.0;
+    VedSIznM2  := 0.0;
+    VedArcDStoim2  := 0.0;
+    VedArcDSumIzn2 := 0.0;
+  }
+
+  node := _node;
+
+  if ( GetFirst FastFirstRow KatOs = tsOk )
+  {
+    //если сохраняем порядок сортировки - то всё работает по-старому
+    if (wNalIznPrintSort = 0)
+    {
+      _LOOP KatOs
+      {
+        //ВЕСЬ ЭТОТ КУСОК НУЖЕН ДЛЯ ПЕЧАТИ ПО ПОМЕЧЕННЫМ ЗАПИСЯМ
+
+        //если Pick-а нет, то признак печати всегда True
+        bPrintIt := True;
+        //если есть Pick, то определяем помечен ли текущий ОС и устанавливаем или
+        //нет признак печати ОСа, в зависимости от того, помечен он или нет
+        if (isPick) and  (Not isValid(#Pick))
+          bPrintIt := False;
+
+        //если это лист
+        if ( KatOs.isLeaf = 1 )
+        {
+          //и он не помечен - то идём дальше
+          if (Not bPrintIt)
+            Continue;
+
+          if ( KatOS.OtchPer > dReeOtchPer )
+            if ( RecordExists ArcIznos_PrevOtchPer <> tsOk )
+              Continue;
+        }
+        else
+          //если это узел и он не помечен
+          if (Not bPrintIt)
+          {
+            bOnlyLeafPicked:=False;
+            //то проверяем есть ли помеченные листья у него
+            _LOOP KatOsInv
+              if (isValid(#PickInv))
+              {
+                bOnlyLeafPicked:=True;
+                Break;
+              }
+            //если их нет - то идём на следующий узел, у которого есть листья
+            //если же они есть - то печатаем узел, хотя он и без пометки
+            if (Not bOnlyLeafPicked) Continue;
+          }
+        //КОНЕЦ КУСКА ДЛЯ ПЕЧАТИ ПО ПОМЕЧЕННЫМ ЗАПИСЯМ
+
+        //если нет фильтра по дате поступления, то проверяем, чтобы она была не больше отчётного периода
+        if (Not ((FilDp1 <> Date(0,0,0)) or (FilDp2 <> Date(0,0,0))))
+        {
+          if (KatOS.DatOk > Date(Last_Day(dReeOtchPer), Month(dReeOtchPer), Year(dReeOtchPer)))
+            Continue;
+        }
+
+        bPrintAsLeft := False;
+        //если нет фильтра по дате выбытия и объект выбыл, то проверяем в каком периоде он выбыл
+        if ( (Not ( (FilDb1 <> Date(0,0,0)) or (FilDb2 <> Date(0,0,0)) ))  and (LongInt(KatOS.DatV) <> 0) )
+        {
+          if ( KatOS.DatV <= dReeOtchPer)
+            if (Not IsLeftInThisPeriod(wPeriod, dReeOtchPer, KatOs.DatV))
+              Continue;
+            else
+              bPrintAsLeft := True;
+        }
+
+        PrintLineExel(level);
+
+        if ( KatOs.isLeaf = 0 )
+          ScanTreeExel( comp(KatOs.NRec), level + 1, tmpCont )
+        else
+        {
+          // итого по документу
+          VedStoim  := VedStoim  + dOs_Stoim * dKatOS_MU_Kol;
+          VedSumIzn := VedSumIzn + dFormSumIzn * dKatOS_MU_Kol;
+          VedSIznM  := VedSIznM  + dOs_SIznM * dKatOS_MU_Kol;
+          // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+          //VedArcDStoim  := VedArcDStoim + fArcIznosDStoim * fArcIznosDKol;
+          //VedArcDSumIzn := VedArcDSumIzn + fArcIznosDSumIzn * fArcIznosDKol;
+          VedArcDStoim  := VedArcDStoim + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+
+          if ( (KatOs.DatV = Date(0,0,0)) OR (KatOs.DatV > dReeOtchPer) )
+          {
+            VedStoim2  := VedStoim2  + dOs_Stoim * dKatOS_MU_Kol;
+            VedSumIzn2 := VedSumIzn2 + dFormSumIzn * dKatOS_MU_Kol;
+            VedSIznM2  := VedSIznM2  + dOs_SIznM * dKatOS_MU_Kol;
+            // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+            //VedArcDStoim2  := VedArcDStoim2 + fArcIznosDStoim * fArcIznosDKol;
+            //VedArcDSumIzn2 := VedArcDSumIzn2 + fArcIznosDSumIzn * fArcIznosDKol;
+            VedArcDStoim2  := VedArcDStoim2 + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+          }
+        }
+
+        cont := NextVisual;
+
+        if Not (cont and tmpCont)
+          Break;
+      }//loop
+    }
+    else  //если печатаем по порядку пометки
+    {
+      _LOOP PickInv where ((cgPick_KatOs == PickInv.wList)) ordered by PickInv.PickNum
+      {
+        if (GetFirst KatOs where ((PickInv.cRec == Katos.Nrec)) <> tsOk)
+          Continue;
+
+        //если нет фильтра по дате поступления, то проверяем, чтобы она была не больше отчётного периода
+        if (Not ((FilDp1 <> Date(0,0,0)) or (FilDp2 <> Date(0,0,0))))
+        {
+          if (KatOS.DatOk > Date(Last_Day(dReeOtchPer), Month(dReeOtchPer), Year(dReeOtchPer)))
+            Continue;
+        }
+
+        if ( KatOS.OtchPer > dReeOtchPer )
+          if ( RecordExists ArcIznos_PrevOtchPer <> tsOk )
+            Continue;
+
+        bPrintAsLeft := False;
+        //если нет фильтра по дате выбытия и объект выбыл, то проверяем в каком периоде он выбыл
+        if ( (Not ( (FilDb1 <> Date(0,0,0)) or (FilDb2 <> Date(0,0,0)) ))
+         and (LongInt(KatOS.DatV) <> 0) )
+        {
+          if (KatOS.DatV <= dReeOtchPer)
+            if (Not IsLeftInThisPeriod(wPeriod, dReeOtchPer, KatOs.DatV))
+              Continue
+            else
+              bPrintAsLeft := True;
+        }
+
+        PrintLineExel(level);
+
+        if (KatOs.isLeaf = 1)
+        {
+          // итого по документу
+          VedStoim  := VedStoim  + dOs_Stoim * dKatOS_MU_Kol;
+          VedSumIzn := VedSumIzn + dFormSumIzn * dKatOS_MU_Kol;
+          VedSIznM  := VedSIznM  + dOs_SIznM * dKatOS_MU_Kol;
+          // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+          //VedArcDStoim  := VedArcDStoim + fArcIznosDStoim * fArcIznosDKol;
+          //VedArcDSumIzn := VedArcDSumIzn + fArcIznosDSumIzn * fArcIznosDKol;
+          VedArcDStoim  := VedArcDStoim + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+
+          if ( (KatOs.DatV = Date(0,0,0)) OR (KatOs.DatV > dReeOtchPer) )
+          {
+            VedStoim2  := VedStoim2  + dOs_Stoim * dKatOS_MU_Kol;
+            VedSumIzn2 := VedSumIzn2 + dFormSumIzn * dKatOS_MU_Kol;
+            VedSIznM2  := VedSIznM2  + dOs_SIznM * dKatOS_MU_Kol;
+            // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+            //VedArcDStoim2  := VedArcDStoim2 + fArcIznosDStoim * fArcIznosDKol;
+            //VedArcDSumIzn2 := VedArcDSumIzn2 + fArcIznosDSumIzn * fArcIznosDKol;
+            VedArcDStoim2  := VedArcDStoim2 + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+          }
+        }
+
+        cont := NextVisual;
+
+        if Not (cont and tmpCont)
+          Break;
+      }//loop
+    }//else
+
+    if ( _node = 0 )
+      PrintTotExel('Итого по документу'
+                 , VedStoim
+                 , VedSumIzn
+                 , VedSIznM
+                 , VedArcDStoim
+                 , VedArcDSumIzn
+                 , VedStoim2
+                 , VedSumIzn2
+                 , VedSIznM2
+                 , VedArcDStoim2
+                 , VedArcDSumIzn2);
+  }
+
+  PopPos(#KatOs);
+  node := tmpNode;
+}  // ScanTreeExel
+
+// -- ScanGr ------------------------------------------
+// Сканирование KatOs с подсчетом итогов по группам
+// ----------------------------------------------------
+Procedure ScanGrExel;
+var
+  TotName   : array[1..2] of string;      // Наименование итогов
+  TotStoim  : array[1..2] of double;      // итого по стоимости
+  TotSumIzn : array[1..2] of double;      // итого по износу
+  TotSIznM  : array[1..2] of double;      // итого по износу за месяц
+  TotArcDStoim  : array[1..2] of double;   // итого по стоим. на 31.12.2001
+  TotArcDSumIzn : array[1..2] of double;   // итого по износу на 31.12.2001
+  TotStoim2  : array[1..2] of double;     // итого по стоимости без учета выбывших
+  TotSumIzn2 : array[1..2] of double;     // итого по износу без учета выбывших
+  TotSIznM2  : array[1..2] of double;     // итого по износу за месяц без учета выбывших
+  TotArcDStoim2  : array[1..2] of double; // итого по стоим. на 31.12.2001 без учета выбывших
+  TotArcDSumIzn2 : array[1..2] of double; // итого по износу на 31.12.2001 без учета выбывших
+  PrintedLeafs : array[1..2] of comp;     // сколько записей помечено в данной группировке
+  VedStoim  : double;   // итого по стоимости
+  VedSumIzn : double;   // итого по износу
+  VedSIznM  : double;   // итого по износу за месяц
+  VedArcDStoim  : double;  // итого по ст. на 31.12.2002
+  VedArcDSumIzn : double;  // итого по износу на 31.12.2002
+  VedStoim2  : double;  // итого по стоимости без учета выбывших
+  VedSumIzn2 : double;  // итого по износу без учета выбывших
+  VedSIznM2  : double;  // итого по износу за месяц без учета выбывших
+  VedArcDStoim2  : double; // итого по ст. на 31.12.2002 без учета выбывших
+  VedArcDSumIzn2 : double; // итого по износу на 31.12.2002 без учета выбывших
+
+  PrevGrpValue   : array[1..2] of comp;   // контрольное значение группировки
+  PrevGrpName    : array[1..2] of string; // наименование значения группировки
+
+  bNextValue  : array[1..2] of boolean;   // флаг перехода к следующему значению группировки
+  bSwapSort : boolean;
+
+  bPrintIt : boolean;
+  bPrintHead : boolean;
+  i : word;
+
+{
+  if (isPick)
+    case SortRg of
+    //------------
+      2: AddBounds(tbbyPrintTrOKOF);
+    //------------
+      3: AddBounds(tbbyPrintTrMol);
+    //------------
+      4: AddBounds(tbbyPrintTrVid);
+    //------------
+      5: AddBounds(tbbyPrintTrGr);
+    //------------
+      6: AddBounds(tbbyPrintTrPodrName);
+    //------------
+      7: AddBounds(tbbyPrintTrPodrVid);
+    //------------
+      8: AddBounds(tbbyPrintTrSposob);
+    //------------
+    end;
+
+  bSwapSort := isTree;
+
+  if ( bSwapSort )
+    SwapSort();
+
+  PushPos(#KatOs);
+
+  case SortRg of
+  //------------
+    2: TotName[1] := 'ОКОФ';
+  //------------
+    3: TotName[1] := 'МОЛ';
+  //------------
+    4: TotName[1] := 'Вид ОС';
+  //------------
+    5:
+    {
+      TotName[1] := 'Группа ОС';
+      TotName[2] := 'Вид ОС';
+    }
+  //------------
+    6: TotName[1] := 'Подразделение';
+  //------------
+    7:
+    {
+      TotName[1] := 'Подразделение';
+      TotName[2] := 'Вид ОС';
+    }
+  //------------
+    8: TotName[1] := 'Тип объекта';
+  //------------
+  end; // case
+
+  For ( i := 1; i <= 2; i++ )
+  {
+    TotName[i]   := TotName[i]  + ': ';
+    PrevGrpValue[i] := comp(0);
+    PrevGrpName[i]  := 'значение не определено';
+
+    TotStoim[i]  := 0;       TotSumIzn[i] := 0;      TotSIznM[i]  := 0;
+    TotArcDStoim[i]  := 0;   TotArcDSumIzn[i] := 0;
+    TotStoim2[i]  := 0;      TotSumIzn2[i] := 0;     TotSIznM2[i]  := 0;
+    TotArcDStoim2[i]  := 0;  TotArcDSumIzn2[i] := 0;
+  }
+
+  VedStoim  := 0;      VedSumIzn := 0;      VedSIznM  := 0;
+  VedArcDStoim  := 0;  VedArcDSumIzn := 0;
+  VedStoim2  := 0;     VedSumIzn2 := 0;     VedSIznM2  := 0;
+  VedArcDStoim2  := 0; VedArcDSumIzn2 := 0;
+
+  if ( GetFirst FastFirstRow KatOs = tsOk )
+  {
+    bNextValue[1] := False;
+    bNextValue[2] := False;
+    // если первая запись отличается от нач. установок группировки, то
+    // меняем установки группировки
+    case SortRg of
+    //------------
+      2: bNextValue[1] := ( KatOs.cOKOF <> PrevGrpValue[1] );
+    //------------
+      3: bNextValue[1] := ( KatOs.cMol <> PrevGrpValue[1] );
+    //------------
+      4: bNextValue[1] := ( KatOs.cVid <> PrevGrpValue[1] );
+    //------------
+      5:
+      {
+        bNextValue[1] := ( KatOs.cGrup <> PrevGrpValue[1] );
+        bNextValue[2] := bNextValue[1] or ( KatOs.cVid <> PrevGrpValue[2] );
+      }
+    //------------
+      6: bNextValue[1] := ( KatOs.cPodr <> PrevGrpValue[1] );
+    //------------
+      7:
+      {
+        bNextValue[1] := ( KatOs.cPodr <> PrevGrpValue[1] );
+        bNextValue[2] := bNextValue[1] or ( KatOs.cVid <> PrevGrpValue[2] );
+      }
+    //------------
+      8: bNextValue[1] := ( KatOs.cSposob <> PrevGrpValue[1] );
+    //------------
+    end; // case
+
+    if ( bNextValue[1] )
+      case SortRg of
+      //------------
+        2:
+        {
+          PrevGrpValue[1] := KatOs.cOKOF;
+          PrevGrpName[1] := Kodof.Name_of;
+        }
+      //------------
+        3:
+        {
+          PrevGrpValue[1] := KatOs.cMol;
+          PrevGrpName[1] := KatMol.Name;
+        }
+      //------------
+        4:
+        {
+          PrevGrpValue[1] := KatOs.cVid;
+          PrevGrpName[1] := VidNormaS.Name;
+        }
+      //------------
+        5:
+        {
+          PrevGrpValue[1] := KatOs.cGrup;
+          PrevGrpName[1] := GrOs.NameGr;
+        }
+      //------------
+        6:
+        {
+          PrevGrpValue[1] := KatOs.cPodr;
+          PrevGrpName[1] := KatPodr.Name;
+        }
+      //------------
+        7:
+        {
+          PrevGrpValue[1] := KatOs.cPodr;
+          PrevGrpName[1] := KatPodr.Name;
+        }
+      //------------
+        8:
+        {
+          PrevGrpValue[1] := KatOs.cSposob;
+          PrevGrpName[1] := Sposob.NameSb;
+        }
+      //------------
+      end; // case
+
+    if ( bNextValue[2] )
+      case SortRg of
+      //------------
+        5, 7:
+        {
+          PrevGrpValue[2] := KatOs.cVid;
+          PrevGrpName[2] := VidNormaS.Name;
+        }
+      //------------
+      end; // case
+
+    bNextValue[1] := True; // Устанавливаем флаг, чтобы на итерации цикла вывести наим. группировки
+
+    case SortRg of
+    //------------
+      5, 7: bNextValue[2] := True;
+    //------------
+    end; // case
+
+    PrintedLeafs[1]:=0;
+    PrintedLeafs[2]:=0;
+
+    Do
+    {
+      //если Pick-а нет, то признак печати всегда True
+      bPrintIt := True;
+
+      //если есть Pick, то определяем помечен ли текущий ОС и устанавливаем или
+      //нет признак печати ОСа, в зависимости от того, помечен он или нет
+      if (isPick) and  (Not isValid(#Pick))
+          bPrintIt := False;
+
+      // Если произошел переход по группировке, то выводим наименование новой группировки
+      For ( i := 1; i <= 2; i++ )
+      {
+        if ( bNextValue[i] )
+        {
+          PrintedLeafs[i]:=0;
+          bPrintHead:=False;
+
+          if (Not isPick)
+            bPrintHead:=True
+          else
+          {
+            if (i = 2)
+              case SortRg of
+              //------------
+                5: AddBounds(tbbyPrintTrGr2);
+              //------------
+                7: AddBounds(tbbyPrintTrPodrVid2);
+              //------------
+              end;
+
+            _LOOP KatOsInv
+              if (isValid(#PickInv))
+              {
+                bPrintHead:=True;
+                Break;
+              }
+
+            if (i = 2)
+              case SortRg of
+              //------------
+                5: SubBounds(tbbyPrintTrGr2);
+              //------------
+                7: SubBounds(tbbyPrintTrPodrVid2);
+              //------------
+              end;
+          }
+
+          if (bPrintHead)
+            PrintGrpExel( TotName[i] + PrevGrpName[i]);
+
+          bNextValue[i] := False;
+        }
+      } // for i
+
+      //если нет фильтра по дате поступления, то проверяем, чтобы она была не больше отчётного периода
+      if (Not ((FilDp1 <> Date(0,0,0)) or (FilDp2 <> Date(0,0,0))))
+      {
+        if (KatOS.DatOk > Date(Last_Day(dReeOtchPer), Month(dReeOtchPer), Year(dReeOtchPer)))
+          bPrintIt := False;
+      }
+
+      if ( KatOS.OtchPer > dReeOtchPer )
+        if ( RecordExists ArcIznos_PrevOtchPer <> tsOk )
+          bPrintIt := False;
+          // Continue;
+
+      bPrintAsLeft := False;
+      //если нет фильтра по дате выбытия и объект выбыл, то проверяем в каком периоде он выбыл
+      if ( (Not ( (FilDb1 <> Date(0,0,0)) or (FilDb2 <> Date(0,0,0)) ))
+       and (LongInt(KatOS.DatV) <> 0) )
+      {
+        if (KatOS.DatV <= dReeOtchPer)
+          if (Not IsLeftInThisPeriod(wPeriod, dReeOtchPer, KatOs.DatV))
+            bPrintIt := False
+          else
+            bPrintAsLeft := True;
+      }
+
+      if (bPrintIt)
+      {
+        PrintLineExel(0);
+
+        // итого по группировке
+        For ( i := 1; i <= 2; i := i + 1 )
+        {
+          TotStoim[i]  := TotStoim[i]  + dOs_Stoim * dKatOS_MU_Kol;
+          TotSumIzn[i] := TotSumIzn[i] + dFormSumIzn * dKatOS_MU_Kol;
+          TotSIznM[i]  := TotSIznM[i]  + dOs_SIznM * dKatOS_MU_Kol;
+          // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+          //TotArcDStoim[i]  := TotArcDStoim[i] + fArcIznosDStoim * fArcIznosDKol;
+          //TotArcDSumIzn[i] := TotArcDSumIzn[i] + fArcIznosDSumIzn * fArcIznosDKol;
+          TotArcDStoim[i]  := TotArcDStoim[i] + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+
+          if ( (Longint(KatOs.DatV) = 0) OR (KatOs.DatV > dReeOtchPer) )
+          {
+            TotStoim2[i]  := TotStoim2[i]  + dOs_Stoim * dKatOS_MU_Kol;
+            TotSumIzn2[i] := TotSumIzn2[i] + dFormSumIzn * dKatOS_MU_Kol;
+            TotSIznM2[i]  := TotSIznM2[i]  + dOs_SIznM * dKatOS_MU_Kol;
+            // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+            //TotArcDStoim2[i]  := TotArcDStoim2[i] + fArcIznosDStoim * fArcIznosDKol;
+            //TotArcDSumIzn2[i] := TotArcDSumIzn2[i] + fArcIznosDSumIzn * fArcIznosDKol;
+            TotArcDStoim2[i]  := TotArcDStoim2[i] + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+          }
+
+          PrintedLeafs[i] := PrintedLeafs[i] + 1;
+        } // for i
+        // итого по документу
+        VedStoim  := VedStoim  + dOs_Stoim * dKatOS_MU_Kol;
+        VedSumIzn := VedSumIzn + dFormSumIzn * dKatOS_MU_Kol;
+        VedSIznM  := VedSIznM  + dOs_SIznM * dKatOS_MU_Kol;
+        // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+        //VedArcDStoim  := VedArcDStoim + fArcIznosDStoim * fArcIznosDKol;
+        //VedArcDSumIzn := VedArcDSumIzn + fArcIznosDSumIzn * fArcIznosDKol;
+        VedArcDStoim  := VedArcDStoim + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+
+        if ( (Longint(KatOs.DatV) = 0) OR (KatOs.DatV > dReeOtchPer) )
+        {
+          VedStoim2  := VedStoim2  + dOs_Stoim * dKatOS_MU_Kol;
+          VedSumIzn2 := VedSumIzn2 + dFormSumIzn * dKatOS_MU_Kol;
+          VedSIznM2  := VedSIznM2  + dOs_SIznM * dKatOS_MU_Kol;
+          // ПИР 102.82199 - остаточная стоимость на 31.12.2001
+          //VedArcDStoim2  := VedArcDStoim2 + fArcIznosDStoim * fArcIznosDKol;
+          //VedArcDSumIzn2 := VedArcDSumIzn2 + fArcIznosDSumIzn * fArcIznosDKol;
+          VedArcDStoim2  := VedArcDStoim2 + fOstStoim_2001_12_31 * dKatOS_MU_Kol;
+        }
+      }
+
+      // Если следующая запись не найдена, то выводим итоги по группировке и выходим
+      if ( GetNext FastFirstRow KatOs <> tsOk )
+      {
+        case SortRg of
+        //------------
+          5, 7:
+          {
+            if (PrintedLeafs[2] <> 0)
+              PrintTotExel('Итого по ' + TotName[2] + PrevGrpName[2]
+                         , TotStoim[2]
+                         , TotSumIzn[2]
+                         , TotSIznM[2]
+                         , TotArcDStoim[2]
+                         , TotArcDSumIzn[2]
+                         , TotStoim2[2]
+                         , TotSumIzn2[2]
+                         , TotSIznM2[2]
+                         , TotArcDStoim2[2]
+                         , TotArcDSumIzn2[2]);
+          }
+        end; // case
+
+        if (PrintedLeafs[1] <> 0)
+          PrintTotExel('Итого по ' + TotName[1] + PrevGrpName[1]
+                     , TotStoim[1]
+                     , TotSumIzn[1]
+                     , TotSIznM[1]
+                     , TotArcDStoim[1]
+                     , TotArcDSumIzn[1]
+                     , TotStoim2[1]
+                     , TotSumIzn2[1]
+                     , TotSIznM2[1]
+                     , TotArcDStoim2[1]
+                     , TotArcDSumIzn2[1]);
+        Break;
+      }
+
+      bNextValue[1] := False;
+      bNextValue[2] := False;
+      // если запись отличается от тек. установок группировки, то
+      // меняем установки группировки
+      case SortRg of
+      //------------
+        2: bNextValue[1] := ( KatOs.cOKOF <> PrevGrpValue[1] );
+      //------------
+        3: bNextValue[1] := ( KatOs.cMol <> PrevGrpValue[1] );
+      //------------
+        4: bNextValue[1] := ( KatOs.cVid <> PrevGrpValue[1] );
+      //------------
+        5:
+        {
+          bNextValue[1] := ( KatOs.cGrup <> PrevGrpValue[1] );
+          bNextValue[2] := bNextValue[1] or ( KatOs.cVid <> PrevGrpValue[2] );
+        }
+      //------------
+        6: bNextValue[1] := ( KatOs.cPodr <> PrevGrpValue[1] );
+      //------------
+        7:
+        {
+          bNextValue[1] := ( KatOs.cPodr <> PrevGrpValue[1] );
+          bNextValue[2] := bNextValue[1] or ( KatOs.cVid <> PrevGrpValue[2] );
+        }
+      //------------
+        8: bNextValue[1] := ( KatOs.cSposob <> PrevGrpValue[1] );
+      //------------
+      end; // case
+
+      For ( i := 2; i >= 1; i := i - 1 )
+      {
+        if ( bNextValue[i] )
+        {
+          if (PrintedLeafs[i] <> 0)
+            PrintTotExel('Итого по ' + TotName[i] + PrevGrpName[i]
+                       , TotStoim[i]
+                       , TotSumIzn[i]
+                       , TotSIznM[i]
+                       , TotArcDStoim[i]
+                       , TotArcDSumIzn[i]
+                       , TotStoim2[i]
+                       , TotSumIzn2[i]
+                       , TotSIznM2[i]
+                       , TotArcDStoim2[i]
+                       , TotArcDSumIzn2[i]);
+
+          TotStoim[i] := 0;        TotSumIzn[i] := 0;          TotSIznM[i] := 0;
+          TotArcDStoim[i] := 0;    TotArcDSumIzn[i] := 0;
+          TotStoim2[i] := 0;       TotSumIzn2[i] := 0;         TotSIznM2[i] := 0;
+          TotArcDStoim2[i] := 0;   TotArcDSumIzn2[i] := 0;
+        }
+      } // for i
+
+      if ( bNextValue[2] )
+        case SortRg of
+        //------------
+          5, 7:
+          {
+            PrevGrpValue[2] := KatOs.cVid;
+            PrevGrpName[2] := VidNormaS.Name;
+          }
+        //------------
+        end; // case
+
+      if ( bNextValue[1] )
+      {
+        case SortRg of
+        //------------
+          2:
+          {
+            PrevGrpValue[1] := KatOs.cOKOF;
+            PrevGrpName[1] := Kodof.Name_of;
+          }
+        //------------
+          3:
+          {
+            PrevGrpValue[1] := KatOs.cMol;
+            PrevGrpName[1] := KatMol.Name;
+          }
+        //------------
+          4:
+          {
+            PrevGrpValue[1] := KatOs.cVid;
+            PrevGrpName[1] := VidNormaS.Name;
+          }
+        //------------
+          5:
+          {
+            PrevGrpValue[1] := KatOs.cGrup;
+            PrevGrpName[1] := GrOs.NameGr;
+          }
+        //------------
+          6, 7:
+          {
+            PrevGrpValue[1] := KatOs.cPodr;
+            PrevGrpName[1] := KatPodr.Name;
+          }
+        //------------
+          8:
+          {
+            PrevGrpValue[1] := KatOs.cSposob;
+            PrevGrpName[1] := Sposob.NameSb;
+          }
+        //------------
+        end; // case
+      }
+    }
+    While ( NextVisual )
+
+    PrintTotExel('Итого по документу'
+               , VedStoim
+               , VedSumIzn
+               , VedSIznM
+               , VedArcDStoim
+               , VedArcDSumIzn
+               , VedStoim2
+               , VedSumIzn2
+               , VedSIznM2
+               , VedArcDStoim2
+               , VedArcDSumIzn2);
+  }
+
+  if (isPick)
+    case SortRg of
+    //------------
+      2: SubBounds(tbbyPrintTrOKOF);
+    //------------
+      3: SubBounds(tbbyPrintTrMol);
+    //------------
+      4: SubBounds(tbbyPrintTrVid);
+    //------------
+      5: SubBounds(tbbyPrintTrGr);
+    //------------
+      6: SubBounds(tbbyPrintTrPodrName);
+    //------------
+      7: SubBounds(tbbyPrintTrPodrVid);
+    //------------
+      8: SubBounds(tbbyPrintTrSposob);
+    //------------
+    end;
+
+  PopPos(#KatOs);
+
+  if ( bSwapSort )
+    SwapSort();
+}  // ScanGrExel
+
+//=========================================================================
+//'Процедура печати
+//=========================================================================
+Procedure PrintReestrExel ( conf : word );
+{
+  if Not pxlrepsetup.checkParam(0, ID, sXLTFileName)
+  {
+    RunInterface('xlrepsetup', 1, ID, sXLTFileName);
+    ReadMyDsk(sXLTFileName, ID, True);
+  }
+
+  StartNewVisual(vtRotateVisual, vfTimer + vfBreak + vfConfirm, 'Создание отчета по шаблону...', 1);
+  SetVisualTitle('Формирование отчета');
+
+  conf := prFormOt;
+  iCount := 0;
+  set sXLSFileName := pXL.CreateReport(sXLTFileName, True);
+
+  case wTip of
+  //----------
+    15 :
+    {
+      SubjReport := 'ОС';
+      SubjDet1   := 'ОСНОВНЫЕ СРЕДСТВА';
+      SubjDet2   := 'ОСНОВНЫХ СРЕДСТВ';
+      SubjDet3   := 'ОСНОВНЫМ СРЕДСТВАМ';
+
+      if (cFilIsp <> 0)
+        sFilter[5] := 'Признак использ.:    ' + #ShowKau(cgKau_IspOs, cFilIsp);
+
+      if (cFilVid <> 0)
+        sFilter[3] := 'Вид:                 ' + #ShowKau(cgKau_VidNor1, cFilVid);
+    }
+  //----------
+    16 :
+    {
+      SubjReport := 'НМА';
+      SubjDet1   := 'НЕМАТЕРИАЛЬНЫЕ АКТИВЫ';
+      SubjDet2   := 'НЕМАТЕРИАЛЬНЫХ АКТИВОВ';
+      SubjDet3   := 'НЕМАТЕРИАЛЬНЫМ АКТИВАМ';
+
+      if (cFilIsp <> 0)
+        sFilter[5] := 'Признак использ.:    ' + #ShowKau(cgKau_IspNMA, cFilIsp);
+
+      if (cFilVid <> 0)
+        sFilter[3] := 'Вид:                 ' + #ShowKau(cgKau_VidNor2, cFilVid);
+    }
+  //----------
+  end;  //'case
+
+  if ( FilOKOF <> '')
+    sFilter[1]  := 'Группировка ОКОФ:    ' + FilOKOF;
+
+  if ( cFilGr <> 0 )
+    sFilter[2]  := 'Группа:              ' + #ShowKau(cgKau_GrOs, cFilGr);
+
+  if ( FilNorm <> '')
+    sFilter[4]  := 'Норма амортизации:   ' + FilNorm;
+
+  if ( cNRecPodr <> 0 )
+   sFilter[6]  := 'Подразделение:       ' + #ShowKau(cgKau_KatPodr, cNRecPodr);
+
+  if ( cNRecMol <> 0 )
+    sFilter[7]  := 'МОЛ:                 ' + #ShowKau(cgKau_KatMol, cNRecMol);
+
+  if ( FilMetod <> '')
+    sFilter[8]  := 'Алгоритм нач.аморт.: ' + FilMetod;
+
+  if ( FilHozOper <> '')
+    sFilter[9]  := 'ТХО нач.аморт.:      ' + FilHozOper;
+
+  if ( FilTipOb <> '')
+    sFilter[10] := 'Тип объекта:         ' + FilTipOb;
+
+  if ( FilKlass <> '')
+    sFilter[11] := 'Внешняя классиф-ция: '
+                 + FilKlass + ':'
+                 + if ( FilKlass1 <> '', ' <' + FilKlass1 + '>', '')
+                 + if ( FilKlass2 <> '', ' <' + FilKlass2 + '>', '')
+                 + if ( FilKlass3 <> '', ' <' + FilKlass3 + '>', '')
+                 + if ( FilKlass4 <> '', ' <' + FilKlass4 + '>', '')
+                 + if ( FilKlass5 <> '', ' <' + FilKlass5 + '>', '')
+                 + if ( FilKlass6 <> '', ' <' + FilKlass6 + '>', '');
+
+  if ( FilInNum <> '')
+    sFilter[12] := 'Инвентарный номер:   ' + FilInNum;
+
+  if ( FilName <> '')
+    sFilter[13] := 'Наименование:        ' + FilName;
+
+  if ( FilZavN <> '')
+    sFilter[14] := 'Заводской номер:     ' + FilZavN;
+
+  if ( FilPasN <> '')
+    sFilter[15] := 'Номер паспорта:      ' + FilPasN;
+
+  if ( FilZvIz <> '')
+    sFilter[16] := 'Завод-изготовитель:  ' + FilZvIz;
+
+  if ( FilModTip <> '')
+    sFilter[17] := 'Модель,тип,марка:    ' + FilModTip;
+
+  if ( cFilZnak <> 0 )
+    sFilter[20] := 'Остаточная ст-ть:    ' + GetStrZnak( Word(cFilZnak) )
+                 + ' ' +  Trim( DoubleToStr( FilSum, SumFormat ) );
+
+  if ( cFilDrg <> 0 )
+    sFilter[22] := 'Драгметаллы: '
+                 + if ( cFilDrg = 0
+                      , ''
+                      , if( cFilDrg = 1
+                          , 'Есть'
+                          , if ( cFilDrg = 2, 'Нет', '') ) );
+
+  if ( FilDv1 <> Date(0,0,0) or FilDv2 <> Date(0,0,0) )
+    sFilter[23] := 'Дата выпуска:        ' + 'с '+ DateToStr( FilDv1, 'DD/MM/YYYY' )
+                 + ' по ' + DateToStr( FilDv2,  'DD/MM/YYYY' );
+
+  if ( FilDvd1 <> Date(0,0,0) or FilDvd2 <> Date(0,0,0) )
+    sFilter[24] := 'Дата ввода:          ' + 'с '+ DateToStr( FilDvd1, 'DD/MM/YYYY' )
+                 + ' по ' + DateToStr( FilDvd2,  'DD/MM/YYYY' );
+
+  if ( FilDp1 <> Date(0,0,0) or FilDp2 <> Date(0,0,0) )
+    sFilter[25] := 'Дата поступления:    ' + 'с '+ DateToStr( FilDp1, 'DD/MM/YYYY' )
+                 + ' по ' + DateToStr( FilDp2,  'DD/MM/YYYY' );
+
+  if ( FilDb1 <> Date(0,0,0) or FilDb2 <> Date(0,0,0) )
+    sFilter[26] := 'Дата выбытия:        ' + 'с '+ DateToStr( FilDb1, 'DD/MM/YYYY' )
+                 + ' по ' + DateToStr( FilDb2,  'DD/MM/YYYY' );
+
+  if ( cFilAmGr <> 0)
+    sFilter[27] := 'Амортизац. группа:   ' + #ShowKau(cgKau_AmortGr, cFilAmGr);
+
+  if ( cFilZnakIspPs <> 0 )
+    sFilter[21] := 'Срок исп. до пост.:  ' + GetStrZnak( Word(cFilZnakIspPs) )
+                 + ' ' + Trim( DoubleToStr( FilIspPs, '6666666666' ) );
+
+  if ( cFilZnakIspCur <> 0 )
+    sFilter[28] := 'Срок исп.после пост.:' + GetStrZnak( Word(cFilZnakIspCur) )
+                 + ' ' + Trim( DoubleToStr( FilIspCur, '6666666666' ) );
+
+  if ( cFilZnakSrokIsp <> 0 )
+    sFilter[29] := 'Срок полезного исп.: ' + GetStrZnak( Word(cFilZnakSrokIsp) )
+                 + ' ' + Trim( DoubleToStr( FilSrokIsp, '6666666666' ) );
+
+  if ( cFilZnakOstSrok <> 0 )
+    sFilter[30] := 'Ост.срок полезн.исп.:' + GetStrZnak( Word(cFilZnakOstSrok) )
+                 + ' ' + Trim( DoubleToStr( FilOstSrok, '6666666666' ) );
+
+  if ( cFilZnakPoprkoef <> 0 )
+    sFilter[31] := 'Поправочный коэфф.:  ' + GetStrZnak( Word(cFilZnakPoprkoef) )
+                 + ' ' + Trim( DoubleToStr( FilPoprkoef, '6666666666' ) );
+
+  if ( cFilZnakStoim <> 0 )
+    sFilter[40] := 'Стоимость:           ' + GetStrZnak( Word(cFilZnakStoim) )
+                 + ' ' + Trim( DoubleToStr( FilStoim, '6666666666' ) );
+
+  if ( cFilZnakSumIzn <> 0 )
+    sFilter[41] := Pad(sNameFieldSumIzn + ':', 21)      //'Сумма износа:        '
+                 + GetStrZnak( Word(cFilZnakSumIzn) )
+                 + ' ' + Trim( DoubleToStr( FilSumIzn, '6666666666' ) );
+
+  if ( cFilZnakSIznM <> 0 )
+    sFilter[42] := Pad(sNameFieldSIznM + ':', 21)       //'Износ за месяц       '
+                 + GetStrZnak( Word(cFilZnakSIznM) )
+                 + ' ' + Trim( DoubleToStr( FilSIznM, '6666666666' ) );
+
+  case SortRg of
+  //------------
+    0:
+    {
+      SrtName := 'Инвентарный номер';
+      GrpName := '';
+    }
+  //------------
+    1:
+    {
+      SrtName := 'Наименование';
+      GrpName := '';
+    }
+  //------------
+    2:
+    {
+      SrtName := 'Код ОКОФ';
+      GrpName := 'Код ОКОФ';
+    }
+  //------------
+    3:
+    {
+      SrtName := 'МОЛ';
+      GrpName := 'МОЛ';
+    }
+  //------------
+    4:
+    {
+      SrtName := 'Вид ОС';
+      GrpName := 'Вид ОС';
+    }
+  //------------
+    5:
+    {
+      SrtName := 'Группа + вид ОС';
+      GrpName := 'Группа + вид ОС';
+    }
+  //------------
+    6:
+    {
+      SrtName := 'Подразделение + Наименование';
+      GrpName := 'Подразделение';
+    }
+  //------------
+    7:
+    {
+      SrtName := 'Подразделение + вид ОС';
+      GrpName := 'Подразделение + вид ОС';
+    }
+  //------------
+    8:
+    {
+      SrtName := 'Тип объекта + инвентарный номер';
+      GrpName := 'Тип объекта';
+    }
+  //------------
+  end; // case
+
+  PushPos(#KatOS);
+  node := 0;  // Начинаем обход с высшего уровня дерева
+
+  if ( GetFirst FastFirstRow KatOs = tsOk )
+  {
+    pXL.CreateTbls(sXLSFileName);
+    #WriteXltFeeSignersTableOs(iFeeSigners, pXL);      // Подписанты
+    #WriteXltFeeSignersTableOSResponsible(iFeeSigners, pXL)    // Ответсственные
+
+    pXL.CreateTbl('OPIS');
+    // объявление полей таблицы
+    pXL.CreateTblFld('Подразделение'    );
+    pXL.CreateTblFld('Порядковый_номер' );
+    pXL.CreateTblFld('Наименование'     );
+    pXL.CreateTblFld('Наименование_прин');
+    pXL.CreateTblFld('Номер_прин'       );
+    pXL.CreateTblFld('Год_выпуска'      );
+    pXL.CreateTblFld('Инвентарный_номер');
+    pXL.CreateTblFld('Заводской_номер'  );
+    pXL.CreateTblFld('Паспорта_номер'   );
+    pXL.CreateTblFld('Факт_наличия_шт'  );      // Количество_Факт
+    pXL.CreateTblFld('Факт_наличия_стоимость'); // Стоимость_Факт
+    pXL.CreateTblFld('Штук_учет'        );      // Количество
+    pXL.CreateTblFld('Бух_наличия_шт'   );      // Количество_Бух
+    pXL.CreateTblFld('Бух_наличия_стоимость');  // стоимость по данным бух. учета по инвентаризации
+    pXL.CreateTblFld('Стоимость_учет'   );
+    pXL.CreateTblFld('Арендатель_срок'  );
+    pXL.CreateTblFld('Дата_учета'       );
+    pXL.CreateTblFld('Ликвидная_стоимость');
+    pXL.CreateTblFld('Регист_номер'     );
+    pXL.CreateTblFld('Название_изделия' );
+    pXL.CreateTblFld('Тип_марки'        );
+    pXL.CreateTblFld('Бар_код'          );
+    pXL.CreateTblFld('Дата_гарантии'    );
+    pXL.CreateTblFld('Дата_ввода'       );
+    pXL.CreateTblFld('Дата_поступления' );
+    pXL.CreateTblFld('Дата_выбытия'     );
+    pXL.CreateTblFld('Правочный_кооэф'  );       // ПОПРАВОЧНЫЙ коэфициент из карточки
+    pXL.CreateTblFld('Полезное_испол'   );
+    pXL.CreateTblFld('Амортизация_назв' );
+    pXL.CreateTblFld('Амортизация_шиф'  );
+    pXL.CreateTblFld('Амортизация_норм' );
+    pXL.CreateTblFld('Амортизация_норма');       //'норма амортизации
+    pXL.CreateTblFld('Алгоритм_нач_аморт');      //'алгоритм начисления аморт.
+    pXL.CreateTblFld('Наимен_групп'     );
+    pXL.CreateTblFld('Назв_групп'       );
+    pXL.CreateTblFld('Правочный_коефф_назв' );
+    pXL.CreateTblFld('Правочный_коефф_норма');   //'поправочный коефф.
+    pXL.CreateTblFld('IspOS_PrIsp'      );
+    pXL.CreateTblFld('Пр_использ'       );
+    pXL.CreateTblFld('IspOS_Amok'       );
+    pXL.CreateTblFld('Код_поразд'       );
+    pXL.CreateTblFld('Подразд'          );
+    pXL.CreateTblFld('МОЛ_ФИО'          );
+    pXL.CreateTblFld('Опер_начисл_амортиз');
+    pXL.CreateTblFld('Тип_объекта'      );
+    pXL.CreateTblFld('Признак_собственности');
+    pXL.CreateTblFld('Признак_собственности_выше');
+    pXL.CreateTblFld('Износ_кол'        );
+    pXL.CreateTblFld('Округление'       );
+    pXL.CreateTblFld('Д_1_sum');               // амортизируемая стоимость
+    pXL.CreateTblFld('Д_2_sum');               // сумма износа
+    pXL.CreateTblFld('Д_3_sum');               // сумма износа за месяц
+    pXL.CreateTblFld('Д_4_sum');               //
+    pXL.CreateTblFld('Д_5_sum');
+    pXL.CreateTblFld('Д_6_sum');
+    pXL.CreateTblFld('Д_7_sum');
+    pXL.CreateTblFld('Д_8_sum');
+    pXL.CreateTblFld('Д_9_sum');               // остаточная стоимость
+    pXL.CreateTblFld('Д_0_sum');
+    pXL.CreateTblFld('Сум_в_формате');
+    pXL.CreateTblFld('Первоначальная_стоимость'); // первоначальная стоимость
+    pXL.CreateTblFld('Остаточный_срок_использования');
+    pXL.CreateTblFld('Дата_постановки_учет');  // дата постановки на учет для инв. описи НМА 2-инв для Беларуси
+
+    // эти значения вычисляются в самой форме OSOPIS.frm для сличительной ведомости ИНВ-18
+    // и сюда же заносятся все итоги по излишкам и недостачам, которые выводятся и сверху, и снизу
+    pXL.CreateTblFld('Излишек_Количество');   // количество излишка
+    pXL.CreateTblFld('Излишек_Стоимость');    // стоимость излишка
+    pXL.CreateTblFld('Недостача_Количество'); // количество недостачи
+    pXL.CreateTblFld('Недостача_Стоимость');  // стоимость недостачи
+
+    // memo-поле
+    pXL.CreateTblFld('Характеристика');
+
+    pXL.CreateTblFld('Карточка_подразделение');
+    pXL.CreateTblFld('Карточка_единица_измерения');
+    pXL.CreateTblFld('Цена');
+    // из накладной
+    pXL.CreateTblFld('Поставщик');
+
+    pXL.CreateTblFld('Подтверждающий_документ_наименование');
+    pXL.CreateTblFld('Подтверждающий_документ_дата');
+    pXL.CreateTblFld('Подтверждающий_документ_номер');
+
+    //[102.104929] Вывод информации о праве собственности
+    pXL.CreateTblFld('ЮрДок_наименование');
+    pXL.CreateTblFld('ЮрДок_дата');
+    pXL.CreateTblFld('ЮрДок_номер');
+    pXL.CreateTblFld('ЮрДок_Орг_ДатаКонец');
+
+   SetVisualHeader ('Выгрузка данных для формирования отчета...');
+
+
+    if ((SortRg <= 1) or
+        //если печатаем по порядку пометки, то итоги тоже не считаем
+        (wNalIznPrintSort = 1))
+    {
+      // Сканирование дерева и вывод данных в форму
+      if (isPick)
+        AddBounds(tbbyForNotGrupped);
+
+      var b: boolean; b:= true;
+      ScanTreeExel(comp(0), word(0), b);
+
+      if (isPick)
+        SubBounds(tbbyForNotGrupped);
+    }
+    else
+      // Сканирование каталога с учетом группировок и вывод данных в форму
+      ScanGrExel();
+
+    pXL.ClearTblBuffer;
+    pXL.PublishTbl('OPIS');
+    //===================================================
+
+    pXL.CreateVar(sXLSFileName);
+    #WriteXltFeeSignersVarOs(iFeeSigners, pXL);   // Подписанты
+
+    pXL.SetStringVar('Номер_приказа', '');            //InvTab.NoPrk);
+    pXL.SetStringVar('Дата_составления_приказа', ''); //f_datetostrZ(InvTab.DatPrk));
+    pXL.SetStringVar('Дата_составления_приказа1', '');//if (longint(InvTab.DatPrk) <> 0, DateToStr(InvTab.DatPrk, '"DD" Mon YYYY г.'), ''));
+
+    if ( GetFirst FastFirstRow KatOrg where (( coGetTune('MYORG') == KatOrg.NRec )) = tsOk )
+    {
+      pXL.SetStringVar('Орган_название', KatOrg.Name);
+      pXL.SetStringVar('ОКПО', KatOrg.OKPO);
+    }
+    else
+    {
+      pXL.SetStringVar('Орган_название','');
+      pXL.SetStringVar('ОКПО','');
+    }
+
+    pXL.SetStringVar('Подразделение', #ShowKau(cgKau_KatPodr, cNRecPodr) );
+    pXL.SetStringVar('Номер_документа_инвентаризации', ''); //string(InvTab.nInv)); // Номер_Документа_инвентаризации
+    pXL.SetStringVar('Дата_документа_инвентаризации', '');  //if(DateToStr(InvTab.dInv, 'DD/MM/YYYY') = 'ДД/ММ/ГГГГ', '', DateToStr(InvTab.dInv, 'DD/MM/YYYY'))); // Дата_Документа_инвентаризации
+    pXL.SetNumberVar('Кол_строк', iCount);
+
+    pxl.SetStringVar('Дата', DateToStr(Date(Last_Day(dReeOtchPer)
+                                          , Month(dReeOtchPer)
+                                          , Year(dReeOtchPer))
+                                     ,'DD/MM/YYYY'));
+    pxl.SetStringVar('Дата_Оконч', '');                     //f_DateToStrz(InvTab.dInvEnd));
+    pxl.SetStringVar('Метод_учета', NastrOS.Name );
+    pxl.SetNumberVar('Индекс_коэффиц', NastrOS.KIAO );// Коэф_индексации_амор_отчислений
+
+    pXL.SetNumberVar('Делитель', double(1) );
+    pXL.SetStringVar('Делитель_стр_число', '1' );
+    pXL.SetStringVar('Делитель_стр_пропись', 'Один');
+    pXL.SetStringVar('Формат_кол', KolFormat );
+    pXL.SetStringVar('Единица_измерения', '1 (один) ' + SimVolVMy);
+    pXL.SetStringVar('Валюта', SimVolVMy);
+    pXL.SetStringVar('CFH', CommonFormHeader);
+    pXL.SetStringVar('Содер_группировки', GrpName );  //'содержание группировки
+    pXL.SetStringVar('Сожерж_сортировки', SrtName );  //'содержание сортировки
+    pXL.SetStringVar('Симв_вал_зг', 'Стоимость, ' +sGetTune('NDE.ShortRub') + ' ' + sGetTune('NDE.ShortKop'));
+    pXL.SetStringVar('Симв_вал', 'стоимость, ' +sGetTune('NDE.ShortRub') + ' ' + sGetTune('NDE.ShortKop'));
+    pXL.SetStringVar('Симв_руб', sGetTune('NDE.ShortRub'));
+    pXL.SetStringVar('Симв_коп', sGetTune('NDE.ShortKop'));
+    pXL.SetStringVar('Страна', wGetTune('Country'));
+    pXL.SetStringVar('Субъект_отчета_родит', '');
+    pXL.SetStringVar('Мес_Лет', if(wGetTune('OS.SrokIspEdIzm')=0, '(мес.)','(лет)'));
+    pXL.SetStringVar('Название_износа', sNameFieldSumIzn);    //название колонки для износа
+    pXL.SetStringVar('Период_начисл_аморт', sNameFieldSIznM); //название колонки для износа (амортизации) за период
+    pXL.SetNumberVar('Есть_операция_инвентаризации', 0);      //Есть_операция_инвентаризации
+
+    var j : word;
+
+    dix_filt := '';
+
+    For ( j := 1; j <= Count(sFilter); j := j + 1 )
+    {
+      if ( InitItem( sFilter, j ) )
+        dix_filt := dix_filt + sFilter[j];
+    }
+
+    pXL.SetStringVar('Сожерж_фильтр', dix_filt );  //'содержание фильтры
+    pXL.SetNumberVar('Учет_выбывших', wPeriod ); // Учет_выбывших
+
+    dix_uch := '';
+
+    case wPeriod of  //С_учетом_выбывших_в_периоде
+    //-------------
+      0:
+      {
+        pXL.SetStringVar('Период','месяце');
+        dix_uch := 'месяце'
+      };
+    //-------------
+      1:
+      {
+        pXL.SetStringVar('Период','квартале');
+        dix_uch := 'квартале'
+      };
+    //-------------
+      2:
+      {
+        pXL.SetStringVar('Период','полугодии');
+        dix_uch := 'полугодии'
+      };
+    //-------------
+      3:
+      {
+        pXL.SetStringVar('Период', 'году');
+        dix_uch := 'году'
+      };
+    //-------------
+      4:
+      {
+        pXL.SetStringVar('Период', '');
+        dix_uch := ''
+      };
+    //-------------
+      5:
+      {
+        pXL.SetStringVar('Период', 'периоде и ранее');
+        dix_uch := 'периоде и ранее'
+      };
+    //-------------
+    end;
+
+    pXL.SetStringVar('Формат',String(SumFormat));
+    pXL.SetStringVar('Надстройка',StartPathName + 'XLS\F_XlsRep\SumStringFormat.xla');
+//-------------------------------------------------------------------
+
+  if (wTip = 15) // ОС (15)
+  {
+    if (wCountry = ccBel) // Беларусь
+      case prFormOt of
+        0 : pXL.SetNumberVar('Форма', 33);
+        1 : pXL.SetNumberVar('Форма', prFormOt + 1);
+        2 : pXL.SetNumberVar('Форма', 3);
+        3 : pXL.SetNumberVar('Форма', 99);
+        4 : pXL.SetNumberVar('Форма', 44);
+        5 : pXL.SetNumberVar('Форма', 55);
+        6 : pXL.SetNumberVar('Форма', 55);
+      end;
+    else
+      case prFormOt of
+        0 : pXL.SetNumberVar('Форма', 0);
+        1 : pXL.SetNumberVar('Форма', prFormOt);
+        2 : pXL.SetNumberVar('Форма', prFormOt);
+        3 : pXL.SetNumberVar('Форма', prFormOt);
+        4 : pXL.SetNumberVar('Форма', prFormOt);
+        5 : pXL.SetNumberVar('Форма', 333);
+        6 : pXL.SetNumberVar('Форма', 66);
+      end;
+  }
+  else // НМА (16)
+  {
+    if (wCountry = ccBel) // Беларусь
+      case prFormOt of
+        0 : pXL.SetNumberVar('Форма', prFormOt + 5);
+        1 : pXL.SetNumberVar('Форма', 99);
+        2 : pXL.SetNumberVar('Форма', prFormOt + 5);
+        3 : pXL.SetNumberVar('Форма', 100);
+      end;
+    else
+      case prFormOt of
+        0 : pXL.SetNumberVar('Форма', 10);
+        1 : pXL.SetNumberVar('Форма', prFormOt);
+        2 : pXL.SetNumberVar('Форма', prFormOt + 3);
+        3 : pXL.SetNumberVar('Форма', prFormOt + 3);
+        4 : pXL.SetNumberVar('Форма', prFormOt + 3);
+      end;
+  }
+
+    if (wPeriod < 4) // C учетом выбывших
+    {
+      pXL.SetStringVar('uПодразделение', '');
+      pXL.SetStringVar('u', '* - с учетом выбывших в отчетном ' + dix_uch);
+      pXL.SetStringVar('uД_1_sum', '');
+      pXL.SetStringVar('uД_2_sum', '');
+      pXL.SetStringVar('uД_3_sum', '');
+      pXL.SetStringVar('uД_0_sum', '');
+    }
+    else
+    {
+      pXL.SetStringVar('uПодразделение', '');
+      pXL.SetStringVar('u', '');
+      pXL.SetStringVar('uД_1_sum', '');
+      pXL.SetStringVar('uД_2_sum', '');
+      pXL.SetStringVar('uД_3_sum', '');
+      pXL.SetStringVar('uД_0_sum', '');
+    };
+
+  pXL.SetNumberVar('wPrnMemo', wPrnMemoOS);
+  pXL.SetNumberVar('wListItog', wListItog);
+  pXL.SetStringVar('MyOrg', if (boGetTune('Rep.IsHeader'), sGetTune('MyOrg'), ''));
+
+  pXL.PublishVar;
+ //=====================================================
+
+    if (Not NextVisual)
+    {
+      StopVisual('',0);
+      fStop:=True;
+    }
+  }
+  // StopVisual('',0);
+
+  if (Not fStop)
+  {
+    // StartNewVisual( vtRotateVisual, vfTimer, ''#3'Выполняются макросы...', 1);
+    SetVisualHeader ('Выполнение макросов и загрузка Excel-книги...');
+    pXL.LoadReport(sXLSFileName);
+    pXL.DisConnectExcel;
+    StopVisual('',0);
+  }
+
+  PopPos(#KatOs);
+
+  if ( isTree )
+    MyJumpToRecord();
+
+  RescanPanel(#KatOs);
+}
+
+//------------------------------------------------------------------------------
+Procedure PrintReestr ( conf : word );
+{
+  For (sFilterIndex := 1; sFilterIndex <= Count(sFilter); sFilterIndex := sFilterIndex + 1)
+    sFilter[sFilterIndex] := '';
+
+  ResetBounds(#Pick);
+
+  if (GetFirst FastFirstRow Pick where ((cgPick_KatOs == Pick.wList)) = tsOk)
+    isPick := True
+  else
+  {
+    isPick := False;
+    wNalIznPrintSort := 0;
+  }
+
+  SetBounds(#Pick);
+
+  bContinueFormReport := True;
+  bOkClicked := False;
+
+
+
+  MenuForRusOs[0] := 'Инвентаризационная опись ИНВ-1';    // Россия ОС
+  MenuForRusOs[1] := 'Сличительная ведомость ИНВ-18';
+  MenuForRusOs[2] := 'Сводная ведомость износа';
+  MenuForRusOs[3] := 'Ведомость износа';                      // Полная версия
+  MenuForRusOs[4] := 'Приказ о проведении инвентаризации';
+  MenuForRusOs[5] := 'ИНВ-1 по Приложению № 4';
+  MenuForRusOs[6] := 'Акт о результатах инвентаризации';
+
+  MenuForBelOs[0] := MenuForRusOs[0];       // Беларусь ОС
+  MenuForBelOs[1] := MenuForRusOs[2];
+  MenuForBelOs[2] := MenuForRusOs[3];
+  MenuForBelOs[3] := MenuForRusOs[3] + ' (расширенная)';
+  MenuForBelOs[4] := MenuForRusOs[4];
+  MenuForBelOs[5] := '10-ИНВ по Приложению № 15 (сданных на ответственное хранение)';
+  MenuForBelOs[6] := '10-ИНВ по Приложению № 15 (принятых на ответственное хранение)';
+
+  MenuForRusNMA[0] := MenuForRusOs[0] + 'а';   //Россия НМА
+  MenuForRusNMA[1] := MenuForRusOs[1];
+  MenuForRusNMA[2] := MenuForRusOs[2];
+  MenuForRusNMA[3] := MenuForRusOs[3];
+  MenuForRusNMA[4] := MenuForRusOs[4];
+
+  MenuForBelNMA[0] := MenuForRusOs[2];      // Беларусь НМА
+  MenuForBelNMA[1] := MenuForRusOs[3];
+  MenuForBelNMA[2] := MenuForRusOs[4];
+  MenuForBelNMA[3] := 'Инвентаризационная опись 2-ИНВ';
+
+  // if (toc = 1) // Формат отчета
+  // {
+    if (wTip = 15)  // ОС
+    {
+      if (wCountry = ccBel)  // Беларусь
+        SetEnumList(NastrScreenNalIznPick,  #prFormOt, MenuForBelOs);
+      else
+        SetEnumList(NastrScreenNalIznPick,  #prFormOt, MenuForRusOs);
+    }
+    else  // НМА
+    {
+      if (wCountry = ccBel) // Беларусь
+        SetEnumList(NastrScreenNalIznPick,  #prFormOt, MenuForBelNMA);
+      else
+        SetEnumList(NastrScreenNalIznPick,  #prFormOt, MenuForRusNMA);
+    }
+  // }
+
+
+  RunWindowModal(NastrPrintNalIzn);
+
+  if (Not bContinueFormReport)
+    Exit;
+
+  fStop:=False;
+  nNumber := 0;
+  dArcOstStoimDate := Date(31,12,2001);
+  AddBounds(tbbyArcIznos_PrevOtchPer);
+
+  // Наследование архива износа (истории разниц) для новых ИК (101.37757)
+  if (  wGetTune('OS.CopyArchiveInNew') > 0 )
+    if Not BoundActive(tbbyArcIznosPrevOtchPer_CopyArchiveInNew)
+      AddBounds(tbbyArcIznosPrevOtchPer_CopyArchiveInNew);
+
+  if (toc = 0)
+    PrintReestr1
+  else
+    PrintReestrExel(conf);
+
+  if BoundActive(tbbyArcIznosPrevOtchPer_CopyArchiveInNew)
+    SubBounds(tbbyArcIznosPrevOtchPer_CopyArchiveInNew);
+
+  SubBounds(tbbyArcIznos_PrevOtchPer);
+}

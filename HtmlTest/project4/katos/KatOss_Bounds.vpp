@@ -1,0 +1,272 @@
+//--------------------------------------------------------------
+// ограничения для KatOs.Vip  ArcAmor.Vip
+//--------------------------------------------------------------
+
+  Bounds byKatosPdrz      =   cNRecPodr        ==  Katos.cPodr    (NoIndex) Ordered By TableOrder
+  Bounds byKatosMol       =   cNRecMol         ==  Katos.cMOL     (NoIndex) Ordered By TableOrder
+  Bounds byKatosKodVid    =   cFilVid          ==  Katos.cVid     (NoIndex) Ordered By TableOrder
+  Bounds byKatosKodGr     =   cFilGr           ==  Katos.cGrup    (NoIndex) Ordered By TableOrder
+  Bounds byKatosKodOf     =   cFilOKOF         ==  Katos.cOKOF    (NoIndex) Ordered By TableOrder
+  Bounds byKatosSPOSOB    =   cFilTipOb        ==  Katos.cSposob  (NoIndex) Ordered By TableOrder
+
+  Bounds byKatosKlass     =   Katos.NRec       /==  ExClassVal.cRec         and
+                              wFilKlass        /==  ExClassVal.ClassCode    and
+                              Word(coKatos)    /==  ExClassVal.wTable       Ordered By TableOrder
+
+  Bounds byKatosKlass1    =   Katos.NRec       /==  ExClassValS1.cRec       and
+                              wFilKlass1       /==  ExClassValS1.ClassCode  and
+                              cFilKlass1       /==  ExClassValS1.cClassSeg  Ordered By TableOrder
+
+  Bounds byKatosKlass2    =   Katos.NRec       /==  ExClassValS2.cRec       and
+                              wFilKlass2       /==  ExClassValS2.ClassCode  and
+                              cFilKlass2       /==  ExClassValS2.cClassSeg  Ordered By TableOrder
+
+  Bounds byKatosKlass3    =   Katos.NRec       /==  ExClassValS3.cRec       and
+                              wFilKlass3       /==  ExClassValS3.ClassCode  and
+                              cFilKlass3       /==  ExClassValS3.cClassSeg  Ordered By TableOrder
+
+  Bounds byKatosKlass4    =   Katos.NRec       /==  ExClassValS4.cRec       and
+                              wFilKlass4       /==  ExClassValS4.ClassCode  and
+                              cFilKlass4       /==  ExClassValS4.cClassSeg  Ordered By TableOrder
+
+  Bounds byKatosKlass5    =   Katos.NRec       /==  ExClassValS5.cRec       and
+                              wFilKlass5       /==  ExClassValS5.ClassCode  and
+                              cFilKlass5       /==  ExClassValS5.cClassSeg  Ordered By TableOrder
+
+  Bounds byKatosKlass6    =   Katos.NRec       /==  ExClassValS6.cRec       and
+                              wFilKlass6       /==  ExClassValS6.ClassCode  and
+                              cFilKlass6       /==  ExClassValS6.cClassSeg  Ordered By TableOrder
+
+#ifdef __TPR2__
+  bounds byKatOsVnKau1    =   KatOs.NRec       /==  tmp_KauReff1.cRec           and
+                              word(coKatOs)     ==  tmp_KauReff1.coTable        and
+                              wFilVnKau1        ==  tmp_KauReff1.wKau
+
+  bounds byKatOsVnKau2    =   KatOs.NRec       /==  tmp_KauReff2.cRec           and
+                              word(coKatOs)     ==  tmp_KauReff2.coTable        and
+                              wFilVnKau2        ==  tmp_KauReff2.wKau
+
+  bounds byKatOsVnKau3    =   KatOs.NRec       /==  tmp_KauReff3.cRec           and
+                              word(coKatOs)     ==  tmp_KauReff3.coTable        and
+                              wFilVnKau3        ==  tmp_KauReff3.wKau
+
+  bounds byKatOsVnKau4    =   KatOs.NRec       /==  tmp_KauReff4.cRec           and
+                              word(coKatOs)     ==  tmp_KauReff4.coTable        and
+                              wFilVnKau4        ==  tmp_KauReff4.wKau
+
+  bounds byKatOsVnKau5    =   KatOs.NRec       /==  tmp_KauReff5.cRec           and
+                              word(coKatOs)     ==  tmp_KauReff5.coTable        and
+                              wFilVnKau5        ==  tmp_KauReff5.wKau
+
+  bounds byKatOsVnKau6    =   KatOs.NRec       /==  tmp_KauReff6.cRec           and
+                              word(coKatOs)     ==  tmp_KauReff6.coTable        and
+                              wFilVnKau6        ==  tmp_KauReff6.wKau
+#else
+  bounds byKatOsVnKau1    =   KatOs.NRec       /==  KauReff1.cRec           and
+                              word(coKatOs)     ==  KauReff1.coTable        and
+                              wFilVnKau1        ==  KauReff1.wKau           and
+                              cFilVnKau1        ==  KauReff1.cKau           ordered by tableorder
+
+  bounds byKatOsVnKau2    =   KatOs.NRec       /==  KauReff2.cRec           and
+                              word(coKatOs)     ==  KauReff2.coTable        and
+                              wFilVnKau2        ==  KauReff2.wKau           and
+                              cFilVnKau2        ==  KauReff2.cKau           ordered by tableorder
+
+  bounds byKatOsVnKau3    =   KatOs.NRec       /==  KauReff3.cRec           and
+                              word(coKatOs)     ==  KauReff3.coTable        and
+                              wFilVnKau3        ==  KauReff3.wKau           and
+                              cFilVnKau3        ==  KauReff3.cKau           ordered by tableorder
+
+  bounds byKatOsVnKau4    =   KatOs.NRec       /==  KauReff4.cRec           and
+                              word(coKatOs)     ==  KauReff4.coTable        and
+                              wFilVnKau4        ==  KauReff4.wKau           and
+                              cFilVnKau4        ==  KauReff4.cKau           ordered by tableorder
+
+  bounds byKatOsVnKau5    =   KatOs.NRec       /==  KauReff5.cRec           and
+                              word(coKatOs)     ==  KauReff5.coTable        and
+                              wFilVnKau5        ==  KauReff5.wKau           and
+                              cFilVnKau5        ==  KauReff5.cKau           ordered by tableorder
+
+  bounds byKatOsVnKau6    =   KatOs.NRec       /==  KauReff6.cRec           and
+                              word(coKatOs)     ==  KauReff6.coTable        and
+                              wFilVnKau6        ==  KauReff6.wKau           and
+                              cFilVnKau6        ==  KauReff6.cKau           ordered by tableorder
+#end
+// ---------------------------------------------------------------------------
+  // фильтр по объекту строительства по которому были созданы карточки
+  Bounds byStroyNewKatOs as   Word(osfKatStroy)   ==  KatOs.wOrigType (NoIndex) and // карточка может быть создана только
+                              cFilStroy           ==  KatOs.cOrigDoc  (NoIndex)     // по одному поступлению из строительства
+
+  // ограничения по объекту с участием операций изменения стоимости
+  Bounds KatOsBySpVv     as   KatOs.NRec         /==  SpVvStroy.cKatOs              // по карточке может быть несколько
+                                                                                    // операций ввода в эксплуатацию:
+                                                                                    // несколько шт. изменение стоимости
+                                                                                    // и 1шт. поступление
+  // часть ограничений по объекту введенному изменением стоимости
+  Bounds SpVvByStroyMod  as   SpVvStroy.cVvStroy /==  VvStroy.NRec                and
+                              cFilStroy           ==  VvStroy.cKatStroy (NoIndex) and
+                              Word(3)             ==  VvStroy.SysOper   (NoIndex)
+
+  // часть ограничений по объекту введенному изменением стоимости и поступлением
+  Bounds SpVvByStroyAny  as   SpVvStroy.cVvStroy /==  VvStroy.NRec                and
+                              cFilStroy           ==  VvStroy.cKatStroy (NoIndex)
+// ---------------------------------------------------------------------------
+  Bounds byAddr           =   Katos.cReserv2    /==  mtAddr.cAddr     // по Адресу
+
+// ---------------------------------------------------------------------------
+
+  Bounds bySpKatOs        =   Katos.Nrec  /==  SpKatos.cKatos
+
+  Bounds byKatosMetod     =   cFilMetod    ==  SpKatos.cMetod   (NoIndex) Ordered By TableOrder
+  Bounds byKatosHozOper   =   cFilHozOper  ==  SpKatos.cHozOper (NoIndex) Ordered By TableOrder
+  Bounds byKatosNorma     =   cFilNorm     ==  SpKatos.cNorma   (NoIndex) Ordered By TableOrder
+  Bounds byKatosPrIsp     =   cFilIsp      ==  SpKatos.cISP     (NoIndex) Ordered By TableOrder
+  Bounds bySpKatOsGrAm    =   cFilAmGr     ==  SpKatOs.cGrAm    (NoIndex) Ordered By TableOrder
+  Bounds byKatosPrSb      =   cFilPrSb     ==  KatOs.cPrSb      (NoIndex) Ordered By TableOrder
+  Bounds byKatosCO        =   cFilCO       ==  KatOs.cCO        (NoIndex) Ordered By TableOrder
+
+  Bounds byKatosDatEk1    =   FilDvd1     <<=  KatOs.DATEK      (NoIndex) Ordered By TableOrder
+  Bounds byKatosDatEk2    =   FilDvd2     >>=  KatOs.DATEK      (NoIndex) Ordered By TableOrder
+  Bounds byKatosGODV1     =   FilDv1      <<=  KatOs.GODV       (NoIndex) Ordered By TableOrder
+  Bounds byKatosGODV2     =   FilDv2      >>=  KatOs.GODV       (NoIndex) Ordered By TableOrder
+  Bounds byKatosDatOk1    =   FilDp1      <<=  KatOs.DATOK      (NoIndex) Ordered By TableOrder
+  Bounds byKatosDatOk2    =   FilDp2      >>=  KatOs.DATOK      (NoIndex) Ordered By TableOrder
+  Bounds byKatosDatV1     =   FilDb1      <<=  KatOs.DATV       (NoIndex) Ordered By TableOrder
+  Bounds byKatosDatV2     =   FilDb2      >>=  KatOs.DATV       (NoIndex) Ordered By TableOrder
+
+  Bounds byKatosPoprkoef1 =   FilPoprkoef ==   SpKatos.Poprkoef (NoIndex) Ordered By TableOrder
+  Bounds byKatosPoprkoef2 =   FilPoprkoef <<   SpKatos.Poprkoef (NoIndex) Ordered By TableOrder
+  Bounds byKatosPoprkoef3 =   FilPoprkoef >>   SpKatos.Poprkoef (NoIndex) Ordered By TableOrder
+  Bounds byKatosPoprkoef4 =   FilPoprkoef <<=  SpKatos.Poprkoef (NoIndex) Ordered By TableOrder
+  Bounds byKatosPoprkoef5 =   FilPoprkoef >>=  SpKatos.Poprkoef (NoIndex) Ordered By TableOrder
+
+  Bounds byKatosIspPs1    =   FilIspPs    ==   SpKatos.IspPs    (NoIndex) Ordered By TableOrder
+  Bounds byKatosIspPs2    =   FilIspPs    <<   SpKatos.IspPs    (NoIndex) Ordered By TableOrder
+  Bounds byKatosIspPs3    =   FilIspPs    >>   SpKatos.IspPs    (NoIndex) Ordered By TableOrder
+  Bounds byKatosIspPs4    =   FilIspPs    <<=  SpKatos.IspPs    (NoIndex) Ordered By TableOrder
+  Bounds byKatosIspPs5    =   FilIspPs    >>=  SpKatos.IspPs    (NoIndex) Ordered By TableOrder
+
+  Bounds byKatosIspCur1   =   FilIspCur   ==   SpKatos.IspCur   (NoIndex) Ordered By TableOrder
+  Bounds byKatosIspCur2   =   FilIspCur   <<   SpKatos.IspCur   (NoIndex) Ordered By TableOrder
+  Bounds byKatosIspCur3   =   FilIspCur   >>   SpKatos.IspCur   (NoIndex) Ordered By TableOrder
+  Bounds byKatosIspCur4   =   FilIspCur   <<=  SpKatos.IspCur   (NoIndex) Ordered By TableOrder
+  Bounds byKatosIspCur5   =   FilIspCur   >>=  SpKatos.IspCur   (NoIndex) Ordered By TableOrder
+
+  Bounds byKatosSrokIsp1  =   FilSrokIsp  ==   SpKatos.SrokIsp  (NoIndex) Ordered By TableOrder
+  Bounds byKatosSrokIsp2  =   FilSrokIsp  <<   SpKatos.SrokIsp  (NoIndex) Ordered By TableOrder
+  Bounds byKatosSrokIsp3  =   FilSrokIsp  >>   SpKatos.SrokIsp  (NoIndex) Ordered By TableOrder
+  Bounds byKatosSrokIsp4  =   FilSrokIsp  <<=  SpKatos.SrokIsp  (NoIndex) Ordered By TableOrder
+  Bounds byKatosSrokIsp5  =   FilSrokIsp  >>=  SpKatos.SrokIsp  (NoIndex) Ordered By TableOrder
+
+  Condition cnKatosOstSrok1  FilOstSrok =  (SpKatos.SrokIsp - (SpKatos.IspPs + SpKatos.IspCur)) // ConditionForLeave
+  Condition cnKatosOstSrok2  FilOstSrok <  (SpKatos.SrokIsp - (SpKatos.IspPs + SpKatos.IspCur)) // ConditionForLeave
+  Condition cnKatosOstSrok3  FilOstSrok >  (SpKatos.SrokIsp - (SpKatos.IspPs + SpKatos.IspCur)) // ConditionForLeave
+  Condition cnKatosOstSrok4  FilOstSrok <= (SpKatos.SrokIsp - (SpKatos.IspPs + SpKatos.IspCur)) // ConditionForLeave
+  Condition cnKatosOstSrok5  FilOstSrok >= (SpKatos.SrokIsp - (SpKatos.IspPs + SpKatos.IspCur)) // ConditionForLeave
+
+  Bounds byKatosStoim1  =  FilStoim   ==   SpKatOs.STOIM (NoIndex) Ordered By TableOrder
+  Bounds byKatosStoim2  =  FilStoim   <<   SpKatOs.STOIM (NoIndex) Ordered By TableOrder
+  Bounds byKatosStoim3  =  FilStoim   >>   SpKatOs.STOIM (NoIndex) Ordered By TableOrder
+  Bounds byKatosStoim4  =  FilStoim   <<=  SpKatOs.STOIM (NoIndex) Ordered By TableOrder
+  Bounds byKatosStoim5  =  FilStoim   >>=  SpKatOs.STOIM (NoIndex) Ordered By TableOrder
+
+  Bounds byKatosSumIzn1 =  FilSumIzn  ==   SpKatOs.SumIzn (NoIndex) Ordered By TableOrder
+  Bounds byKatosSumIzn2 =  FilSumIzn  <<   SpKatOs.SumIzn (NoIndex) Ordered By TableOrder
+  Bounds byKatosSumIzn3 =  FilSumIzn  >>   SpKatOs.SumIzn (NoIndex) Ordered By TableOrder
+  Bounds byKatosSumIzn4 =  FilSumIzn  <<=  SpKatOs.SumIzn (NoIndex) Ordered By TableOrder
+  Bounds byKatosSumIzn5 =  FilSumIzn  >>=  SpKatOs.SumIzn (NoIndex) Ordered By TableOrder
+
+  Bounds byKatosSIznM1  =  FilSIznM   ==   SpKatOs.SIznM (NoIndex) Ordered By TableOrder
+  Bounds byKatosSIznM2  =  FilSIznM   <<   SpKatOs.SIznM (NoIndex) Ordered By TableOrder
+  Bounds byKatosSIznM3  =  FilSIznM   >>   SpKatOs.SIznM (NoIndex) Ordered By TableOrder
+  Bounds byKatosSIznM4  =  FilSIznM   <<=  SpKatOs.SIznM (NoIndex) Ordered By TableOrder
+  Bounds byKatosSIznM5  =  FilSIznM   >>=  SpKatOs.SIznM (NoIndex) Ordered By TableOrder
+
+  Condition cnKatosSum1     FilSum     =   SpKatOs.STOIM-IznosNastr // ConditionForLeave
+  Condition cnKatosSum2     FilSum     <   SpKatOs.STOIM-IznosNastr // ConditionForLeave
+  Condition cnKatosSum3     FilSum     >   SpKatOs.STOIM-IznosNastr // ConditionForLeave
+  Condition cnKatosSum4     FilSum     <=  SpKatOs.STOIM-IznosNastr // ConditionForLeave
+  Condition cnKatosSum5     FilSum     >=  SpKatOs.STOIM-IznosNastr // ConditionForLeave
+
+#ifdef __KatosFilters__
+  Condition cnKatosSum11    FilSum     =  (SpKatOs.STOIM-IznosNastr)/Katos.Kol // ConditionForLeave
+  Condition cnKatosSum21    FilSum     <  (SpKatOs.STOIM-IznosNastr)/Katos.Kol // ConditionForLeave
+  Condition cnKatosSum31    FilSum     >  (SpKatOs.STOIM-IznosNastr)/Katos.Kol // ConditionForLeave
+  Condition cnKatosSum41    FilSum     <= (SpKatOs.STOIM-IznosNastr)/Katos.Kol // ConditionForLeave
+  Condition cnKatosSum51    FilSum     >= (SpKatOs.STOIM-IznosNastr)/Katos.Kol // ConditionForLeave
+
+  Condition cnKatosStoim1   FilStoim   =   SpKatOs.STOIM / Katos.Kol // ConditionForLeave
+  Condition cnKatosStoim2   FilStoim   <   SpKatOs.STOIM / Katos.Kol // ConditionForLeave
+  Condition cnKatosStoim3   FilStoim   >   SpKatOs.STOIM / Katos.Kol // ConditionForLeave
+  Condition cnKatosStoim4   FilStoim   <=  SpKatOs.STOIM / Katos.Kol // ConditionForLeave
+  Condition cnKatosStoim5   FilStoim   >=  SpKatOs.STOIM / Katos.Kol // ConditionForLeave
+
+  Condition cnKatosSumIzn1  FilSumIzn  =   SpKatOs.SumIzn / Katos.Kol // ConditionForLeave
+  Condition cnKatosSumIzn2  FilSumIzn  <   SpKatOs.SumIzn / Katos.Kol // ConditionForLeave
+  Condition cnKatosSumIzn3  FilSumIzn  >   SpKatOs.SumIzn / Katos.Kol // ConditionForLeave
+  Condition cnKatosSumIzn4  FilSumIzn  <=  SpKatOs.SumIzn / Katos.Kol // ConditionForLeave
+  Condition cnKatosSumIzn5  FilSumIzn  >=  SpKatOs.SumIzn / Katos.Kol // ConditionForLeave
+
+  Condition cnKatosSIznM1   FilSIznM   =   SpKatOs.SIznM / Katos.Kol // ConditionForLeave
+  Condition cnKatosSIznM2   FilSIznM   <   SpKatOs.SIznM / Katos.Kol // ConditionForLeave
+  Condition cnKatosSIznM3   FilSIznM   >   SpKatOs.SIznM / Katos.Kol // ConditionForLeave
+  Condition cnKatosSIznM4   FilSIznM   <=  SpKatOs.SIznM / Katos.Kol // ConditionForLeave
+  Condition cnKatosSIznM5   FilSIznM   >=  SpKatOs.SIznM / Katos.Kol // ConditionForLeave
+  Condition cnKatosSIznM6   FilSIznM   <>  SpKatOs.SIznM / Katos.Kol // ConditionForLeave
+#end
+
+  Condition cnKatosSIznM6_Total  FilSIznM   <>  SpKatOs.SIznM             // ConditionForLeave
+
+  Condition cnKatosBarKod =
+                    if (Trim(FilBarKod) = '', (KatOs.BarKod = '')
+                       , (UpCase(Trim(FilBarKod)) = SubStr(UpCase(KatOs.BarKod), 1, Length(Trim(FilBarKod))))) // ConditionForLeave
+
+  Condition cnKatosImNum =
+                    if (Trim(FilImNum) = '', (KatOs.DopInNum = '')
+                       , (UpCase(Trim(FilImNum)) = SubStr(UpCase(KatOs.DopInNum), 1, Length(Trim(FilImNum))))) // ConditionForLeave
+
+  Condition cnKatosP
+                    if (Trim(FilPasN) = '', (KatOs.PsNum = '')
+                       , InStr(UpCase(trim(FilPasN)),UpCase(KatOs.PsNum)) <> 0 )            // ConditionForLeave
+
+  Condition cnKatosNameIzg
+                    if (Trim(FilZvIz) = '', (KatOs.NameIzg = '')
+                       , InStr(UpCase(trim(FilZvIz)),UpCase(KatOs.NameIzg)) <> 0)           // ConditionForLeave
+
+  Condition cnKatosTipMark
+                    if (Trim(FilModTip) = '', (KatOs.TipMark = '')
+                       , InStr(UpCase(trim(FilModTip)),UpCase(KatOs.TipMark)) <> 0)         // ConditionForLeave
+
+  Condition cnKatosZavNom
+                    if (Trim(FilZavN) = '', (KatOs.ZAVNOM = '')
+                       , InStr(UpCase(trim(FilZavN)),UpCase(KatOs.ZAVNOM)) <> 0)            // ConditionForLeave
+
+
+  Condition cnKatosDrag if (cFilDrg = 1, iNalDrag.Nal_Dr(Word(1),KatOs.Nrec),
+                         if (cFilDrg = 2, not iNalDrag.Nal_Dr(Word(1),KatOs.Nrec) ,True))  // ConditionForLeave
+
+  Condition cnKatOs
+                    if (trim(FilName) = '',KatOs.NAMEOS = '',
+                      InStr(UpCase(trim(FilName)),UpCase(KatOs.NAMEOS)) <> 0)              // ConditionForLeave
+
+  Bounds byKatOsInNum =  FilInNum <<= KatOs.InNum (NoIndex) and
+                         PadCh(FilInNum,Chr(255),20) >>= KatOs.InNum (NoIndex)
+
+
+  bounds byKatOsKol1  =  FilKol   ==   KatOs.Kol (NoIndex) ordered by TableOrder
+  bounds byKatOsKol2  =  FilKol   <<   KatOs.Kol (NoIndex) ordered by TableOrder
+  bounds byKatOsKol3  =  FilKol   >>   KatOs.Kol (NoIndex) ordered by TableOrder
+  bounds byKatOsKol4  =  FilKol   <<=  KatOs.Kol (NoIndex) ordered by TableOrder
+  bounds byKatOsKol5  =  FilKol   >>=  KatOs.Kol (NoIndex) ordered by TableOrder
+
+#ifdef __KatosFilters__
+  Bounds VscBound   =  curdescr == Katos.Descr  (NoIndex) Ordered By TableOrder
+  Bounds VscGrBound =  curdesGr == Katos.DesGr  (NoIndex) Ordered By TableOrder
+  #ifdef __TPR2__
+  Bounds byKatoscNote     =   cFilcNote    ==  KatOs.cNote      (NoIndex) Ordered By TableOrder
+  Bounds byKatosCOFilial  =   cFilCOFilial ==  KatOs.cCOFilial  (NoIndex) Ordered By TableOrder
+  Bounds byCompOSMain     =   Comp(0)      ==  Katos.cCompOs    (NoIndex) Ordered By TableOrder
+  Bounds byCompOSSub      =   Comp(0)      <<  Katos.cCompOs    (NoIndex) Ordered By TableOrder
+  Bounds byKatosPdrzTr    =   cNRecPodr    ==  Katos.cPodrTr    (NoIndex) Ordered By TableOrder
+  #end
+#end

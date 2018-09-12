@@ -1,0 +1,208 @@
+#include ShowKau.vpp
+#include OsFun.vih
+
+Interface EquipmentInStock 'ОС в наличие' DoAccept, EscClose, Gray;
+  Show at (,, 45, 7);
+const
+  WSTART_Y = 6;
+  WSTART_X = 1;
+  WKOLST   = 30;
+end;
+Function ColorZap : word;    Forward;
+
+table struct TmpRep
+(
+  INNUM           : string
+ ,NAMEOS          : string
+ ,DATEK           : date
+ ,KOL             : double
+ ,Stoim           : double //SpKatos.Stoim * Katos.Kol
+ ,SumIzn          : double //SpKatos.SumIzn * FKatosKol
+ ,f_OstStoimSum   : double
+ ,SrokIsp         : double //SpKatos.SrokIsp
+ ,VidOSKod        : string //#ShowKau2(cgKau_FpCO, KatOs.cCO)
+ ,VidOSName       : string //#ShowKau(cgKau_FpCO, KatOs.cCO)
+ ,KlassOsKod      : string
+ ,KlassOsName     : string
+ ,KodOfKod_of     : string
+ ,KodofName_of    : string
+ ,C_Isp           : string //#ShowKau(cgKau_IspOs, SpKatos.cIsp)
+ ,KatPodrKod      : string
+ ,KatPodrName     : string
+ ,KatMol          : string //KatMol.Name
+ ,DATOK           : date
+ ,PrSbName        : string
+ ,OsAlgName       : string //OsAlg.Name
+ ,HozOperName1    : string //HozOper.Name1
+ ,cCOName         : string //#ShowKau(cgKau_FpCO, KatOs.cCO)
+ ,KauReffArrayName: string //GetKauReffArrayName('KatOs',KatOs.nRec)
+ ,PropKind        : string //Колонка 26 <Вид имущества (движимое/недвижимое)> из Внешних атрибутов в карточке.
+ ,ContrKod        : string //#ShowKau2(cgKau_KatOrg, KatSopr.cOrgBase)   Колонка 27 <Код внутреннего партнёра> Доп.информация-Строка <Поставщик>
+ ,KatosZavNom     : string //Katos.ZavNom
+ ,KatosPsNum      : string //Katos.PsNum
+ ,GrOsNameGr      : string //GrOs.NameGr
+ ,numberOfString  : longint
+)
+With Index
+(
+  Index01  =  INNUM
+);
+Create view
+var
+  dtb: date;
+  sFileName:string;
+  boIsMUCommonCost:boolean;
+as select
+  if ( Not IsValidNew(tnSpKatOS)    , 0.0
+     , if (boIsMUCommonCost, SpKatOS.Stoim , SpKatOS.Stoim*KatOS.Kol) )              ( FieldName = f_StoimSum )
+, if (Not IsValidNew(tnSpKatOS)     , 0.0
+     , if (boIsMUCommonCost, SpKatOS.SumIzn, SpKatOS.SumIzn*KatOS.Kol) )             ( FieldName = f_SumIznSum )
+, if (Not IsValidNew(tnSpKatOS)     , 0.0
+     , if (boIsMUCommonCost, SpKatOS.SIznM, SpKatOS.SIznM*KatOS.Kol) )               ( FieldName = f_SIznMSum )
+, (f_StoimSum - f_SumIznSum - f_SIznMSum)                                            ( FieldName = f_OstStoimSum )
+, (SpKatOS.Stoim - SpKatOS.SumIzn - SpKatOS.SIznM)                                   ( FieldName = f_OstStoim )
+from
+    Katos
+    ,SpKatos
+    ,GrOs
+    ,VidNorma
+    ,Kodof
+    ,KatPodr
+    ,KatMol
+    ,PrSb
+    ,KlassOs
+    ,VidNorma VidNormaN
+    ,VidNorma VidNormaS
+    ,KlVal
+    ,HozOper
+    ,OsAlg
+    ,ArcIznos
+    ,TmpRep
+where ((
+        Katos.cGrup       ==  GrOs.Nrec        and  // группа
+        Katos.cVid        ==  VidNormaS.Nrec   and  // Вид
+        Katos.cOKOF       ==  Kodof.Nrec       and  // ОКОФ
+        Katos.cPodr       ==  KatPodr.Nrec     and  // подразделение
+        Katos.cMol        ==  KatMol.Nrec      and  // МОЛ
+        Katos.cPrSb       ==  PrSb.nRec        and  // признак собственности
+        Katos.NRec        ==  ArcIznos.cKatos  and  // наличие архива на дату
+        Katos.cSposob     ==  Sposob.Nrec      and  // спецоборудование
+        Katos.Nrec        ==  SpKatos.cKatos   and  // спецификация
+        SpKatos.cIsp      ==  Ispos.Nrec       and  // использование
+        SpKatos.cNorma    ==  VidNormaN.Nrec   and // норма
+        SpKatos.cHozOper  ==  HozOper.Nrec     and  // ТХО
+        SpKatos.cMetod    ==  OsAlg.Nrec       and  // алгоритмы
+        SpKatos.cVal      ==  KlVal.Nrec
+        ))
+        and (GrOs.Nrec = 0001000000000003h)
+        ;
+bounds takingArch dtb == ArcIznos.Data(noindex);
+#include ReportFunc.vpp
+#include maymod.vpp
+Procedure FormDoc;
+  var
+  i, j, wkolrecs, wchet:longint;
+  tempCellVal:string;
+  numberOfStr:longint;
+{
+  numberOfStr:=0;
+  StartNewVisual(vtNumericVisual, vfTimer + vfBreak + vfConfirm, 'Ждите, идет сбор информации', 0);
+  SetSheet('Лист1');
+  if getfirst KatOrg  where((
+                            coGetTune('MyOrg')==KatOrg.nrec
+                            )) = tsOk then
+                                      tempCellVal := KatOrg.Name;
+  xlSetCellstringValue(tempCellVal, 1, 2, 1, 2);
+  xlGetCellValue(3, 8,tempCellVal);
+  tempCellVal+=DateToStr(dtb, 'DD.MM.YYYY');
+  xlSetCellstringValue(tempCellVal, 3, 8, 3, 8);
+  xlGetCellValue(2, 11,tempCellVal);
+  tempCellVal+=DateToStr(dtb, 'DD.MM.YYYY');
+  xlSetCellstringValue(tempCellVal, 11, 2, 11, 2);
+  if (dtb < dGetTune('OS.OTCHPERIOD'))  {
+   // AddBounds(tbtakingArch);
+  }
+  if (dtb >= dGetTune('OS.OTCHPERIOD')) {
+   // SubBounds(tbtakingArch)
+  }
+  delete all TmpRep;
+  _loop Katos
+  {
+     ClearBuffer(tnTmpRep);
+     numberOfString++;
+     TmpRep.INNUM           :=Katos.Innum;
+     TmpRep.NAMEOS          :=Katos.NAMEOS;
+     TmpRep.DATEK           :=Katos.DatEk;
+     TmpRep.KOL             :=Katos.Kol;
+     TmpRep.Stoim           :=SpKatos.Stoim * Katos.Kol; //SpKatos.Stoim * Katos.Kol
+     TmpRep.SumIzn          :=SpKatos.SumIzn * Katos.Kol; //SpKatos.SumIzn * FKatosKol
+     TmpRep.f_OstStoimSum   :=f_OstStoimSum;
+     TmpRep.SrokIsp         :=SpKatos.SrokIsp; //SpKatos.SrokIsp
+     //TmpRep.VidOSKod        :=#ShowKau2(cgKau_FpCO, KatOs.cCO); //#ShowKau2(cgKau_FpCO, KatOs.cCO)
+     //TmpRep.VidOSName       :=#ShowKau(cgKau_FpCO, KatOs.cCO); //#ShowKau(cgKau_FpCO, KatOs.cCO)
+     TmpRep.KlassOsKod      :=KlassOs.Kod;
+     TmpRep.KlassOsName     :=KlassOs.Name;
+     TmpRep.KodOfKod_of     :=KodOf.Kod_of;
+     TmpRep.KodofName_of    :=Kodof.Name_of;
+     //TmpRep.C_Isp           :=#ShowKau(cgKau_IspOs, SpKatos.cIsp); //#ShowKau(cgKau_IspOs, SpKatos.cIsp)
+     TmpRep.KatPodrKod      :=KatPodr.Kod;
+     TmpRep.KatPodrName     :=KatPodr.Name;
+     TmpRep.KatMol          :=KatMol.Name; //KatMol.Name
+     TmpRep.DATOK           :=Katos.DATOK;
+     TmpRep.PrSbName        :=PrSb.Name;
+     TmpRep.OsAlgName       :=OsAlg.Name; //OsAlg.Name
+     TmpRep.HozOperName1    :=HozOper.Name1; //HozOper.Name1
+     //TmpRep.cCOName         :=#ShowKau(cgKau_FpCO, KatOs.cCO); //#ShowKau(cgKau_FpCO, KatOs.cCO)
+     //TmpRep.KauReffArrayName:=GetKauReffArrayName('KatOs',KatOs.nRec); //GetKauReffArrayName('KatOs',KatOs.nRec)
+     TmpRep.PropKind        :='';//Колонка 26 <Вид имущества (движимое/недвижимое)> из Внешних атрибутов в карточке.
+     //TmpRep.ContrKod        :=#ShowKau2(cgKau_KatOrg, KatSopr.cOrgBase); //#ShowKau2(cgKau_KatOrg, KatSopr.cOrgBase)
+                                                                         //Колонка 27 <Код внутреннего партнёра> Доп.информация-Строка <Поставщик>
+     TmpRep.KatosZavNom     :=Katos.ZavNom; //Katos.ZavNom
+     TmpRep.KatosPsNum      :=Katos.PsNum; //Katos.PsNum
+     TmpRep.GrOsNameGr      :=GrOs.NameGr; //GrOs.NameGr
+     TmpRep.numberOfString  :=numberOfString;
+     insert current TmpRep;
+    if Not iNextVisual('Ждите! Идет сбор данных : '+string(numberOfString,10))
+    {
+        	StopVisual('Выполнение прервано пользователем!',vfWait);
+        	exit;
+    }
+  }
+  StopVisual('', 0);
+  wkolrecs :=Recordsintable(#TmpRep) ;
+  message(wkolrecs);
+//  xlCreateMatrix(wkolrecs, wkolst);
+}
+  Screen scr01 (,, sci13Esc);
+  Fields
+  dtb ('Введите начальную дату интервала'): [, 'DD/MM/YYYY'], NoProtect;
+  Buttons
+  cmOk, Default,, 'Сформировать ';
+  cmCancel,,, 'Выход';
+  <<
+        Дата: .@@@@@@@@@@
+
+        <. Сформировать .>        <. Отмена .>
+  >>
+End;
+HandleEvent
+  cmOK:
+  {
+    SaveMyDsk(dtb, 'EquipmentInStock_dtb');
+
+    if OpenTemplate(sFileName, True) then
+    {
+      Formdoc;
+    }
+  }
+  cmInit:
+  {
+    var
+      DateChanged: boolean;
+    if(not ReadMydsk(dtb, 'EquipmentInStock_dtb', DateChanged))
+      dtb := Date(1,Month(cur_date),Year(cur_date));
+    boIsMUCommonCost:=false;
+    sFileName := 'EquipmentInStock.xlsx';
+  }
+end;
+end.
