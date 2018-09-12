@@ -1,3 +1,13 @@
+#container{
+position: relative;
+}
+#menu{
+position: absolute;
+top:0;
+right:0;
+}
+
+
 #menu, #menu ul {
 list-style-type: none;
 padding: 0;
@@ -5,22 +15,23 @@ margin: 0;
 }
 
 #menu li {
-cursor: pointer;
-background: #94C5EB;
-border-bottom: 3px solid #444;
+float: left;
+background:#fff;
+}
+#menu a{
+display:block;
+padding: 4px;
+width: 10em;
 }
 
-#menu li a { text-decoration: none; }
+#menu li ul{
+position: absolute;
+width:10em;
+left:-999em;
 
-#menu>li>a{
-
-padding: 2px lOpx;
-font-weight: bold;
 }
 
-#menu li li {
-cursor: auto;
-border: 0;
-padding: 0 14px;
-background-color: #fff;
+
+#menu li:hover ul,#menu li ul:hover {
+left:auto;
 }
