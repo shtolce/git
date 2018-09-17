@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en-US">
+<head>
+    <style  type="text/css" >
+        .spinner{
+            height:120px;
+            width:120px;
+            left:50%;
+            top:50%;
+            position: absolute;
+            background:transparent url(234.png) no-repeat center center;
+            background-size:contain;
+           }
+        
+        </style>  
+      
+    <script  type="text/javascript"  src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+    
+    <script  type="text/javascript">
+        var GALERY={
+            container:"#galery",
+            url:"../project5/getImages.txt",
+            delay:5000,
+            load:function(){
+                var _galery=this;
+                $.ajax({
+                    type:"get",
+                    url:this.url,
+                    success:function(data){
+                        var images=data.split('|');
+                        $.each(images,function(){
+                            _galery.display(this);
+
+                        });
+                    },
+                    complete:function(){
+                        $('.spinner').fadeOut('slow', function() {
+                            $(this).remove() ;
+                            });
+
+                        setTimeout(function(){
+                            _galery.load();
+                        },_galery.delay);
+
+
+                    },
+                    beforeSend:function(){
+                        $(_galery.container).find('img').fadeOut('slow',function(){this.remove();});
+                        $('<div></div>').attr('class','spinner').hide().appendTo(_galery.container)
+                        .fadeTo('slow',0.6);
+
+                        }
+
+                });
+
+            },
+            display:function(image_url){
+                $('<img></img>').attr('src','../project5/'+image_url).hide().on('load',function(){
+                    $(this).fadeIn();
+                }).appendTo(this.container);
+            }
+
+        }
+
+        $(function(){
+
+                GALERY.load();
+
+        });//main
+            
+    </script>
+</head>
+<body>
+
+
+<div id="galery">
+</div>
+ 
+</body>
+
+   
+</html>
