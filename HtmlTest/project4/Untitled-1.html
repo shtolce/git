@@ -43,7 +43,23 @@
                 $('#flowerTmpl').tmpl(data)
                 .slice(0, 3).appendTo('#row1').end().end()
                 .slice(3).appendTo("#row2");
-    
+  
+                
+                $('#biography').on('mouseover',function() {
+                    $(this).css('background-color','yellow');
+                                                        });
+
+                $('#biography').on('mouseout',function() {
+                    $(this).css('background-color','white');
+                                                        });
+                                                        
+                $.getJSON("https://api.twitter.com/1.1/search/tweets.json?q=celebs",
+                function(result) {
+                alert('Fetched ' + result.data.length + ' items!');
+                }).fail(function( jqxhr, textStatus, error ) {
+                    var err = textStatus + ', ' + error;
+                    alert( "Request Failed: " + err);
+                    });
  
         });//main
         
