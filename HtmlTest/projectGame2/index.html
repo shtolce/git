@@ -1,0 +1,43 @@
+<!DOCTYPE HTML5>
+<html>
+    <head>
+
+    <style>
+    canvas{
+        background-color:green;
+        height:90vh;
+        width:90vw;
+
+    }    
+        
+    </style>
+    
+    
+    </head>
+
+    <body>
+    <canvas id="myCanvas">
+
+        
+
+    </canvas>
+   <script>
+        var canvas=document.getElementById('myCanvas');
+        var ctx = canvas.getContext("2d");
+
+        function draw()
+        {
+            ctx.beginPath();
+            ctx.rect(0,0,40,40);
+            ctx.fillStyle="#445566";
+            ctx.fill();
+            ctx.stroke();
+            ctx.closePath();
+        }
+        setInterval(draw,10);
+
+
+    </script>
+
+    </body>
+</html>
