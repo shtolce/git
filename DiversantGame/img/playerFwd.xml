@@ -1,0 +1,10 @@
+<!DOCTYPE SpriteDecomposer>
+<sprites image="playerSprite1.png" transparentColor="FFFFFF">
+ <animation title="1" delay="150">
+  <cut w="60" x="184" y="666" h="130" row="1" col="1"/>
+  <cut w="59" x="31" y="670" h="127" row="1" col="1"/>
+  <cut w="55" x="338" y="669" h="126" row="1" col="1"/>
+  <cut w="58" x="487" y="670" h="126" row="1" col="1"/>
+  <cut w="56" x="641" y="668" h="128" row="1" col="1"/>
+ </animation>
+</sprites>
