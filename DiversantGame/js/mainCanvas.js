@@ -90,9 +90,7 @@ function gameLoop() {
     drawBackGround(x);
     drawPlayer();
    if (isKeyDown('up')) console.log('up');
-
-
-    window.requestAnimFrame(gameLoop);
+     window.requestAnimFrame(gameLoop);
 }
 window.addEventListener('load', function() {
     playerImage=document.createElement('img');
@@ -100,7 +98,6 @@ window.addEventListener('load', function() {
     playerImage.onload=function(){
         var id = window.requestAnimFrame(gameLoop);
     };
-
 });
 
 window.addEventListener('keydown',function(ev){
@@ -110,6 +107,3 @@ window.addEventListener('keyup',function(ev){
     console.log('down');
     keyDown = 0;
 });
-
-
-
