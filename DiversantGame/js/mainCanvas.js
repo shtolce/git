@@ -4,6 +4,7 @@ var request = new XMLHttpRequest();
 var xmlPlayerFwd;
 var PlayerFwdSprites=[];
 var playerImage;
+var playerImageBwd;
 
 function writePlayerObj(){
     var xmlAnim = xmlPlayerFwd.getElementsByTagName("animation")[0];
@@ -43,8 +44,20 @@ var canvasCtx = canvas.getContext("2d");
 var backgroundImg = new Image(2346,769);
 var x=0;
 var i=0;
-backgroundImg.src="img/background1.jpg";
+var keys ={
+    'up':38,
+    'down':40,
+    'left':37,
+    'right':39
+};
 
+var isKeyDown=function(keyName){
+return keyDown==keys[keyName];
+};
+
+
+backgroundImg.src="img/background1.jpg";
+var keyDown=0;
 function drawPlayer(){
     i++;
     if (i>4) i=0;
@@ -76,15 +89,27 @@ function gameLoop() {
    x++;
     drawBackGround(x);
     drawPlayer();
-   window.requestAnimFrame(gameLoop);
+   if (isKeyDown('up')) console.log('up');
+
+
+    window.requestAnimFrame(gameLoop);
 }
 window.addEventListener('load', function() {
     playerImage=document.createElement('img');
-    playerImage.src="img/playerSprite1.png";
+    playerImage.src="img/playerSprite2.png";
     playerImage.onload=function(){
         var id = window.requestAnimFrame(gameLoop);
     };
 
 });
+
+window.addEventListener('keydown',function(ev){
+    keyDown = ev.keyCode;
+});
+window.addEventListener('keyup',function(ev){
+    console.log('down');
+    keyDown = 0;
+});
+
 
 
