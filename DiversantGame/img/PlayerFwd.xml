@@ -1,0 +1,10 @@
+<!DOCTYPE SpriteDecomposer>
+<sprites image="playerSprite1.png" transparentColor="">
+ <animation title="PlayerFwd" delay="150">
+  <cut w="73" x="174" y="669" h="128" row="1" col="1"/>
+  <cut w="75" x="326" y="668" h="128" row="1" col="1"/>
+  <cut w="71" x="23" y="670" h="127" row="1" col="1"/>
+  <cut w="73" x="478" y="668" h="128" row="1" col="1"/>
+  <cut w="72" x="630" y="666" h="132" row="1" col="1"/>
+ </animation>
+</sprites>
