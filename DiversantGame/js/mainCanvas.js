@@ -5,7 +5,7 @@ var xmlPlayerFwd;
 var PlayerFwdSprites=[];
 var playerImage;
 var playerImageBwd;
-
+var PlayerSprites=[];
 function writePlayerObj(){
     var xmlAnim = xmlPlayerFwd.getElementsByTagName("animation")[0];
     var xmlCur=xmlAnim.childNodes;
@@ -18,7 +18,7 @@ function writePlayerObj(){
                 y:el.attributes['y'].value,
                 height:el.attributes['h'].value
         };
-        PlayerFwdSprites.push(PlayerSpriteObj);
+        PlayerSprites.push(PlayerSpriteObj);
         }
 
     });
@@ -43,7 +43,9 @@ var canvas=document.getElementById("mainCanvas");
 var canvasCtx = canvas.getContext("2d");
 var backgroundImg = new Image(2346,769);
 var x=0;
+var playerX=300;
 var i=0;
+var direction=1;
 var keys ={
     'up':38,
     'down':40,
@@ -58,19 +60,19 @@ return keyDown==keys[keyName];
 
 backgroundImg.src="img/background1.jpg";
 var keyDown=0;
-function drawPlayer(){
-    i++;
-    if (i>4) i=0;
-    var x1=PlayerFwdSprites[i].x;
-    var y1=PlayerFwdSprites[i].y;
-    var width1 =PlayerFwdSprites[i].width;
-    var height1 =PlayerFwdSprites[i].height;
-   canvasCtx.drawImage(playerImage,x1,y1,width1,height1, 0,580,width1,height1);
+function drawPlayer(i1,direction){
+    var x1=PlayerSprites[i1].x;
+    var y1=PlayerSprites[i1].y;
+    var width1 =PlayerSprites[i1].width;
+    var height1 =PlayerSprites[i1].height;
+    PlayerSprites[i1].dom=direction==1?playerImageFwd:playerImageBwd;
+    canvasCtx.drawImage(PlayerSprites[i1].dom,x1,y1,width1,height1, playerX,580,width1,height1);
 }
 
 function drawBackGround(x){
     canvasCtx.clearRect(0,0,2346,769);
-    canvasCtx.drawImage(backgroundImg,x,0,1346+x,769,0,0,2346,769);
+    canvasCtx.drawImage(backgroundImg,x,0,1346,769,0,0,2346,769);
+
 }
 
 window.requestAnimFrame = (function(){
@@ -86,20 +88,53 @@ window.requestAnimFrame = (function(){
 
 
 function gameLoop() {
-   x++;
     drawBackGround(x);
-    drawPlayer();
-   if (isKeyDown('up')) console.log('up');
+    drawPlayer(Math.floor(i/8),direction);
+   if (isKeyDown('right')) {
+       if (x<1000)
+       {
+           if (playerX>300)
+               x++;
+           else
+                playerX++;
+
+       }else{
+           if (playerX<2280)
+               playerX++;
+       }
+       i++;
+       if (i>32) i=0;
+       direction=1;
+
+   };
+   if (isKeyDown('left')) {
+       if (x>0)
+       {
+           if (playerX<1800)
+               x--;
+           else
+               playerX--;
+
+       }else{
+           if (playerX>0)
+                playerX--;
+       }
+       i++;
+       if (i>32) i=0;
+       direction=2;
+   };
 
 
     window.requestAnimFrame(gameLoop);
 }
 window.addEventListener('load', function() {
-    playerImage=document.createElement('img');
-    playerImage.src="img/playerSprite2.png";
-    playerImage.onload=function(){
+    playerImageFwd=document.createElement('img');
+    playerImageFwd.src="img/playerSprite1.png";
+    playerImageFwd.onload=function(){
         var id = window.requestAnimFrame(gameLoop);
     };
+    playerImageBwd=document.createElement('img');
+    playerImageBwd.src="img/playerSprite2.png";
 
 });
 
