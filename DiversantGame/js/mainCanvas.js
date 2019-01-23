@@ -1,11 +1,13 @@
-
-
 var request = new XMLHttpRequest();
 var xmlPlayerFwd;
 var PlayerFwdSprites=[];
 var playerImage;
 var playerImageBwd;
 var PlayerSprites=[];
+const sceneMoveTresholdRight=300;
+const sceneMoveTresholdLeft=550;
+const totalSceneWidth=2346;
+const visibleSceneWidth=1346;
 function writePlayerObj(){
     var xmlAnim = xmlPlayerFwd.getElementsByTagName("animation")[0];
     var xmlCur=xmlAnim.childNodes;
@@ -23,7 +25,6 @@ function writePlayerObj(){
 
     });
 }
-
 function reqReadyStateChange() {
     if (request.readyState == 4) {
         var status = request.status;
@@ -34,14 +35,12 @@ function reqReadyStateChange() {
         }
     }
 }
-
 request.open("GET", "img/playerFWD.xml");
 request.onreadystatechange = reqReadyStateChange;
 request.send();
-
 var canvas=document.getElementById("mainCanvas");
 var canvasCtx = canvas.getContext("2d");
-var backgroundImg = new Image(2346,769);
+var backgroundImg = new Image(totalSceneWidth,769);
 var x=0;
 var playerX=300;
 var i=0;
@@ -52,12 +51,9 @@ var keys ={
     'left':37,
     'right':39
 };
-
 var isKeyDown=function(keyName){
 return keyDown==keys[keyName];
 };
-
-
 backgroundImg.src="img/background1.jpg";
 var keyDown=0;
 function drawPlayer(i1,direction){
@@ -68,13 +64,10 @@ function drawPlayer(i1,direction){
     PlayerSprites[i1].dom=direction==1?playerImageFwd:playerImageBwd;
     canvasCtx.drawImage(PlayerSprites[i1].dom,x1,y1,width1,height1, playerX,580,width1,height1);
 }
-
 function drawBackGround(x){
-    canvasCtx.clearRect(0,0,2346,769);
-    canvasCtx.drawImage(backgroundImg,x,0,1346,769,0,0,2346,769);
-
+    canvasCtx.clearRect(0,0,totalSceneWidth,769);
+    canvasCtx.drawImage(backgroundImg,x,0,visibleSceneWidth,769,0,0,totalSceneWidth,769);
 }
-
 window.requestAnimFrame = (function(){
     return  window.requestAnimationFrame       ||
             window.webkitRequestAnimationFrame ||
@@ -85,46 +78,51 @@ window.requestAnimFrame = (function(){
             window.setTimeout(callback, 1000 / 60);
         };
 })();
-
-
 function gameLoop() {
     drawBackGround(x);
     drawPlayer(Math.floor(i/8),direction);
    if (isKeyDown('right')) {
        if (x<1000)
        {
-           if (playerX>300)
+           if (playerX>sceneMoveTresholdRight){
                x++;
-           else
-                playerX++;
-
-       }else{
-           if (playerX<2280)
+           }
+           else{
                playerX++;
+           }
+       }
+       else{
+           if (playerX<totalSceneWidth-60){
+               playerX++;
+           }
        }
        i++;
-       if (i>32) i=0;
+       if (i>32){
+           i=0;
+       }
        direction=1;
-
    };
    if (isKeyDown('left')) {
        if (x>0)
        {
-           if (playerX<1800)
+           if (playerX<totalSceneWidth-sceneMoveTresholdRight){
                x--;
-           else
+           }
+           else{
                playerX--;
+           }
 
        }else{
-           if (playerX>0)
-                playerX--;
+           if (playerX>0){
+               playerX--;
+           }
        }
        i++;
-       if (i>32) i=0;
+       if (i>32) {
+           i=0;
+       };
        direction=2;
    };
-
-
     window.requestAnimFrame(gameLoop);
 }
 window.addEventListener('load', function() {
@@ -135,9 +133,7 @@ window.addEventListener('load', function() {
     };
     playerImageBwd=document.createElement('img');
     playerImageBwd.src="img/playerSprite2.png";
-
 });
-
 window.addEventListener('keydown',function(ev){
     keyDown = ev.keyCode;
 });
