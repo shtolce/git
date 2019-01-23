@@ -1,9 +1,13 @@
 var request = new XMLHttpRequest();
+var requestNPC = new XMLHttpRequest();
 var xmlPlayerFwd;
+var xmlNPCPlayer;
 var PlayerFwdSprites=[];
 var playerImage;
+var NPCImage;
 var playerImageBwd;
 var PlayerSprites=[];
+var NPCSprites=[];
 const sceneMoveTresholdRight=300;
 const sceneMoveTresholdLeft=550;
 const totalSceneWidth=2346;
@@ -19,10 +23,26 @@ function writePlayerObj(){
                 x:el.attributes['x'].value,
                 y:el.attributes['y'].value,
                 height:el.attributes['h'].value
-        };
+                };
         PlayerSprites.push(PlayerSpriteObj);
         }
-
+    });
+}
+function writeNPCObj(){
+    var xmlAnim = xmlNPCPlayer.getElementsByTagName("animation")[0];
+    var xmlCur=xmlAnim.childNodes;
+    xmlCur.forEach((el,i,xmlCur)=> {
+        if (el.nodeName=="cut"){
+            var NPCSpriteObj={
+                dom:NPCImage,
+                width:el.attributes['w'].value,
+                x:el.attributes['x'].value,
+                y:el.attributes['y'].value,
+                height:el.attributes['h'].value,
+                npcXPos:700
+            };
+            NPCSprites.push(NPCSpriteObj);
+        }
     });
 }
 function reqReadyStateChange() {
@@ -35,15 +55,34 @@ function reqReadyStateChange() {
         }
     }
 }
+
+function reqReadyStateChangeNPC() {
+    if (requestNPC.readyState == 4) {
+        var status = requestNPC.status;
+        if (status == 200) {
+            xmlNPCPlayer=requestNPC.responseXML;
+            writeNPCObj();
+        } else {
+        }
+    }
+}
 request.open("GET", "img/playerFWD.xml");
 request.onreadystatechange = reqReadyStateChange;
 request.send();
+
+requestNPC.open("GET", "img/Seller.xml");
+requestNPC.onreadystatechange = reqReadyStateChangeNPC;
+requestNPC.send();
+
+
+
 var canvas=document.getElementById("mainCanvas");
 var canvasCtx = canvas.getContext("2d");
 var backgroundImg = new Image(totalSceneWidth,769);
 var x=0;
 var playerX=300;
 var i=0;
+var iNpc=0;
 var direction=1;
 var keys ={
     'up':38,
@@ -64,6 +103,16 @@ function drawPlayer(i1,direction){
     PlayerSprites[i1].dom=direction==1?playerImageFwd:playerImageBwd;
     canvasCtx.drawImage(PlayerSprites[i1].dom,x1,y1,width1,height1, playerX,580,width1,height1);
 }
+function drawNPC(npcNumber,i1){
+    var x1=NPCSprites[i1].x;
+    var y1=NPCSprites[i1].y;
+    var width1 =NPCSprites[i1].width;
+    var height1 =NPCSprites[i1].height;
+    NPCSprites[i1].dom=NPCImage;
+    var npcX=NPCSprites[i1].npcXPos-(x*totalSceneWidth/visibleSceneWidth);
+    canvasCtx.drawImage(NPCSprites[i1].dom,x1,y1,width1,height1, npcX,560,width1,height1);
+}
+
 function drawBackGround(x){
     canvasCtx.clearRect(0,0,totalSceneWidth,769);
     canvasCtx.drawImage(backgroundImg,x,0,visibleSceneWidth,769,0,0,totalSceneWidth,769);
@@ -78,50 +127,64 @@ window.requestAnimFrame = (function(){
             window.setTimeout(callback, 1000 / 60);
         };
 })();
+function movePlayerFWD(){
+    if (x<1000)
+    {
+        if (playerX>sceneMoveTresholdRight){
+            x++;
+        }
+        else{
+            playerX++;
+        }
+    }
+    else{
+        if (playerX<totalSceneWidth-60){
+            playerX++;
+        }
+    }
+    i++;
+    if (i>32){
+        i=0;
+    }
+    direction=1;
+}
+function movePlayerBWD(){
+    if (x>0)
+    {
+        if (playerX<totalSceneWidth-sceneMoveTresholdRight){
+            x--;
+        }
+        else{
+            playerX--;
+        }
+
+    }else{
+        if (playerX>0){
+            playerX--;
+        }
+    }
+    i++;
+    if (i>32) {
+        i=0;
+    };
+    direction=2;
+}
+
+
 function gameLoop() {
-    drawBackGround(x);
-    drawPlayer(Math.floor(i/8),direction);
+   drawBackGround(x);
+   drawNPC(1,Math.floor(iNpc/64));
+   drawPlayer(Math.floor(i/8),direction);
+    iNpc++;
+    if (iNpc>384) {
+        iNpc=0;
+    };
+
    if (isKeyDown('right')) {
-       if (x<1000)
-       {
-           if (playerX>sceneMoveTresholdRight){
-               x++;
-           }
-           else{
-               playerX++;
-           }
-       }
-       else{
-           if (playerX<totalSceneWidth-60){
-               playerX++;
-           }
-       }
-       i++;
-       if (i>32){
-           i=0;
-       }
-       direction=1;
+       movePlayerFWD();
    };
    if (isKeyDown('left')) {
-       if (x>0)
-       {
-           if (playerX<totalSceneWidth-sceneMoveTresholdRight){
-               x--;
-           }
-           else{
-               playerX--;
-           }
-
-       }else{
-           if (playerX>0){
-               playerX--;
-           }
-       }
-       i++;
-       if (i>32) {
-           i=0;
-       };
-       direction=2;
+        movePlayerBWD();
    };
     window.requestAnimFrame(gameLoop);
 }
@@ -133,6 +196,8 @@ window.addEventListener('load', function() {
     };
     playerImageBwd=document.createElement('img');
     playerImageBwd.src="img/playerSprite2.png";
+    NPCImage=document.createElement('img');
+    NPCImage.src="img/SellerSprite.png";
 });
 window.addEventListener('keydown',function(ev){
     keyDown = ev.keyCode;

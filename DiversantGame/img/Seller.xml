@@ -1,0 +1,12 @@
+<!DOCTYPE SpriteDecomposer>
+<sprites image="SellerSprite.png" transparentColor="2E3138">
+ <animation title="Default animation" delay="150">
+  <cut w="176" x="43" y="164" h="137" row="1" col="1"/>
+  <cut w="179" x="439" y="164" h="137" row="1" col="1"/>
+  <cut w="177" x="242" y="164" h="137" row="1" col="1"/>
+  <cut w="174" x="640" y="164" h="137" row="1" col="1"/>
+  <cut w="175" x="839" y="164" h="137" row="1" col="1"/>
+  <cut w="177" x="1037" y="163" h="138" row="1" col="1"/>
+  <cut w="173" x="1236" y="163" h="138" row="1" col="1"/>
+ </animation>
+</sprites>
