@@ -1,0 +1,6 @@
+<!DOCTYPE SpriteDecomposer>
+<sprites image="policeManSprite.png" transparentColor="">
+ <animation title="Default animation" delay="150">
+  <cut w="764" x="658" y="534" h="228" row="1" col="5"/>
+ </animation>
+</sprites>
