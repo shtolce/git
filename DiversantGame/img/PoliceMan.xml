@@ -1,6 +1,10 @@
 <!DOCTYPE SpriteDecomposer>
-<sprites image="policeManSprite.png" transparentColor="">
+<sprites image="PoliceManSpriteFWD.png" transparentColor="">
  <animation title="Default animation" delay="150">
-  <cut w="764" x="658" y="534" h="228" row="1" col="5"/>
+  <cut w="93" x="7" y="332" h="142" row="1" col="1"/>
+  <cut w="93" x="106" y="333" h="144" row="1" col="1"/>
+  <cut w="92" x="203" y="333" h="146" row="1" col="1"/>
+  <cut w="89" x="299" y="333" h="146" row="1" col="1"/>
+  <cut w="88" x="393" y="333" h="145" row="1" col="1"/>
  </animation>
 </sprites>

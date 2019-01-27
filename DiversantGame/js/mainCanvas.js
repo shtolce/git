@@ -1,5 +1,5 @@
 var request = new XMLHttpRequest();
-var requestNPC = new XMLHttpRequest();
+//var requestNPC = new XMLHttpRequest();
 var xmlPlayerFwd;
 var xmlNPCPlayer=new Map();
 var PlayerFwdSprites=[];
@@ -54,6 +54,7 @@ function reqReadyStateChange() {
     }
 }
 function reqReadyStateChangeNPC() {
+    requestNPC=this;
     if (requestNPC.readyState == 4) {
         var status = requestNPC.status;
         if (status == 200) {
@@ -69,6 +70,7 @@ function InitNPC(instance){
     NPCImageFWD.get(instance).src='img/'+instance+'SpriteFWD.png';
     NPCImageBWD.set(instance,document.createElement('img'));
     NPCImageBWD.get(instance).src='img/'+instance+'SpriteBWD.png';
+    var requestNPC = new XMLHttpRequest();
     requestNPC.open("GET", "img/"+instance+".xml");
     requestNPC.instance=instance;
     requestNPC.onreadystatechange = reqReadyStateChangeNPC;
@@ -86,7 +88,7 @@ window.addEventListener('load', function() {
     request.open("GET", "img/playerFWD.xml");
     request.onreadystatechange = reqReadyStateChange;
     request.send();
-    //InitNPC('Seller');
+    InitNPC('Seller');
     InitNPC('PoliceMan');
 
 });
@@ -118,6 +120,8 @@ var x=0;
 var playerX=300;
 var i=0;
 var iNpc=0;
+var iNpc1=0;
+
 var direction=1;
 var keys ={
     'up':38,
@@ -212,12 +216,16 @@ function movePlayerBWD(){
 
 function gameLoop() {
    drawBackGround(x);
-   //drawNPC(1,Math.floor(iNpc/64),'Seller',direction);
-   drawNPC(1,Math.floor(iNpc/64),'PoliceMan',direction);
+   drawNPC(1,Math.floor(iNpc/64),'Seller',direction);
+   drawNPC(1,Math.floor(iNpc1/8),'PoliceMan',direction);
    drawPlayer(Math.floor(i/8),direction);
     iNpc++;
     if (iNpc>384) {
         iNpc=0;
+    };
+    iNpc1++;
+    if (iNpc1>32) {
+        iNpc1=0;
     };
 
    if (isKeyDown('right')) {
