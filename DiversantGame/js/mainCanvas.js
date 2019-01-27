@@ -1,7 +1,7 @@
 var request = new XMLHttpRequest();
 var requestNPC = new XMLHttpRequest();
 var xmlPlayerFwd;
-var xmlNPCPlayer;
+var xmlNPCPlayer=new Map();
 var PlayerFwdSprites=[];
 var playerImage;
 var NPCImage;
@@ -9,7 +9,7 @@ var NPCImageBWD=new Map();
 var NPCImageFWD=new Map();
 var playerImageBwd;
 var PlayerSprites=[];
-var NPCSprites=[];
+var NPCSprites=new Map();
 const sceneMoveTresholdRight=300;
 const sceneMoveTresholdLeft=550;
 const totalSceneWidth=2346;
@@ -31,6 +31,18 @@ function writePlayerObj(){
     });
 }
 
+/* этот аналог правильнее. нет ненужных элементов
+Array.from(document.querySelector('animation').children)
+    .map((el) => Array.from(el.attributes)
+        .reduce((acc, attribute) => {
+            acc[attribute.name] = attribute.value
+            return acc
+        },
+
+            {}))
+*/
+
+
 function reqReadyStateChange() {
     if (request.readyState == 4) {
         var status = request.status;
@@ -41,24 +53,29 @@ function reqReadyStateChange() {
         }
     }
 }
-
 function reqReadyStateChangeNPC() {
     if (requestNPC.readyState == 4) {
         var status = requestNPC.status;
         if (status == 200) {
-            xmlNPCPlayer=requestNPC.responseXML;
-            writeNPCObj('Seller');
+            xmlNPCPlayer.set(requestNPC.instance,requestNPC.responseXML);
+            writeNPCObj(requestNPC.instance);
         } else {
         }
     }
 }
+function InitNPC(instance){
 
+    NPCImageFWD.set(instance,document.createElement('img'));
+    NPCImageFWD.get(instance).src='img/'+instance+'SpriteFWD.png';
+    NPCImageBWD.set(instance,document.createElement('img'));
+    NPCImageBWD.get(instance).src='img/'+instance+'SpriteBWD.png';
+    requestNPC.open("GET", "img/"+instance+".xml");
+    requestNPC.instance=instance;
+    requestNPC.onreadystatechange = reqReadyStateChangeNPC;
+    requestNPC.send();
+}
 
 window.addEventListener('load', function() {
-    NPCImageFWD.set('Seller',document.createElement('img'));
-    NPCImageFWD.get('Seller').src="img/SellerSpriteFWD.png";
-    NPCImageBWD.set('Seller',document.createElement('img'));
-    NPCImageBWD.get('Seller').src="img/SellerSpriteBWD.png";
     playerImageFwd=document.createElement('img');
     playerImageFwd.src="img/playerSprite1.png";
     playerImageFwd.onload=function(){
@@ -66,19 +83,18 @@ window.addEventListener('load', function() {
     };
     playerImageBwd=document.createElement('img');
     playerImageBwd.src="img/playerSprite2.png";
-
     request.open("GET", "img/playerFWD.xml");
     request.onreadystatechange = reqReadyStateChange;
     request.send();
-
-    requestNPC.open("GET", "img/Seller.xml");
-    requestNPC.onreadystatechange = reqReadyStateChangeNPC;
-    requestNPC.send();
+    //InitNPC('Seller');
+    InitNPC('PoliceMan');
 
 });
 function writeNPCObj(npcInstance){
-    var xmlAnim = xmlNPCPlayer.getElementsByTagName("animation")[0];
+    var xmlNPCPlayer1=xmlNPCPlayer.get(npcInstance);
+var xmlAnim = xmlNPCPlayer1.getElementsByTagName("animation")[0];
     var xmlCur=xmlAnim.childNodes;
+    NPCSprites.set(npcInstance,[]);
     xmlCur.forEach((el,i,xmlCur)=> {
         if (el.nodeName=="cut"){
             var NPCSpriteObj={
@@ -91,7 +107,7 @@ function writeNPCObj(npcInstance){
                 height:el.attributes['h'].value,
                 npcXPos:700
             };
-            NPCSprites.push(NPCSpriteObj);
+            NPCSprites.get(npcInstance).push(NPCSpriteObj);
         }
     });
 }
@@ -122,17 +138,21 @@ function drawPlayer(i1,direction){
     PlayerSprites[i1].dom=direction==1?playerImageFwd:playerImageBwd;
     canvasCtx.drawImage(PlayerSprites[i1].dom,x1,y1,width1,height1, playerX,580,width1,height1);
 }
-function drawNPC(npcNumber,i1){
-    var x1=NPCSprites[i1].x;
-    var y1=NPCSprites[i1].y;
-    var width1 =NPCSprites[i1].width;
-    var height1 =NPCSprites[i1].height;
-    var npcX=NPCSprites[i1].npcXPos-(x*totalSceneWidth/visibleSceneWidth);
+function drawNPC(npcNumber,i1,instance,direction){
+    var NPCSprites1=NPCSprites.get(instance);
 
-    if (NPCSprites[i1].domFWD)
-        canvasCtx.drawImage(NPCSprites[i1].domFWD,x1,y1,width1,height1, npcX,560,width1,height1);
+    var x1=NPCSprites1[i1].x;
+    var y1=NPCSprites1[i1].y;
+    var width1 =NPCSprites1[i1].width;
+    var height1 =NPCSprites1[i1].height;
+    var npcX=NPCSprites1[i1].npcXPos-(x*totalSceneWidth/visibleSceneWidth);
+
+    if (direction==1)
+        canvasCtx.drawImage(NPCSprites1[i1].domFWD,x1,y1,width1,height1, npcX,560,width1,height1);
+    else
+        canvasCtx.drawImage(NPCSprites1[i1].domBWD,x1,y1,width1,height1, npcX,560,width1,height1);
+
 }
-
 function drawBackGround(x){
     canvasCtx.clearRect(0,0,totalSceneWidth,769);
     canvasCtx.drawImage(backgroundImg,x,0,visibleSceneWidth,769,0,0,totalSceneWidth,769);
@@ -192,7 +212,8 @@ function movePlayerBWD(){
 
 function gameLoop() {
    drawBackGround(x);
-   drawNPC(1,Math.floor(iNpc/64));
+   //drawNPC(1,Math.floor(iNpc/64),'Seller',direction);
+   drawNPC(1,Math.floor(iNpc/64),'PoliceMan',direction);
    drawPlayer(Math.floor(i/8),direction);
     iNpc++;
     if (iNpc>384) {
