@@ -230,7 +230,7 @@ function gameLoop() {
     iNpc1++;
     if (iNpc1>32) {
         iNpc1=0;
-    };
+    };//
 
    if (isKeyDown('right')) {
        movePlayerFWD();
