@@ -65,7 +65,6 @@ function reqReadyStateChangeNPC() {
     }
 }
 function InitNPC(instance){
-
     NPCImageFWD.set(instance,document.createElement('img'));
     NPCImageFWD.get(instance).src='img/'+instance+'SpriteFWD.png';
     NPCImageBWD.set(instance,document.createElement('img'));
@@ -94,7 +93,7 @@ window.addEventListener('load', function() {
 });
 function writeNPCObj(npcInstance){
     var xmlNPCPlayer1=xmlNPCPlayer.get(npcInstance);
-var xmlAnim = xmlNPCPlayer1.getElementsByTagName("animation")[0];
+    var xmlAnim = xmlNPCPlayer1.getElementsByTagName("animation")[0];
     var xmlCur=xmlAnim.childNodes;
     NPCSprites.set(npcInstance,[]);
     xmlCur.forEach((el,i,xmlCur)=> {
@@ -151,7 +150,9 @@ function drawNPC(npcNumber,i1,instance,direction){
     var height1 =NPCSprites1[i1].height;
     var npcX=NPCSprites1[i1].npcXPos-(x*totalSceneWidth/visibleSceneWidth);
 
-    if (direction==1)
+
+
+            if (direction==1)
         canvasCtx.drawImage(NPCSprites1[i1].domFWD,x1,y1,width1,height1, npcX,560,width1,height1);
     else
         canvasCtx.drawImage(NPCSprites1[i1].domBWD,x1,y1,width1,height1, npcX,560,width1,height1);
@@ -215,6 +216,9 @@ function movePlayerBWD(){
 }
 
 function gameLoop() {
+    var NPCPolice=NPCSprites.get('PoliceMan');
+        NPCPolice.forEach((el,i,NPCPolice)=>{el.npcXPos=1300});
+
    drawBackGround(x);
    drawNPC(1,Math.floor(iNpc/64),'Seller',direction);
    drawNPC(1,Math.floor(iNpc1/8),'PoliceMan',direction);
