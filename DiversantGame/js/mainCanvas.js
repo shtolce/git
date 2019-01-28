@@ -10,6 +10,7 @@ var NPCImageFWD=new Map();
 var playerImageBwd;
 var PlayerSprites=[];
 var NPCSprites=new Map();
+var npcDialogueSprite;
 const sceneMoveTresholdRight=300;
 const sceneMoveTresholdLeft=550;
 const totalSceneWidth=2346;
@@ -24,7 +25,8 @@ function writePlayerObj(){
                 width:el.attributes['w'].value,
                 x:el.attributes['x'].value,
                 y:el.attributes['y'].value,
-                height:el.attributes['h'].value
+                height:el.attributes['h'].value,
+                dialogue:''
                 };
         PlayerSprites.push(PlayerSpriteObj);
         }
@@ -84,6 +86,8 @@ window.addEventListener('load', function() {
     };
     playerImageBwd=document.createElement('img');
     playerImageBwd.src="img/playerSprite2.png";
+    npcDialogueSprite=document.createElement('img');
+    npcDialogueSprite.src="img/DialogueSprite.png";
     request.open("GET", "img/playerFWD.xml");
     request.onreadystatechange = reqReadyStateChange;
     request.send();
@@ -106,7 +110,10 @@ function writeNPCObj(npcInstance){
                 x:el.attributes['x'].value,
                 y:el.attributes['y'].value,
                 height:el.attributes['h'].value,
-                npcXPos:700
+                npcXPos:700,
+                dialogue:''
+
+
             };
             NPCSprites.get(npcInstance).push(NPCSpriteObj);
         }
@@ -149,13 +156,20 @@ function drawNPC(npcNumber,i1,instance,direction){
     var width1 =NPCSprites1[i1].width;
     var height1 =NPCSprites1[i1].height;
     var npcX=NPCSprites1[i1].npcXPos-(x*totalSceneWidth/visibleSceneWidth);
-
-
-
-            if (direction==1)
+    if (direction==1)
         canvasCtx.drawImage(NPCSprites1[i1].domFWD,x1,y1,width1,height1, npcX,560,width1,height1);
     else
         canvasCtx.drawImage(NPCSprites1[i1].domBWD,x1,y1,width1,height1, npcX,560,width1,height1);
+
+    if (NPCSprites1[i1].dialogue!=''){
+        canvasCtx.drawImage(npcDialogueSprite,0,0,npcDialogueSprite.width,npcDialogueSprite.height, npcX,460,
+            npcDialogueSprite.width,npcDialogueSprite.height);
+        canvasCtx.fillStyle = "#00F";
+        canvasCtx.strokeStyle = "#F00";
+        canvasCtx.font = "bold italic 15pt Arial";
+        canvasCtx.fillText(NPCSprites1[i1].dialogue, npcX+50, 500);
+
+    }
 
 }
 function drawBackGround(x){
@@ -217,7 +231,7 @@ function movePlayerBWD(){
 
 function gameLoop() {
     var NPCPolice=NPCSprites.get('PoliceMan');
-        NPCPolice.forEach((el,i,NPCPolice)=>{el.npcXPos=1300});
+        NPCPolice.forEach((el,i,NPCPolice)=>{el.npcXPos=1300;el.dialogue='Fuck'});
 
    drawBackGround(x);
    drawNPC(1,Math.floor(iNpc/64),'Seller',direction);
