@@ -69,13 +69,9 @@ function reqReadyStateChangeNPC() {
 request.open("GET", "img/playerFWD.xml");
 request.onreadystatechange = reqReadyStateChange;
 request.send();
-
 requestNPC.open("GET", "img/Seller.xml");
 requestNPC.onreadystatechange = reqReadyStateChangeNPC;
 requestNPC.send();
-
-
-
 var canvas=document.getElementById("mainCanvas");
 var canvasCtx = canvas.getContext("2d");
 var backgroundImg = new Image(totalSceneWidth,769);
@@ -112,7 +108,6 @@ function drawNPC(npcNumber,i1){
     var npcX=NPCSprites[i1].npcXPos-(x*totalSceneWidth/visibleSceneWidth);
     canvasCtx.drawImage(NPCSprites[i1].dom,x1,y1,width1,height1, npcX,560,width1,height1);
 }
-
 function drawBackGround(x){
     canvasCtx.clearRect(0,0,totalSceneWidth,769);
     canvasCtx.drawImage(backgroundImg,x,0,visibleSceneWidth,769,0,0,totalSceneWidth,769);
