@@ -1,4 +1,5 @@
 var request = new XMLHttpRequest();
+var request1 = new XMLHttpRequest();
 //var requestNPC = new XMLHttpRequest();
 var xmlPlayerFwd;
 var xmlNPCPlayer=new Map();
@@ -11,10 +12,37 @@ var playerImageBwd;
 var PlayerSprites=[];
 var NPCSprites=new Map();
 var npcDialogueSprite;
+var tempTextDialog;
 const sceneMoveTresholdRight=300;
 const sceneMoveTresholdLeft=550;
 const totalSceneWidth=2346;
 const visibleSceneWidth=1346;
+
+
+function reqReadyDialogUpdate() {
+    if (request.readyState==4){
+        var status = request.status;
+        if (status == 200) {
+            //document.write(request.responseText);
+            tempTextDialog=request.response;
+            var DialogObject = JSON.parse(tempTextDialog);
+            tempTextDialog=DialogObject.text;
+
+
+        } else {
+            document.write("1Ответ сервера " + request.statusText);
+        }
+    }
+}
+
+function DialogUpdate(){
+    request.open("GET","http://localhost:5000/api/values/3");
+    request.onreadystatechange = reqReadyDialogUpdate;
+    request.datatype="json";
+    request.send();
+
+}
+
 function writePlayerObj(){
     var xmlAnim = xmlPlayerFwd.getElementsByTagName("animation")[0];
     var xmlCur=xmlAnim.childNodes;
@@ -93,6 +121,8 @@ window.addEventListener('load', function() {
     request.send();
     InitNPC('Seller');
     InitNPC('PoliceMan');
+    setTimeout(DialogUpdate,3000);
+
 
 });
 function writeNPCObj(npcInstance){
@@ -231,7 +261,7 @@ function movePlayerBWD(){
 
 function gameLoop() {
     var NPCPolice=NPCSprites.get('PoliceMan');
-        NPCPolice.forEach((el,i,NPCPolice)=>{el.npcXPos=1300;el.dialogue='Fuck'});
+        NPCPolice.forEach((el,i,NPCPolice)=>{el.npcXPos=1300;el.dialogue=tempTextDialog});
 
    drawBackGround(x);
    drawNPC(1,Math.floor(iNpc/64),'Seller',direction);
