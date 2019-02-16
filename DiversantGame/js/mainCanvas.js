@@ -121,7 +121,7 @@ window.addEventListener('load', function() {
     request.send();
     InitNPC('Seller');
     InitNPC('PoliceMan');
-    setTimeout(DialogUpdate,3000);
+    setInterval(DialogUpdate,3000);
 
 
 });
@@ -142,8 +142,6 @@ function writeNPCObj(npcInstance){
                 height:el.attributes['h'].value,
                 npcXPos:700,
                 dialogue:''
-
-
             };
             NPCSprites.get(npcInstance).push(NPCSpriteObj);
         }
