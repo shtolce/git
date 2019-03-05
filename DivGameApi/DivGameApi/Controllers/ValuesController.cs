@@ -16,6 +16,7 @@ namespace DivGameApi.Controllers
     public class ValuesController : ControllerBase
     {
         Dialog1 dialog;
+
         public ValuesController(DialogService d)
         {
             dialog = d.dialogText;
